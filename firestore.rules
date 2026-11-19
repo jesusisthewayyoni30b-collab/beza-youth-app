@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isLeader() { return signedIn() && exists(/databases/$(database)/documents/leaders/$(request.auth.uid)); }
+
+    // each member's profile + progress: everyone on the team can read, only you can write yours
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && me() == uid;
+    }
+
+    // leaders: you become a leader only by entering the secret leader code
+    match /leaders/{uid} {
+      allow read: if signedIn() && (me() == uid || isLeader());
+      allow create: if signedIn() && me() == uid
+        && request.resource.data.code == get(/databases/$(database)/documents/secret/leaderCode).data.code;
+      allow delete: if isLeader();
+    }
+    match /secret/{d} { allow read, write: if false; }
+
+    // chat groups (leaders manage) and their messages
+    match /groups/{gid} {
+      allow read: if signedIn();
+      allow create: if isLeader() || (signedIn() && gid in ['all', 'singers', 'musicians', 'sound', 'leaders']);
+      allow update, delete: if isLeader();
+      match /messages/{mid} {
+        function grp() { return get(/databases/$(database)/documents/groups/$(gid)).data; }
+        function canSee() { return grp().get('leadersOnly', false) != true || isLeader(); }
+        allow read: if signedIn() && canSee();
+        allow create: if signedIn() && canSee() && request.resource.data.uid == me()
+          && (grp().get('announce', false) != true || isLeader());
+        allow update: if signedIn() && canSee() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['react']);
+        allow delete: if isLeader() || (signedIn() && resource.data.uid == me());
+      }
+    }
+
+    // songs & chord charts: the whole team can add and fix; leaders or the author can delete
+    match /songs/{sid} {
+      allow read, create, update: if signedIn();
+      allow delete: if isLeader() || (signedIn() && resource.data.uid == me());
+    }
+
+    // team feed: leaders post
+    match /feed/{fid} {
+      allow read: if signedIn();
+      allow write: if isLeader();
+    }
+
+    // assignments: leaders send, members see and complete their own
+    match /assignments/{aid} {
+      allow read: if isLeader() || (signedIn() && resource.data.toUid == me());
+      allow create: if isLeader() || (signedIn() && request.resource.data.toUid == me());
+      allow update: if isLeader() || (signedIn() && resource.data.toUid == me());
+      allow delete: if isLeader();
+    }
+  }
+}

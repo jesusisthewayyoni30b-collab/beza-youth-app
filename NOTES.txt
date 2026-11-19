@@ -1,6 +1,5 @@
-New Songs tab: chord charts in numbers, any key, every instrument, Live mode
-Games now have their own tab · Home sits in the middle
-Choose your key for all Keys Drills and guitar/bass finger exercises
-New practice calendar with weekly totals and rehearsal/serve days
-Futuristic neon stats and badges
-Updates are now required, so the whole team stays on the same version
+Real team accounts: create your account with email or Google, and your progress is saved online
+Live team chat on every phone: All team, Singers, Musicians, Sound and Leaders
+Songs and chord charts are shared with the whole team instantly
+Leaders see real members' progress and can send assignments and announcements
+Photos in chat are shrunk and shared with everyone

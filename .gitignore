@@ -3,3 +3,4 @@ dist/
 build/
 *.apk
 .DS_Store
+test/*.png

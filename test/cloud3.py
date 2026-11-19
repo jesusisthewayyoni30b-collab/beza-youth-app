@@ -1,0 +1,38 @@
+import asyncio, json
+from playwright.async_api import async_playwright
+exec(open("test/cloud1.py").read().split("async def main")[0])
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(executable_path="/usr/bin/google-chrome")
+        ctx = await b.new_context(viewport={"width":412,"height":880}); await ctx.add_init_script(FAKE)
+        errs=[]
+        A = await newpage(ctx, errs, "A"); await signup(A, "Hanna Tesfaye", "hanna@x.com", ["Singer"])
+        B = await newpage(ctx, errs, "B"); await signup(B, "Dawit Alemu", "dawit@x.com", ["Keys"])
+        await A.evaluate("window.__fake.write('secret/leaderCode', {code:'GRACE7'})")
+        uidA = await A.evaluate("JSON.parse(sessionStorage.getItem('fakeauth')).uid")
+        await A.evaluate("BEZA_FAKE_CLOUD.set('leaders/%s',{code:'GRACE7'})" % uidA)
+        await A.reload(); await A.wait_for_timeout(800); await A.mouse.click(200,400); await A.wait_for_timeout(2500)
+        L = lambda pg: pg.locator("div[style*='display: block']")
+        await A.get_by_role("button", name="Chat", exact=True).last.click(); await A.wait_for_timeout(600)
+        await L(A).get_by_role("button", name="Manage").click(); await A.wait_for_timeout(600)
+        await A.screenshot(path="test/c_groups.png")
+        await L(A).locator("div.bz-press").filter(has_text="Musicians").first.click(); await A.wait_for_timeout(600)
+        await A.screenshot(path="test/c_group_mus.png")
+        rows = L(A).locator("div").filter(has_text="Dawit Alemu")
+        print("rows", await rows.count())
+        await L(A).get_by_role("button", name="Remove").first.click(); await A.wait_for_timeout(1500)
+        await A.screenshot(path="test/c_group_mus2.png")
+        S = await A.evaluate("window.__fake.S()"); print("musicians doc:", S['docs']['groups/musicians'])
+        await B.reload(); await B.wait_for_timeout(800); await B.mouse.click(200,400); await B.wait_for_timeout(2000)
+        await B.get_by_role("button", name="Chat", exact=True).last.click(); await B.wait_for_timeout(800)
+        print("B chips after removal:", await L(B).locator("button").all_inner_texts())
+        # leaders board
+        await A.get_by_role("button", name="Home", exact=True).last.click(); await A.wait_for_timeout(400)
+        await L(A).get_by_text("HT", exact=True).first.click(); await A.wait_for_timeout(600)
+        await L(A).get_by_text("Leaders Board", exact=True).first.click(); await A.wait_for_timeout(1000)
+        await A.screenshot(path="test/c_leaders.png")
+        await L(A).get_by_text("Dawit Alemu").first.click(); await A.wait_for_timeout(700)
+        await A.screenshot(path="test/c_leaders2.png")
+        print("\n".join(e for e in errs if "AudioContext" not in e)[:2000])
+        await b.close()
+asyncio.run(main())

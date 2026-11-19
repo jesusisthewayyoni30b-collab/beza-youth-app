@@ -257,7 +257,7 @@ try { window.__BEZA_GAMES = () => GAMES; window.__BEZA_EAR = () => EAR_MODULES; 
 const gamesFor = (roles) => GAMES.filter((g) => g.roles.some((r) => roles.includes(r)));
 const QPL = 10, PASS = 7;
 const gameXP = (games) => Object.values(games.best || {}).reduce((s, lv) => s + Object.values(lv).reduce((a, x) => a + (x.score || 0), 0), 0);
-const teamScore = (m, gid) => { const seed = (m.id * 9301 + (gid ? gid.length * 49297 : 0)) % 233280; return Math.round((seed / 233280) * 4000 + m.prog * 5000); };
+const teamScore = (m, gid) => { if (m.games) return gid ? Math.max(0, ...Object.values((m.games.best || {})[gid] || {}).map((x) => x.score || 0)) * 4 : gameXP(m.games); const seed = (m.id * 9301 + (gid ? gid.length * 49297 : 0)) % 233280; return Math.round((seed / 233280) * 4000 + m.prog * 5000); };
 
 function GamesHub({ root }) {
   const { T, user, games, push } = useApp();

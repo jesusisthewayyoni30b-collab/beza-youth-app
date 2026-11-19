@@ -692,13 +692,16 @@ function ChatScreen() {
   const fileRef = useRef(null); const listRef = useRef(null);
   useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [chat, ch]);
   const send = (extra = {}) => { if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...extra }] })); setTxt(""); setEmo(false); };
-  const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const isImg = f.type.startsWith("image/"); const url = isImg ? URL.createObjectURL(f) : null; send({ file: { name: f.name, size: f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB", url, audio: f.type.startsWith("audio/") ? URL.createObjectURL(f) : null } }); e.target.value = ""; };
+  const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const isImg = f.type.startsWith("image/");
+    if (CLOUD.on) { e.target.value = ""; const kb = f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB";
+      if (!isImg) { send({ file: { name: f.name, size: kb + " · not uploaded (photos only)" } }); return; }
+      const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const mx = 900; const sc = Math.min(1, mx / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); const data = c.toDataURL("image/jpeg", 0.72); send({ file: { name: f.name, size: Math.round(data.length * 0.75 / 1e3) + " KB", url: data, data } }); }; img.src = r.result; }; r.readAsDataURL(f); return; } const url = isImg ? URL.createObjectURL(f) : null; send({ file: { name: f.name, size: f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB", url, audio: f.type.startsWith("audio/") ? URL.createObjectURL(f) : null } }); e.target.value = ""; };
   const react = (mid, e) => { setChat((c) => ({ ...c, [ch]: c[ch].map((m) => (m.id === mid ? { ...m, react: { ...(m.react || {}), [e]: ((m.react || {})[e] || 0) + 1 } } : m)) })); setReactFor(null); };
   const addEmoji = (e) => { setTxt((t) => t + e); setRecent((r) => [e, ...r.filter((x) => x !== e)].slice(0, 16)); };
   const emoGroups = [["Recent", recent.join(" ")], ...EMOJI_GROUPS];
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <TabHeader title="Chat" sub="● 9 online" right={leader ? <Btn small variant="soft" icon={Users} onClick={() => push({ screen: "groups" })}>Manage</Btn> : null} />
+      <TabHeader title="Chat" sub={CLOUD.on ? `● ${1 + TEAM.filter((m) => Date.now() - (m.lastMs || 0) < 10 * 60000).length} online · ${TEAM.length + 1} on the team` : "● 9 online"} right={leader ? <Btn small variant="soft" icon={Users} onClick={() => push({ screen: "groups" })}>Manage</Btn> : null} />
       <Scroller style={{ marginBottom: 8, flexShrink: 0 }}>{chans.map((c) => <Chip key={c.id} active={ch === c.id} onClick={() => setCh(c.id)}>{c.emoji ? c.emoji + " " : ""}{c.label}{c.leadersOnly ? " 🔒" : ""}</Chip>)}</Scroller>
       <div onClick={() => setInfo(true)} className="bz-press" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 12, background: T.card2, fontSize: 11.5, color: T.sub, marginBottom: 6, cursor: "pointer", flexShrink: 0 }}>
         <Users size={14} noBlob /><span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cur.everyone ? `Everyone on the team · ${TEAM.length + 1} members` : `${cur.members.length} members${cur.announce ? " · only leaders can post" : ""}`}{!cur.everyone && !cur.members.includes("@me") ? " · you're viewing as leader" : ""}</span><ChevronRight size={14} noBlob />
@@ -854,7 +857,7 @@ function SettingsScreen() {
       {options.map(([v, l]) => <button key={v} onClick={() => onChange(v)} style={{ border: "none", borderRadius: 99, padding: "5px 10px", fontFamily: FONT, fontSize: 11.5, fontWeight: 700, cursor: "pointer", background: value === v ? T.accent : "transparent", color: value === v ? T.accentText : T.sub }}>{l}</button>)}
     </div>
   );
-  const tryCode = (c) => { if (c.toUpperCase() === LEADER_CODE) { setLeader(true); setGate(false); setCode(""); toast("Leaders Board unlocked 🛡️"); push({ screen: "leaders" }); } else { setErr(true); setTimeout(() => { setErr(false); setCode(""); }, 700); } };
+  const tryCode = (c) => { if (CLOUD.on) { CLOUD.set(`leaders/${user.uid}`, { code: c.toUpperCase().trim(), name: user.name }, false).then(() => { setLeader(true); setGate(false); setCode(""); toast("Leaders Board unlocked 🛡️"); push({ screen: "leaders" }); }).catch(() => { setErr(true); setTimeout(() => { setErr(false); setCode(""); }, 700); }); return; } if (c.toUpperCase() === LEADER_CODE) { setLeader(true); setGate(false); setCode(""); toast("Leaders Board unlocked 🛡️"); push({ screen: "leaders" }); } else { setErr(true); setTimeout(() => { setErr(false); setCode(""); }, 700); } };
   const startHold = () => { clearTimeout(hold.current); hold.current = setTimeout(() => { if (navigator.vibrate) navigator.vibrate(30); setGate(true); }, 2500); };
   const endHold = () => clearTimeout(hold.current);
   return (
@@ -970,8 +973,8 @@ function LeadersBoard() {
   const [post, setPost] = useState("");
   if (!leader) return <div><TopBar title="Not available" /></div>;
   const list = TEAM.filter((m) => filter === "all" || m.roles.includes(filter)).sort((a, b) => (sort === "prog" ? b.prog - a.prog : sort === "streak" ? b.streak - a.streak : a.prog - b.prog));
-  const avg = TEAM.reduce((s, m) => s + m.prog, 0) / TEAM.length;
-  const weekly = [180, 240, 210, 320, 150, 410, 290]; const mx = Math.max(...weekly);
+  const avg = TEAM.length ? TEAM.reduce((s, m) => s + m.prog, 0) / TEAM.length : 0;
+  const weekly = CLOUD.on ? Array.from({ length: 7 }, (_, i) => TEAM.reduce((s, m) => s + ((m.week || [])[i] || 0), 0)) : [180, 240, 210, 320, 150, 410, 290]; const mx = Math.max(1, ...weekly);
   const sent = assignments.filter((a) => !a.toMe);
   return (
     <div>
@@ -979,18 +982,18 @@ function LeadersBoard() {
       <Card tone="hero" style={{ padding: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Ring pct={avg} size={92} stroke={10} color="#C6FF3D" track="rgba(255,255,255,0.22)"><span style={{ fontSize: 18 }}>{Math.round(avg * 100)}%</span></Ring>
-          <div><div style={{ fontSize: 17, fontWeight: 800 }}>Team progress</div><div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 4 }}>{TEAM.length} members · 9 active today<br />{TEAM.filter((m) => m.prog < 0.4).length} need encouragement</div></div>
+          <div><div style={{ fontSize: 17, fontWeight: 800 }}>Team progress</div><div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 4 }}>{TEAM.length} members · {CLOUD.on ? TEAM.filter((m) => m.activeToday).length : 9} active today<br />{TEAM.filter((m) => m.prog < 0.4).length} need encouragement</div></div>
         </div>
       </Card>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
-        {[[Clock, `${TEAM.reduce((s, m) => s + m.mins, 0)}`, "Practice minutes"], [Flame, (TEAM.reduce((s, m) => s + m.streak, 0) / TEAM.length).toFixed(1), "Avg streak"], [Book, "128", "Classes completed"], [Send, `${sent.length}`, "Assignments sent"]].map(([I, v, l], i) => (
+        {[[Clock, `${TEAM.reduce((s, m) => s + m.mins, 0)}`, "Practice minutes"], [Flame, (TEAM.length ? TEAM.reduce((s, m) => s + m.streak, 0) / TEAM.length : 0).toFixed(1), "Avg streak"], [Book, CLOUD.on ? `${TEAM.reduce((s, m) => s + (m.classes || 0), 0)}` : "128", "Classes completed"], [Send, `${sent.length}`, "Assignments sent"]].map(([I, v, l], i) => (
           <Card key={l} pad={14} tone={i === 3 ? "soft" : "card"}><I size={20} /><div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>{v}</div><div style={{ fontSize: 11.5, color: i === 3 ? undefined : T.sub }}>{l}</div></Card>
         ))}
       </div>
       <SectionTitle>Practice this week</SectionTitle>
       <Card>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 120 }}>
-          {weekly.map((v, i) => <div key={i} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 10, color: T.sub, marginBottom: 4 }}>{v}</div><div style={{ height: (v / mx) * 86, borderRadius: 10, background: T.spray ? T.spray[i % 6] : T.accent }} /><div style={{ fontSize: 10.5, color: T.sub, marginTop: 6, fontWeight: 600 }}>{WEEK[i].d}</div></div>)}
+          {weekly.map((v, i) => <div key={i} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 10, color: T.sub, marginBottom: 4 }}>{v}</div><div style={{ height: (v / mx) * 86, borderRadius: 10, background: T.spray ? T.spray[i % 6] : T.accent }} /><div style={{ fontSize: 10.5, color: T.sub, marginTop: 6, fontWeight: 600 }}>{CLOUD.on ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][(new Date().getDay() + i + 1) % 7] : WEEK[i].d}</div></div>)}
         </div>
       </Card>
       <SectionTitle>Post to team feed</SectionTitle>

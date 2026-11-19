@@ -186,11 +186,13 @@ export default function BezaYouthWorshipTeam() {
   const [toastMsg, setToastMsg] = useState("");
   const [quick, setQuick] = useState(false);
   const [intro, setIntro] = useState(true);
-  const [chat, setChat] = useState(() => ({ ...SEED_CHAT, ...(saved.chat || {}) }));
-  const [groups, setGroups] = useState(saved.groups || null);
+  const [chat, setChat] = useState(() => (CLOUD.on ? {} : { ...SEED_CHAT, ...(saved.chat || {}) }));
+  const [groups, setGroups] = useState(CLOUD.on ? null : saved.groups || null);
+  const [authState, setAuthState] = useState(CLOUD.on ? "loading" : "off");
+  const [, setTeamV] = useState(0);
   const [games, setGames] = useState(saved.games || { best: {} });
-  const [songs, setSongs] = useState(saved.songs || SEED_SONGS);
-  const [feed, setFeed] = useState([
+  const [songs, setSongs] = useState(CLOUD.on ? [] : saved.songs || SEED_SONGS);
+  const [feed, setFeed] = useState(CLOUD.on ? [] : [
     { id: 1, who: "Liya Desta", leader: true, pinned: true, t: "Today · 10:20 AM", text: "Friday rehearsal starts at 4:00 PM this week (we usually finish around 7–8 PM). Saturday we run through before the 3:00 PM youth program. Singers: finish the Harmony I class before Friday 🙏" },
     { id: 2, who: "Eyob Fikru", t: "Yesterday", text: "Sound team — the 7-band EQ Lab now works with your own recordings. Upload a rehearsal and try the ear quiz 🎧" },
   ]);
@@ -199,8 +201,8 @@ export default function BezaYouthWorshipTeam() {
   const toastTimer = useRef(null);
 
   useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ themeV: 2, themeId, user, done: [...done], logs: logs.slice(0, 400), voice, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat: Object.fromEntries(Object.entries(chat).map(([k, v]) => [k, v.slice(-60).map((m) => (m.file && (m.file.url || m.file.audio) ? { ...m, file: { ...m.file, url: null, audio: null } } : m))])) })); } catch (e) { } }, [themeId, user, done, logs, voice, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat]);
-  useEffect(() => { if (!groups && user && user.roles && user.roles.length) setGroups(defaultGroups(user, leader)); }, [user, groups]); // eslint-disable-line
-  useEffect(() => { if (leader && groups) { const l = groups.find((g) => g.id === "leaders"); if (l && !l.members.includes("@me")) setGroups((gs) => gs.map((g) => (g.id === "leaders" ? { ...g, members: [...g.members, "@me"] } : g))); } }, [leader]); // eslint-disable-line
+  useEffect(() => { if (!CLOUD.on && !groups && user && user.roles && user.roles.length) setGroups(defaultGroups(user, leader)); }, [user, groups]); // eslint-disable-line
+  useEffect(() => { if (!CLOUD.on && leader && groups) { const l = groups.find((g) => g.id === "leaders"); if (l && !l.members.includes("@me")) setGroups((gs) => gs.map((g) => (g.id === "leaders" ? { ...g, members: [...g.members, "@me"] } : g))); } }, [leader]); // eslint-disable-line
   useEffect(() => { AE.settings.a4 = settings.a4; AE.settings.click = settings.click; }, [settings]);
   useEffect(() => {
     try { AE.preloadAll(); } catch (e) { }
@@ -209,6 +211,28 @@ export default function BezaYouthWorshipTeam() {
     return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("touchend", unlock); };
   }, []);
 
+  useEffect(() => {
+    if (!CLOUD.on) return;
+    return CLOUD.onAuth(async (u) => {
+      if (!u) { setUserRaw(null); setLeader(false); setAuthState("out"); return; }
+      const local = saved.user && saved.user.uid === u.uid ? saved : null;
+      const legacy = saved.user && !saved.user.uid ? saved : null; // progress made before accounts existed
+      let prof; let ok = false;
+      for (let i = 0; i < 40 && !ok; i++) { try { prof = await CLOUD.get(`users/${u.uid}`); ok = true; } catch (e) { if (local) break; await new Promise((r) => setTimeout(r, 1500)); } }
+      if (prof) {
+        setUserRaw({ uid: u.uid, name: prof.name || u.name || "Member", email: u.email, roles: prof.roles || [], levels: prof.levels || {} });
+        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
+      } else if (!ok && local) {
+        setUserRaw({ ...local.user });
+      } else if (legacy) {
+        setUserRaw({ uid: u.uid, name: window.__bezaPendingName || u.name || legacy.user.name, email: u.email, roles: legacy.user.roles || [], levels: legacy.user.levels || {} }); setLeader(false);
+      } else {
+        setUserRaw({ uid: u.uid, name: window.__bezaPendingName || u.name || (u.email || "Member").split("@")[0], email: u.email, roles: [], levels: {} });
+        setDone(new Set()); setLogs([]); setVoice(null); setAvatar(u.photo || null); setGames({ best: {} }); setSessionsDone({}); setLeader(false); setAssignments([]);
+      }
+      setTabRaw("home"); setAuthState("in");
+    });
+  }, []); // eslint-disable-line
   const toast = useCallback((m) => { setToastMsg(m); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToastMsg(""), 2700); }, []);
   const push = useCallback((r) => setStacks((s) => ({ ...s, [tabRef.current]: [...s[tabRef.current], { ...r, key: Date.now() + Math.random() }] })), []);
   const pop = useCallback(() => setStacks((s) => ({ ...s, [tabRef.current]: s[tabRef.current].slice(0, -1) })), []);
@@ -243,13 +267,15 @@ export default function BezaYouthWorshipTeam() {
     const url = new URL(window.location.href); url.searchParams.set("v", (update.remote && update.remote.build) || Date.now()); window.location.replace(url.toString());
   }, [update.remote]);
   const setUser = (u) => {
+    if (CLOUD.on && !u) { CLOUD.signOut().catch(() => { }); setGroups(null); setChat({}); setAssignments([]); setDone(new Set()); setLogs([]); setAvatar(null); setVoice(null); setGames({ best: {} }); setSessionsDone({}); }
     setUserRaw(u); setTabRaw("home"); setStacks({ learn: [], practice: [], home: [], songs: [], games: [], progress: [], chat: [] });
-    if (u && u.roles && u.roles.length && !logs.length) { const now = Date.now(); setLogs([2, 3, 4, 6, 7, 9, 11].map((d, i) => ({ at: now - d * 864e5, mins: [15, 30, 10, 25, 20, 30, 12][i], what: ["Vocal Gym", "Daily Vocal Workout", "Ear training", "Harmony drills", "Breath Lab", "Daily Keys Workout", "Scale studies"][i] }))); setDone(new Set()); }
+    if (!CLOUD.on && u && u.roles && u.roles.length && !logs.length) { const now = Date.now(); setLogs([2, 3, 4, 6, 7, 9, 11].map((d, i) => ({ at: now - d * 864e5, mins: [15, 30, 10, 25, 20, 30, 12][i], what: ["Vocal Gym", "Daily Vocal Workout", "Ear training", "Harmony drills", "Breath Lab", "Daily Keys Workout", "Scale studies"][i] }))); setDone(new Set()); }
   };
   const setRoles = (roles, levels) => {
     setUserRaw((u) => ({ ...u, roles, levels: { ...(u.levels || {}), ...levels } }));
-    if (!assignments.some((a) => a.toMe)) { const pick = CURRICULUM.heart.all[0];
-      setAssignments((a) => [{ id: Date.now(), toMe: true, from: "Liya Desta", role: "heart", kind: "lesson", ref: pick, title: LESSONS[pick].title, due: "Before Saturday rehearsal", comment: "Welcome to the team! Before anything else — skills, songs, sound — start here. Read it slowly, pray through it, and come ready to share one thing God spoke to you 🙏", status: "sent" }, ...a]); }
+    if (CLOUD.on && user && user.uid && !(user.roles || []).length) { const pick = CURRICULUM.heart.all[0]; CLOUD.set(`assignments/welcome-${user.uid}`, { id: `welcome-${user.uid}`, toUid: user.uid, fromUid: user.uid, from: "Beza Youth leaders", role: "heart", kind: "lesson", ref: pick, title: LESSONS[pick].title, due: "Before Saturday rehearsal", comment: "Welcome to the team! Before anything else — skills, songs, sound — start here. Read it slowly, pray through it, and come ready to share one thing God spoke to you 🙏", status: "sent", at: Date.now() }, false).catch(() => { }); return; }
+    if (!CLOUD.on && !assignments.some((a) => a.toMe)) { const pick = CURRICULUM.heart.all[0];
+      setAssignments((a) => [{ id: Date.now(), toMe: true, from: CLOUD.on ? "Beza Youth leaders" : "Liya Desta", role: "heart", kind: "lesson", ref: pick, title: LESSONS[pick].title, due: "Before Saturday rehearsal", comment: "Welcome to the team! Before anything else — skills, songs, sound — start here. Read it slowly, pray through it, and come ready to share one thing God spoke to you 🙏", status: "sent" }, ...a]); }
   };
   const roles = (user && user.roles) || [];
   const plan = useMemo(() => {
@@ -286,6 +312,7 @@ export default function BezaYouthWorshipTeam() {
 
   return (
     <Ctx.Provider value={ctx}>
+      {CLOUD.on && user && user.uid && user.roles && user.roles.length > 0 && <CloudSync uid={user.uid} onTeam={() => setTeamV((v) => v + 1)} />}
       <style>{FONT_FACES + CSS}</style>
       {update.available && <UpdateGate />}
       <div className={`bz-root bz-stage${web ? " bz-web" : ""}${scaled ? " bz-scaled" : ""}`} style={{ background: T.dark ? "#07090b" : "#d9dfe1", fontFamily: FONT, ["--bz-accent"]: T.accent, ["--bz-thumb"]: T.dark ? "#1b2328" : "#fff", ["--ico-blob"]: T.blob }}>
@@ -295,8 +322,8 @@ export default function BezaYouthWorshipTeam() {
           <div className="bz-status" style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, alignItems: "center", justifyContent: "space-between", padding: "0 30px", fontSize: 14, fontWeight: 700, zIndex: 30 }}>
             <span>{time}</span><span style={{ width: 110, height: 28, borderRadius: 20, background: "#000", position: "absolute", left: "50%", transform: "translateX(-50%)", top: 8 }} /><span style={{ display: "flex", gap: 5, alignItems: "center" }}><Radio size={14} noBlob /><span style={{ width: 24, height: 12, borderRadius: 4, border: `1.6px solid ${T.text}`, display: "inline-block", position: "relative" }}><span style={{ position: "absolute", inset: 1.5, right: 5, background: T.text, borderRadius: 2 }} /></span></span>
           </div>
-          {!user ? (
-            <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}><Login /></div>
+          {authState === "loading" ? <CloudSplash /> : !user ? (
+            <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}>{CLOUD.on ? <CloudLogin /> : <Login />}</div>
           ) : needsOnboarding ? (
             <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}><Onboarding onDone={(r, lv) => setRoles(r, lv)} /></div>
           ) : (
