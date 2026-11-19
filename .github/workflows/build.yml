@@ -46,9 +46,7 @@ jobs:
         working-directory: android
         env:
           APP_VERSION_CODE: ${{ github.run_number }}
-          APP_VERSION_NAME: ${{ github.run_number }}
         run: |
-          echo "APP_VERSION_NAME=$(cat ../VERSION)" >> $GITHUB_ENV
           export APP_VERSION_NAME=$(cat ../VERSION)
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
