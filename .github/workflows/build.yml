@@ -86,11 +86,6 @@ jobs:
         uses: actions/download-artifact@v4
         with: { name: site, path: site }
       - if: env.HAS_KEY == 'true'
-        uses: actions/download-artifact@v4
-        with: { name: BezaYouth-apk, path: apk }
-      - if: env.HAS_KEY == 'true'
-        run: cp apk/BezaYouth.apk site/BezaYouth.apk && ls -la site | head
-      - if: env.HAS_KEY == 'true'
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

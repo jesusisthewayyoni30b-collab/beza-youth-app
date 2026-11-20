@@ -1,12 +1,55 @@
 {
   "hosting": {
     "public": "site",
-    "ignore": ["firebase.json", "**/.*"],
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
     "headers": [
-      { "source": "/version.json", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
-      { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-      { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-      { "source": "**/*.apk", "headers": [{ "key": "Content-Type", "value": "application/vnd.android.package-archive" }, { "key": "Content-Disposition", "value": "attachment; filename=\"Beza Youth.apk\"" }] }
+      {
+        "source": "/version.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      },
+      {
+        "source": "/sw.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/BezaYouth.apk",
+        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/BezaYouth.apk",
+        "type": 302
+      },
+      {
+        "source": "/download",
+        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/BezaYouth.apk",
+        "type": 302
+      },
+      {
+        "source": "/app",
+        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/BezaYouth.apk",
+        "type": 302
+      }
     ]
   }
 }
