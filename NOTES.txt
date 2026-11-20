@@ -1,4 +1,5 @@
+New: choose your practice time, days and daily goal when you join, and change it anytime in Settings → Practice reminder
+The Android app now sends real practice reminders, even when it's closed (download the new app when asked)
+Your daily goal now drives the Home ring and the practice calendar
 Team schedule cleared: leaders will post the real schedule
-Microphone fixes for the Range Tester and chord listening, with clear help if the mic is blocked
-Your voice type and range from the Range Tester are saved to your profile, and leaders can see them
-Removed the layout setting: computers get the website, phones get the app layout automatically
+Mic fixes, and your voice type and range are saved to your profile
