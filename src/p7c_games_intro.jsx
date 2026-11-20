@@ -7,14 +7,14 @@ function playIntroSound(fromT = 0) {
   const ctx = new C(); const now = ctx.currentTime + 0.05; const T0 = now - fromT;
   const out = ctx.createGain(); out.gain.value = 0.9; const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3; out.connect(comp); comp.connect(ctx.destination);
   // reverb (generated impulse)
-  const rev = ctx.createConvolver(); const len = ctx.sampleRate * 3.2; const ir = ctx.createBuffer(2, len, ctx.sampleRate);
-  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+  const IRS = 16000; const rev = ctx.createConvolver(); const len = Math.floor(IRS * 2.2); const ir = ctx.createBuffer(2, len, IRS);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); let g = 1; const k = Math.pow(0.001, 1 / len); for (let i = 0; i < len; i++) { d[i] = (Math.random() * 2 - 1) * g; g *= k; } }
   rev.buffer = ir; const revG = ctx.createGain(); revG.gain.value = 0.55; rev.connect(revG); revG.connect(out);
   const dly = ctx.createDelay(1); dly.delayTime.value = 0.32; const fb = ctx.createGain(); fb.gain.value = 0.38; const dlyG = ctx.createGain(); dlyG.gain.value = 0.35; dly.connect(fb); fb.connect(dly); dly.connect(dlyG); dlyG.connect(out); dlyG.connect(rev);
   const at = (t) => Math.max(now, T0 + t);
   const live = (t) => T0 + t >= now - 0.02;
   // 1) whoosh riser 0 → 1.3s
-  if (live(1.2)) { const nb = ctx.createBuffer(1, ctx.sampleRate * 1.6, ctx.sampleRate); const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  if (live(1.2)) { const nb = ctx.createBuffer(1, 22050 * 1.6, 22050); const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
     const n = ctx.createBufferSource(); n.buffer = nb; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.4; bp.frequency.setValueAtTime(220, at(0)); bp.frequency.exponentialRampToValueAtTime(5200, at(1.25));
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at(0)); g.gain.exponentialRampToValueAtTime(0.35, at(1.15)); g.gain.exponentialRampToValueAtTime(0.0001, at(1.4));
     n.connect(bp); bp.connect(g); g.connect(out); g.connect(rev); n.start(at(0)); n.stop(at(1.5));
@@ -46,7 +46,7 @@ function Intro({ onDone }) {
     const W = c.offsetWidth, H = c.offsetHeight; c.width = W * dpr; c.height = H * dpr; g.scale(dpr, dpr);
     const P = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * H, z: 0.2 + Math.random() * 0.8, p: Math.random() * 6.28 }));
     const tick = () => {
-      const t = (performance.now() - t0) / 1000; setPct(Math.min(1, t / 3.9));
+      const t = (performance.now() - t0) / 1000; const q = Math.floor(t * 10); if (q !== tick.q) { tick.q = q; setPct(Math.min(1, t / 3.9)); }
       g.clearRect(0, 0, W, H);
       // drifting particles toward centre
       P.forEach((q) => { q.y -= 0.12 * q.z; if (q.y < -4) q.y = H + 4; const a = Math.min(1, t / 1.2) * (0.25 + 0.55 * q.z) * (0.6 + 0.4 * Math.sin(t * 2 + q.p)); g.fillStyle = `rgba(190,230,255,${a})`; g.beginPath(); g.arc(q.x, q.y, 0.6 + q.z * 0.9, 0, 6.28); g.fill(); });
@@ -61,7 +61,7 @@ function Intro({ onDone }) {
     };
     raf = requestAnimationFrame(tick);
     const a1 = setTimeout(() => setOut(true), 4300); const a2 = setTimeout(onDone, 5100);
-    if (settings.introSound !== false) { try { const sc = playIntroSound(0); sndRef.current = sc; if (sc && sc.state !== "running") { sc.close(); sndRef.current = null; setNeedTap(true); } } catch (e) { } }
+    if (settings.introSound !== false) setTimeout(() => { try { const sc = playIntroSound(Math.max(0, (performance.now() - t0) / 1000)); sndRef.current = sc; if (sc && sc.state !== "running") { sc.close(); sndRef.current = null; setNeedTap(true); } } catch (e) { } }, 30);
     return () => { cancelAnimationFrame(raf); clearTimeout(a1); clearTimeout(a2); };
   }, []); // eslint-disable-line
   const mono = "ui-monospace, 'SF Mono', Menlo, monospace";
@@ -98,7 +98,7 @@ function Intro({ onDone }) {
       {/* loader */}
       <div style={{ position: "absolute", left: 50, right: 50, bottom: 50, animation: "fxFade 1s ease .6s both" }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: 9.5, color: "rgba(200,235,255,0.55)", letterSpacing: 2, marginBottom: 8 }}><span>{pct < 0.4 ? "TUNING" : pct < 0.8 ? "PREPARING" : "ENTER HIS PRESENCE"}</span><span>{String(Math.round(pct * 100)).padStart(3, "0")}</span></div>
-        <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }}><div style={{ width: `${pct * 100}%`, height: "100%", background: "linear-gradient(90deg,#22E4FF,#8B5CFF,#FF3EA5)", boxShadow: "0 0 8px rgba(139,92,255,0.9)" }} /></div>
+        <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }}><div style={{ width: `${pct * 100}%`, height: "100%", transition: "width .1s linear", background: "linear-gradient(90deg,#22E4FF,#8B5CFF,#FF3EA5)", boxShadow: "0 0 8px rgba(139,92,255,0.9)" }} /></div>
       </div>
       <style>{`
         @keyframes fxFade{from{opacity:0}to{opacity:1}}

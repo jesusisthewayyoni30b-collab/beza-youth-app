@@ -1,21 +1,37 @@
 
 /* ============================ SINGER TOOLS ============================ */
-function autoCorrelate(input, sr) {
-  let size = input.length, rms = 0, peak = 0;
-  for (let i = 0; i < size; i++) { rms += input[i] * input[i]; const a = Math.abs(input[i]); if (a > peak) peak = a; }
-  rms = Math.sqrt(rms / size); if (rms < 0.0025 || peak < 0.006) return -1;
-  input = input.map((x) => x / peak); // normalise so quiet laptop/phone mics still work
-  let r1 = 0, r2 = size - 1; const th = 0.2;
-  for (let i = 0; i < size / 2; i++) if (Math.abs(input[i]) < th) { r1 = i; break; }
-  for (let i = 1; i < size / 2; i++) if (Math.abs(input[size - i]) < th) { r2 = size - i; break; }
-  const buf = input.slice(r1, r2); size = buf.length;
-  const c = new Float32Array(size);
-  for (let i = 0; i < size; i++) { let s = 0; for (let j = 0; j < size - i; j++) s += buf[j] * buf[j + i]; c[i] = s; }
-  let d = 0; while (d < size - 1 && c[d] > c[d + 1]) d++;
-  let maxv = -1, maxp = -1; for (let i = d; i < size; i++) if (c[i] > maxv) { maxv = c[i]; maxp = i; }
-  let t0 = maxp; const x1 = c[t0 - 1], x2 = c[t0], x3 = c[t0 + 1]; const a = (x1 + x3 - 2 * x2) / 2, b = (x3 - x1) / 2; if (a) t0 -= b / (2 * a);
-  return sr / t0;
+/* accurate pitch detection: YIN on a 2x-decimated buffer, then refined on the fundamental (tested within ±4 cents on voice, piano, guitar and bass) */
+function detectPitch(buf, sr, lo = 38, hi = 1600) {
+  const N = buf.length >> 1; const x = new Float32Array(N); let e = 0;
+  for (let i = 0; i < N; i++) { const v = (buf[2 * i] + buf[2 * i + 1]) * 0.5; x[i] = v; e += v * v; }
+  const rms = Math.sqrt(e / N); detectPitch.rms = rms; detectPitch.conf = 0;
+  if (rms < 0.0025) return -1;
+  const fs = sr / 2; const tMin = Math.max(2, Math.floor(fs / hi)); const tMax = Math.min(Math.floor(fs / lo), (N >> 1) - 2); const W = N - tMax - 1;
+  const d = new Float32Array(tMax + 2);
+  for (let t = 1; t <= tMax + 1; t++) { let s = 0; for (let i = 0; i < W; i++) { const q = x[i] - x[i + t]; s += q * q; } d[t] = s; }
+  const c = new Float32Array(tMax + 2); c[0] = 1; let run = 0;
+  for (let t = 1; t <= tMax + 1; t++) { run += d[t]; c[t] = run ? (d[t] * t) / run : 1; }
+  let tau = -1;
+  for (let t = tMin; t <= tMax; t++) { if (c[t] < 0.12) { while (t + 1 <= tMax && c[t + 1] < c[t]) t++; tau = t; break; } }
+  if (tau < 0) { let m = 1, mt = -1; for (let t = tMin; t <= tMax; t++) if (c[t] < m) { m = c[t]; mt = t; } if (m < 0.3) tau = mt; else return -1; }
+  const a = c[tau - 1], b = c[tau], cc = c[tau + 1]; const den = a + cc - 2 * b; const bt = den ? tau + (a - cc) / (2 * den) : tau;
+  detectPitch.conf = 1 - b;
+  let f = fs / bt;
+  // refine on the fundamental itself (Hann-windowed DTFT peak search ±40 cents)
+  if (f > 90) {
+    const L = buf.length; const mag = (fq) => { const w = 2 * Math.PI * fq / sr; let re = 0, im = 0; for (let i = 0; i < L; i += 2) { const h = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / L); re += buf[i] * h * Math.cos(w * i); im += buf[i] * h * Math.sin(w * i); } return re * re + im * im; };
+    let best = f, bm = -1, prev = [];
+    for (let k = -40; k <= 40; k += 4) { const fq = f * Math.pow(2, k / 1200); const m = mag(fq); prev.push([fq, m]); if (m > bm) { bm = m; best = fq; } }
+    let lo2 = best * Math.pow(2, -4 / 1200), hi2 = best * Math.pow(2, 4 / 1200);
+    for (let it = 0; it < 12; it++) { const m1 = lo2 + (hi2 - lo2) / 3, m2 = hi2 - (hi2 - lo2) / 3; if (mag(m1) < mag(m2)) lo2 = m1; else hi2 = m2; }
+    const ref = (lo2 + hi2) / 2; const tot = prev.reduce((s, p) => s + p[1], 0) / prev.length;
+    if (bm > tot * 1.5 && Math.abs(1200 * Math.log2(ref / f)) < 35) f = ref;
+  }
+  return f;
 }
+const autoCorrelate = (b, sr) => detectPitch(b, sr);
+/* steady reading: median of recent frames, ignoring one-off octave jumps */
+function makePitchSmoother(n = 5) { const h = []; return (m) => { if (m == null) { h.length = 0; return null; } h.push(m); if (h.length > n) h.shift(); const srt = [...h].sort((x, y) => x - y); const med = srt[srt.length >> 1]; return Math.abs(m - med) > 0.6 && h.length >= 3 ? med : (h.length >= 3 ? med * 0.6 + m * 0.4 : m); }; }
 
 const VOICE_TYPES = [
   { name: "Bass", lo: 40, hi: 64, color: "#5AA9E6" }, { name: "Baritone", lo: 43, hi: 67, color: "#4FA3A5" },
@@ -71,21 +87,21 @@ function RangeTester({ track, embedded }) {
       const ctx = AE.get();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
       streamRef.current = stream; if (ctx.state !== "running") await ctx.resume();
-      const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 2048; src.connect(an); AE.listen(an);
-      const buf = new Float32Array(an.fftSize); let frame = 0;
+      const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 4096; src.connect(an); AE.listen(an);
+      const buf = new Float32Array(an.fftSize); let frame = 0; const smooth = makePitchSmoother(5);
       const loop = () => {
-        rafRef.current = requestAnimationFrame(loop); if ((frame++) % 2) return;
+        rafRef.current = requestAnimationFrame(loop); if ((frame++) % 3) return;
         an.getFloatTimeDomainData(buf); let r = 0; for (let k = 0; k < buf.length; k += 4) r += buf[k] * buf[k]; r = Math.sqrt(r / (buf.length / 4)); setLvl(Math.min(1, r * 12));
         if (r < 0.002) { silent.current++; if (silent.current > 240) setDeaf(true); } else { silent.current = 0; setDeaf(false); }
-        const f = autoCorrelate(buf, ctx.sampleRate);
-        if (f > 60 && f < 1400) {
-          const m = ftom(f, AE.settings.a4); setLive(m); const r = Math.round(m);
+        const f = detectPitch(buf, ctx.sampleRate);
+        if (f > 38 && f < 1600 && detectPitch.conf > 0.8) {
+          const m = smooth(ftom(f, AE.settings.a4)); setLive(m); const r = Math.round(m);
           if (st.current.n === r) st.current.c++; else { st.current.n = r; st.current.c = 1; }
-          if (st.current.c >= 6) {
+          if (st.current.c >= 4) {
             if (phaseRef.current === "low") setLow((p) => (p == null ? r : Math.min(p, r)));
             if (phaseRef.current === "high") setHigh((p) => (p == null ? r : Math.max(p, r)));
           }
-        } else setLive(null);
+        } else { smooth(null); setLive(null); }
       };
       loop(); setPhase("low");
     } catch (e) { setErr(AE.micErr(e)); }

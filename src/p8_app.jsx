@@ -187,6 +187,9 @@ export default function BezaYouthWorshipTeam() {
   const [toastMsg, setToastMsg] = useState("");
   const [quick, setQuick] = useState(false);
   const [intro, setIntro] = useState(true);
+  // draw the intro first; build the rest of the app in small background slices so the intro never stutters
+  const [shellReady, setShellReady] = useState(false);
+  useEffect(() => { const t = setTimeout(() => React.startTransition(() => setShellReady(true)), 5300); const b = document.getElementById("boot"); if (b) { b.style.opacity = "0"; setTimeout(() => b.remove(), 400); } return () => clearTimeout(t); }, []);
   const [chat, setChat] = useState(() => (CLOUD.on ? {} : { ...SEED_CHAT, ...(saved.chat || {}) }));
   const [groups, setGroups] = useState(CLOUD.on ? null : saved.groups || null);
   const [authState, setAuthState] = useState(CLOUD.on ? "loading" : "off");
@@ -206,10 +209,12 @@ export default function BezaYouthWorshipTeam() {
   useEffect(() => { if (!CLOUD.on && leader && groups) { const l = groups.find((g) => g.id === "leaders"); if (l && !l.members.includes("@me")) setGroups((gs) => gs.map((g) => (g.id === "leaders" ? { ...g, members: [...g.members, "@me"] } : g))); } }, [leader]); // eslint-disable-line
   useEffect(() => { AE.settings.a4 = settings.a4; AE.settings.click = settings.click; }, [settings]);
   useEffect(() => {
-    try { AE.preloadAll(); } catch (e) { }
+    // load instrument sounds quietly after the intro, one at a time, so opening the app stays smooth
+    const idle = (fn, ms) => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 3000 }) : fn()), ms);
+    const timers = [idle(() => { try { AE.get(); AE.load("piano"); } catch (e) { } }, 5500), idle(() => { try { AE.loadDrums(); } catch (e) { } }, 8000), idle(() => { try { AE.load("acoustic"); } catch (e) { } }, 10000), idle(() => { try { AE.load("bass"); } catch (e) { } }, 12000), idle(() => { try { AE.load("electric"); } catch (e) { } }, 14000)];
     const unlock = () => { try { AE.get(); } catch (e) { } };
     window.addEventListener("pointerdown", unlock, { passive: true }); window.addEventListener("touchend", unlock, { passive: true });
-    return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("touchend", unlock); };
+    return () => { timers.forEach(clearTimeout); window.removeEventListener("pointerdown", unlock); window.removeEventListener("touchend", unlock); };
   }, []);
 
   useEffect(() => {
@@ -328,7 +333,7 @@ export default function BezaYouthWorshipTeam() {
           <div className="bz-status" style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, alignItems: "center", justifyContent: "space-between", padding: "0 30px", fontSize: 14, fontWeight: 700, zIndex: 30 }}>
             <span>{time}</span><span style={{ width: 110, height: 28, borderRadius: 20, background: "#000", position: "absolute", left: "50%", transform: "translateX(-50%)", top: 8 }} /><span style={{ display: "flex", gap: 5, alignItems: "center" }}><Radio size={14} noBlob /><span style={{ width: 24, height: 12, borderRadius: 4, border: `1.6px solid ${T.text}`, display: "inline-block", position: "relative" }}><span style={{ position: "absolute", inset: 1.5, right: 5, background: T.text, borderRadius: 2 }} /></span></span>
           </div>
-          {authState === "loading" ? <CloudSplash /> : !user ? (
+          {!shellReady ? null : authState === "loading" ? <CloudSplash /> : !user ? (
             big ? <AuthDesktop>{CLOUD.on ? <CloudLogin desktop /> : <Login />}</AuthDesktop>
               : <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}>{CLOUD.on ? <CloudLogin /> : <Login />}</div>
           ) : needsOnboarding ? (
@@ -353,7 +358,7 @@ export default function BezaYouthWorshipTeam() {
             </>
           )}
           {toastMsg && <div className="bz-toast" style={{ position: "absolute", bottom: web ? 32 : 104, left: "50%", transform: "translateX(-50%)", zIndex: 80, background: T.graffiti ? "#111" : T.hero, color: "#fff", padding: "11px 16px", borderRadius: 99, fontSize: 13, fontWeight: 700, boxShadow: T.graffiti ? "3px 3px 0 #FF3EA5" : "0 10px 24px rgba(0,0,0,.3)", maxWidth: "88%", textAlign: "center", border: T.graffiti ? "1.5px solid #C6FF3D" : "none" }}>{toastMsg}</div>}
-          {intro && <Intro onDone={() => setIntro(false)} />}
+          {intro && <Intro onDone={() => { setShellReady(true); setIntro(false); }} />}
         </div>
       </div>
     </Ctx.Provider>

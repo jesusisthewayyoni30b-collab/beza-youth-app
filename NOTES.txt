@@ -1,2 +1,4 @@
-Fresh start: everyone begins from a clean slate today. Create your account again to join the team
+Fresh start: everyone begins from a clean slate. Create your account again to join the team
+Much smoother opening: the app no longer loads every instrument at once
+New, more accurate tuner and range tester: steady readings for voice, piano, guitar and bass
 New app icon: the Beza Youth logo
