@@ -852,7 +852,7 @@ function ProfileScreen() {
 function SettingsScreen() {
   const { T, settings, setSettings, themeId, setThemeId, update, runUpdate, checkUpdate, user, setUser, toast, leader, setLeader, push, replayIntro } = useApp();
   const [midiMsg, setMidiMsg] = useState(midiState.connected ? midiState.inputs.join(", ") : "");
-  const [gate, setGate] = useState(false); const [remOpen, setRemOpen] = useState(false);
+  const [gate, setGate] = useState(false); const [remOpen, setRemOpen] = useState(false); const [helpOpen, setHelpOpen] = useState(false);
   const [code, setCode] = useState(""); const [err, setErr] = useState(false);
   const hold = useRef(null);
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
@@ -920,7 +920,7 @@ function SettingsScreen() {
       </Group>
       <Group title="App">
         <Row icon={RefreshCw} label="Version" value={update.version} right={<Btn small variant="soft" onClick={async () => { const r = await checkUpdate(); toast(r === false ? "You're on the latest version ✓" : r ? "New version found" : "Can't reach the update server right now"); }}>Check</Btn>} />
-        <Row icon={Info} label="Help & feedback" onClick={() => toast("Feedback goes straight to the leaders 💛")} />
+        <Row icon={Info} label="Help & feedback" onClick={() => setHelpOpen(true)} />
       </Group>
       <Group title="Account">
         <Row icon={User} label={user.name} value={user.roles.map(roleLabel).join(" · ")} />
@@ -931,6 +931,7 @@ function SettingsScreen() {
         <BezaLogo width={120} />
       </div>
       <div style={{ textAlign: "center", fontSize: 11, color: T.faint, lineHeight: 1.6 }}>Beza Youth Worship Team · v{update.version}<br />Piano: Salamander Grand (CC-BY) · Guitar/bass/drums: Tone.js sample libraries</div>
+      <Sheet open={helpOpen} onClose={() => setHelpOpen(false)}><HelpFeedback onClose={() => setHelpOpen(false)} /></Sheet>
       <Sheet open={remOpen} onClose={() => setRemOpen(false)}>
         <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}>Practice reminder</div>
         <ReminderPicker value={{ notif: settings.notif, reminder: settings.reminder, days: settings.days, goal: settings.goal }} onChange={(r) => setSettings((x) => ({ ...x, ...r }))} />
@@ -1014,6 +1015,7 @@ function LeadersBoard() {
           {weekly.map((v, i) => <div key={i} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 10, color: T.sub, marginBottom: 4 }}>{v}</div><div style={{ height: (v / mx) * 86, borderRadius: 10, background: T.spray ? T.spray[i % 6] : T.accent }} /><div style={{ fontSize: 10.5, color: T.sub, marginTop: 6, fontWeight: 600 }}>{CLOUD.on ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][(new Date().getDay() + i + 1) % 7] : WEEK[i].d}</div></div>)}
         </div>
       </Card>
+      <FeedbackInbox />
       <SectionTitle>Post to team feed</SectionTitle>
       <Card style={{ display: "flex", gap: 8, alignItems: "center", padding: 10 }}>
         <input value={post} onChange={(e) => setPost(e.target.value)} placeholder="Announcement for everyone…" style={{ flex: 1, border: "none", outline: "none", background: "transparent", color: T.text, fontFamily: FONT, fontSize: 13.5, minWidth: 0 }} />

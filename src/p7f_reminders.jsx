@@ -80,3 +80,69 @@ function ReminderPicker({ value, onChange }) {
     </div>
   );
 }
+
+/* ============================ HELP & FEEDBACK ============================ */
+const FB_KINDS = [["bug", "🐞 Something's broken"], ["idea", "💡 Idea"], ["question", "❓ Question"], ["other", "💬 Other"]];
+const HELP_FAQ = [
+  ["How do I change my practice reminder?", "Profile → Settings → Practice reminder. Pick a time, the days and your daily goal, then Save."],
+  ["The microphone doesn't work", "Allow the microphone when the browser asks. On a computer, click the 🎙 icon next to the web address and make sure the right mic is selected. Watch the MIC bar: if it moves, we can hear you."],
+  ["How do I change what I serve in?", "Profile → tap your roles under your name → choose again. Your lessons update straight away."],
+  ["Where are the chord charts for Saturday?", "Songs tab → \"This Saturday's set\". Tap a song, pick your instrument, or open Live mode while playing."],
+  ["I changed phones. Is my progress gone?", "No. Sign in with the same email (or Google) and everything comes back."],
+  ["The app says \"Update required\"", "Tap Update now. It takes a few seconds and keeps the whole team on the same version."],
+];
+function HelpFeedback({ onClose }) {
+  const { T, user, toast } = useApp();
+  const [kind, setKind] = useState("idea"); const [text, setText] = useState(""); const [busy, setBusy] = useState(false); const [open, setOpen] = useState(-1);
+  const send = async () => {
+    if (text.trim().length < 3) { toast("Write a few words first"); return; }
+    setBusy(true);
+    const id = `${Date.now()}_${(user.uid || "local").slice(0, 6)}`;
+    const doc = { id, kind, text: text.trim(), uid: user.uid || null, name: user.name, roles: user.roles || [], version: BEZA_BUILD_NAME, device: shellVersion() > 0 ? "Android app" : /iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : /Android/.test(navigator.userAgent) ? "Android browser" : "Computer", at: Date.now(), status: "new" };
+    try { if (CLOUD.on) await CLOUD.set(`feedback/${id}`, doc, false); setText(""); toast("Sent to the leaders 💛 Thank you!"); onClose && onClose(); }
+    catch (e) { toast("Couldn't send right now. Check your internet and try again."); }
+    setBusy(false);
+  };
+  return (
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 18 }}>Help & feedback</div>
+      <div style={{ fontSize: 12.5, color: T.sub, marginTop: 2 }}>Tell the leaders what's not working, what you'd love to see, or ask a question.</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>{FB_KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => setKind(k)}>{l}</Chip>)}</div>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder={kind === "bug" ? "What happened? What were you doing when it went wrong?" : kind === "idea" ? "What would make the app better for you or the team?" : kind === "question" ? "Ask anything about the app or the team…" : "Write your message…"}
+        style={{ width: "100%", boxSizing: "border-box", marginTop: 10, border: `1.5px solid ${T.border}`, background: T.input, color: T.text, borderRadius: 16, padding: 12, fontFamily: FONT, fontSize: 14, resize: "vertical", outline: "none" }} />
+      <Btn full style={{ marginTop: 10 }} icon={Send} onClick={send}>{busy ? "Sending…" : "Send to leaders"}</Btn>
+      <div style={{ fontWeight: 800, fontSize: 14, margin: "18px 0 6px" }}>Quick help</div>
+      {HELP_FAQ.map(([q, a], i) => (
+        <div key={i} onClick={() => setOpen(open === i ? -1 : i)} style={{ padding: "10px 0", borderTop: `1px solid ${T.border}`, cursor: "pointer" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontWeight: 700, fontSize: 13.5 }}><span>{q}</span><span style={{ color: T.sub }}>{open === i ? "−" : "+"}</span></div>
+          {open === i && <div style={{ fontSize: 12.5, color: T.sub, marginTop: 6, lineHeight: 1.5 }}>{a}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+/* leaders: feedback inbox */
+function FeedbackInbox() {
+  const { T } = useApp();
+  const [list, setList] = useState(null);
+  useEffect(() => { if (!CLOUD.on) { setList([]); return; } return CLOUD.listen("feedback", { order: ["at", "desc"], limit: 60 }, (d) => setList(d), () => setList([])); }, []);
+  const mark = (f, status) => CLOUD.update(`feedback/${f._id}`, { status }).catch(() => { });
+  if (!list) return null;
+  const fresh = list.filter((f) => f.status !== "done");
+  return (
+    <>
+      <SectionTitle>Feedback inbox {fresh.length ? `· ${fresh.length} new` : ""}</SectionTitle>
+      {list.length === 0 ? <Card tone="soft" style={{ fontSize: 13, textAlign: "center" }}>No feedback yet. Members send it from Settings → Help & feedback.</Card> :
+        list.slice(0, 20).map((f) => (
+          <Card key={f._id} pad={12} style={{ marginBottom: 8, opacity: f.status === "done" ? 0.55 : 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12, color: T.sub }}><span><b style={{ color: T.text }}>{f.name}</b> · {(FB_KINDS.find(([k]) => k === f.kind) || [0, f.kind])[1]}</span><span>{relTime(f.at)}</span></div>
+            <div style={{ fontSize: 13.5, marginTop: 6, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{f.text}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+              <span style={{ fontSize: 11, color: T.faint }}>{f.device} · v{f.version}</span>
+              {f.status !== "done" ? <Btn small variant="soft" icon={Check} onClick={() => mark(f, "done")}>Done</Btn> : <Btn small variant="ghost" onClick={() => mark(f, "new")}>Reopen</Btn>}
+            </div>
+          </Card>
+        ))}
+    </>
+  );
+}

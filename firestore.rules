@@ -48,6 +48,12 @@ service cloud.firestore {
       allow write: if isLeader();
     }
 
+    // help & feedback: anyone signed in can send, only leaders read
+    match /feedback/{fid} {
+      allow create: if signedIn() && request.resource.data.uid == me();
+      allow read, update, delete: if isLeader();
+    }
+
     // assignments: leaders send, members see and complete their own
     match /assignments/{aid} {
       allow read: if isLeader() || (signedIn() && resource.data.toUid == me());
