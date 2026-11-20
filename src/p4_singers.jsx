@@ -34,12 +34,12 @@ const autoCorrelate = (b, sr) => detectPitch(b, sr);
 function makePitchSmoother(n = 5) { const h = []; return (m) => { if (m == null) { h.length = 0; return null; } h.push(m); if (h.length > n) h.shift(); const srt = [...h].sort((x, y) => x - y); const med = srt[srt.length >> 1]; return Math.abs(m - med) > 0.6 && h.length >= 3 ? med : (h.length >= 3 ? med * 0.6 + m * 0.4 : m); }; }
 
 const VOICE_TYPES = [
-  { name: "Bass", lo: 40, hi: 64, color: "#5AA9E6" }, { name: "Baritone", lo: 43, hi: 67, color: "#4FA3A5" },
+  { name: "Bass", lo: 40, hi: 64, color: "#5AA9E6" }, { name: "Baritone", lo: 45, hi: 69, color: "#4FA3A5" },
   { name: "Tenor", lo: 48, hi: 72, color: "#5DBB94" }, { name: "Alto", lo: 53, hi: 77, color: "#E6B85C" },
   { name: "Mezzo-soprano", lo: 57, hi: 81, color: "#F07D6A" }, { name: "Soprano", lo: 60, hi: 84, color: "#EC8FC2" },
 ];
 /* chest-voice-only spans used for classification (the test measures chest voice only) */
-const CHEST = { Bass: [40, 60], Baritone: [43, 64], Tenor: [47, 67], Alto: [53, 69], "Mezzo-soprano": [55, 71], Soprano: [58, 74] };
+const CHEST = { Bass: [40, 60], Baritone: [45, 64], Tenor: [47, 67], Alto: [53, 69], "Mezzo-soprano": [55, 71], Soprano: [58, 74] };
 const classifyVoice = (lo, hi) => VOICE_TYPES.reduce((best, v) => { const [cl, ch] = CHEST[v.name]; const s = Math.abs(cl - lo) * 1.5 + Math.abs(ch - hi); return s < best.s ? { v, s } : best; }, { v: null, s: 1e9 }).v;
 
 function VoiceSpectrum({ low, high, live, highlight }) {
