@@ -307,10 +307,15 @@ function SongEditScreen({ id, lyrics: l0 }) {
   const setAs = (v) => { commit(); setAsRaw(v); };
   const setKeyE = (k) => { commit(); set("key", k); };
   const secs = parseChart(draft != null ? convertChart(draft, f.key, "nums") : f.chart, f.key); const n = uniqueChords(secs).length;
+  const [bpmTxt, setBpmTxt] = useState(String(f.bpm || 76));
+  const bpmCommit = (v) => { const n = Math.max(30, Math.min(240, parseInt(v) || f.bpm || 76)); set("bpm", n); setBpmTxt(String(n)); };
+  const taps = useRef([]);
+  const tapTempo = () => { const now = performance.now(); taps.current = taps.current.filter((t) => now - t < 3000).concat(now); if (taps.current.length >= 3) { const d = taps.current.slice(1).map((t, i) => t - taps.current[i]); const avg = d.reduce((a, b) => a + b, 0) / d.length; bpmCommit(Math.round(60000 / avg)); } else toast("Keep tapping on the beat…"); };
   const save = () => {
     if (!f.title.trim()) { toast("Give the song a title"); return; }
     const chart = commit();
-    const s = { ...f, chart, title: f.title.trim(), updated: Date.now() };
+    const bpm = Math.max(30, Math.min(240, parseInt(bpmTxt) || f.bpm || 76));
+    const s = { ...f, bpm, chart, title: f.title.trim(), updated: Date.now() };
     setSongs((ss) => (ss.some((x) => x.id === s.id) ? ss.map((x) => (x.id === s.id ? s : x)) : [s, ...ss]));
     toast(ex ? "Song updated ✓" : "Song added ✓"); pop();
     if (sendMus) setTimeout(() => push({ screen: "song", id: s.id, share: true }), 50);
@@ -329,8 +334,16 @@ function SongEditScreen({ id, lyrics: l0 }) {
         <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "12px 0 6px" }}>ORIGINAL KEY</div>
         <Scroller>{SONG_KEYS.map((k, i) => <Chip key={k} active={f.origKey === i} onClick={() => set("origKey", i)}>{k}</Chip>)}</Scroller>
         <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-          <div style={{ flex: 1 }}><div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, marginBottom: 6 }}>TEMPO</div><input type="number" value={f.bpm} onChange={(e) => set("bpm", Math.max(30, Math.min(240, +e.target.value || 0)))} style={inp} /></div>
-          <div style={{ flex: 1 }}><div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, marginBottom: 6 }}>FIRST SUNG NOTE</div><select value={f.startDeg || ""} onChange={(e) => set("startDeg", e.target.value)} style={inp}><option value="">—</option>{["1", "2", "3", "4", "5", "6", "7"].map((d) => <option key={d} value={d}>{d} ({spell(f.key + degPc(d), f.key)})</option>)}</select></div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, marginBottom: 6 }}>TEMPO (BPM)</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <Btn small variant="soft" onClick={() => bpmCommit((parseInt(bpmTxt) || f.bpm) - 1)}>−</Btn>
+              <input type="text" inputMode="numeric" value={bpmTxt} onChange={(e) => setBpmTxt(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))} onBlur={() => bpmCommit(bpmTxt)} onKeyDown={(e) => e.key === "Enter" && e.target.blur()} placeholder="76" style={{ ...inp, width: 90, flex: "0 0 auto", textAlign: "center", fontSize: 18, fontWeight: 800 }} />
+              <Btn small variant="soft" onClick={() => bpmCommit((parseInt(bpmTxt) || f.bpm) + 1)}>+</Btn>
+              <Btn small variant="soft" icon={Activity} onClick={tapTempo}>Tap tempo</Btn>
+              <span style={{ fontSize: 11.5, color: T.sub }}>{f.bpm < 70 ? "slow · ballad" : f.bpm < 100 ? "mid tempo" : f.bpm < 130 ? "upbeat" : "fast"}</span>
+            </div>
+          </div>
         </div>
         <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "12px 0 6px" }}>TIME</div>
         <Scroller>{["4/4", "3/4", "6/8", "12/8"].map((m) => <Chip key={m} active={f.meter === m} onClick={() => set("meter", m)}>{m}</Chip>)}</Scroller>

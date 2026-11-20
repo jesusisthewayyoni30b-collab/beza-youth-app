@@ -1,3 +1,4 @@
+Songs: tempo box fixed (type it, use + / −, or tap tempo), removed the first sung note box
 Computers now get a full web layout from the very first screen: intro, sign-in and setup
 Leader code can now be any easy phrase, spaces and capitals don't matter
 Real team accounts: create your account with email or Google, and your progress is saved online
