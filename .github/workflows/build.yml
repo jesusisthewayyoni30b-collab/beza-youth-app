@@ -26,6 +26,8 @@ jobs:
         with: { node-version: 22 }
       - run: npm install --no-audit --no-fund
       - run: bash scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with: { name: site, path: dist, include-hidden-files: true }
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }
@@ -72,3 +74,28 @@ jobs:
             The app updates itself from the website — you only reinstall when the app tells you to.
           files: BezaYouth.apk
           make_latest: true
+
+  firebase:
+    needs: [web, android]
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: env.HAS_KEY == 'true'
+        uses: actions/download-artifact@v4
+        with: { name: site, path: site }
+      - if: env.HAS_KEY == 'true'
+        uses: actions/download-artifact@v4
+        with: { name: BezaYouth-apk, path: apk }
+      - if: env.HAS_KEY == 'true'
+        run: cp apk/BezaYouth.apk site/BezaYouth.apk && ls -la site | head
+      - if: env.HAS_KEY == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: beza-youth
+          channelId: live
+      - if: env.HAS_KEY != 'true'
+        run: echo "No FIREBASE_SERVICE_ACCOUNT secret yet - skipping beza-youth.web.app deploy"
