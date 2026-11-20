@@ -206,7 +206,7 @@ const AE = (() => {
     const c = get(); const t = c.currentTime + when; const bank = banks[inst];
     if (!bank) {
       const asked = c.currentTime; const pr = loading[inst] || load(inst);
-      pr.then(() => { if (banks[inst] && c.currentTime - asked < 2) play(inst, midi, dur, Math.max(0, when - (c.currentTime - asked)), vel, dest, pan); else if (!banks[inst]) synthTone(midi, dur, c.currentTime + 0.01, vel, dest); });
+      pr.then(() => { if (banks[inst] && c.currentTime - asked < 4) play(inst, midi, dur, Math.max(0, when - (c.currentTime - asked)), vel, dest, pan); else if (!banks[inst]) synthTone(midi, dur, c.currentTime + 0.01, vel, dest); });
       return;
     }
     let best = bank[0]; for (const b of bank) if (Math.abs(b[0] - midi) < Math.abs(best[0] - midi)) best = b;

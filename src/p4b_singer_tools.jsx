@@ -373,7 +373,8 @@ const INTERVALS = [["m2", 1], ["M2", 2], ["m3", 3], ["M3", 4], ["P4", 5], ["Trit
 const INT_SETS = { Beginner: ["M3", "P5", "Octave"], Developing: ["m3", "M3", "P4", "P5", "Octave"], Intermediate: ["M2", "m3", "M3", "P4", "P5", "M6", "Octave"], Advanced: INTERVALS.map((x) => x[0]) };
 const EAR_LV = ["Easy", "Medium", "Hard", "Expert"];
 const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
-const fineTone = (freq, dur = 1, when = 0, type = "triangle", vol = 0.22) => { const c = AE.get(); const t = c.currentTime + when; const o = c.createOscillator(); const g = c.createGain(); o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.setValueAtTime(vol, t + dur - 0.08); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(AE.out()); o.start(t); o.stop(t + dur + 0.05); };
+/* exact frequencies on the real piano (for in-tune / sharp / flat training) */
+const fineTone = (freq, dur = 1, when = 0) => AE.play("piano", 69 + 12 * Math.log2(freq / (AE.settings.a4 || 440)), dur, when, 0.8);
 const cad = (base, w = 420) => { [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]].forEach((c, i) => setTimeout(() => AE.chord([base - 12 + c[0], ...c.map((x) => base + x)], 0.5), i * w)); return 4 * w + 250; };
 const triadOf = (key, d) => { const r = (key + DIATONIC.degs[d]) % 12; const q = DIATONIC.q[d]; return (q === "m" ? [0, 3, 7] : q === "dim" ? [0, 3, 6] : [0, 4, 7]).map((x) => r + x); };
 const playTriad = (key, d, w = 0, bass = true) => setTimeout(() => { const r = (key + DIATONIC.degs[d]) % 12; if (bass) AE.play("bass", 36 + r, 1.2, 0, 0.8); AE.chord(voiceLead(null, triadOf(key, d)), 1.2); }, w);

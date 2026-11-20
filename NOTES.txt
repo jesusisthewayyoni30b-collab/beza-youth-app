@@ -1,2 +1,2 @@
-New Gain Lab for the sound team: real sound, a real meter, and a soundcheck challenge
-New website icon
+Ear Gym: the in-tune / sharp / flat and pitch-difference drills now use the real piano, not a beep
+Piano sounds load sooner after opening the app

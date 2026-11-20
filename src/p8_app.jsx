@@ -211,7 +211,7 @@ export default function BezaYouthWorshipTeam() {
   useEffect(() => {
     // load instrument sounds quietly after the intro, one at a time, so opening the app stays smooth
     const idle = (fn, ms) => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 3000 }) : fn()), ms);
-    const timers = [idle(() => { try { AE.get(); AE.load("piano"); } catch (e) { } }, 5500), idle(() => { try { AE.loadDrums(); } catch (e) { } }, 8000), idle(() => { try { AE.load("acoustic"); } catch (e) { } }, 10000), idle(() => { try { AE.load("bass"); } catch (e) { } }, 12000), idle(() => { try { AE.load("electric"); } catch (e) { } }, 14000)];
+    const timers = [idle(() => { try { AE.get(); AE.load("piano"); } catch (e) { } }, 2500), idle(() => { try { AE.loadDrums(); } catch (e) { } }, 8000), idle(() => { try { AE.load("acoustic"); } catch (e) { } }, 10000), idle(() => { try { AE.load("bass"); } catch (e) { } }, 12000), idle(() => { try { AE.load("electric"); } catch (e) { } }, 14000)];
     const unlock = () => { try { AE.get(); } catch (e) { } };
     window.addEventListener("pointerdown", unlock, { passive: true }); window.addEventListener("touchend", unlock, { passive: true });
     return () => { timers.forEach(clearTimeout); window.removeEventListener("pointerdown", unlock); window.removeEventListener("touchend", unlock); };
