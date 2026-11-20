@@ -122,7 +122,7 @@ function GuitarView({ chords, songKey }) {
       {chords.map((ch) => {
         const r = chordRoot(ch, songKey); const shapeRoot = (r - capo + 12) % 12; let vs = chordVoicings(shapeRoot, ch.q);
         if (capo > 0) vs = [...vs.filter((v) => v.cat === "Open"), ...vs.filter((v) => v.cat !== "Open" && v.cat !== "Capo")];
-        const shapeName = spell(shapeRoot, o.shapeKey) + ch.q + (ch.bass ? "/" + spell((o.shapeKey + degPc(ch.bass)) % 12, o.shapeKey) : "");
+        const shapeName = chordName(ch, o.shapeKey);
         return (
           <Card key={chordNum(ch)} pad={12} style={{ marginTop: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
@@ -412,7 +412,7 @@ function LiveShape({ ch, songKey, inst, capo, shapeKey, size = "big" }) {
   const { T } = useApp(); const big = size === "big";
   if (!ch || ch.mark) return null;
   const sh = liveShape(ch, songKey, inst, capo);
-  if (inst === "guitar") { const nm = capo ? spell(sh.shapeRoot, shapeKey) + ch.q + (ch.bass ? "/" + spell((shapeKey + degPc(ch.bass)) % 12, shapeKey) : "") : chordName(ch, songKey);
+  if (inst === "guitar") { const nm = capo ? chordName(ch, shapeKey) : chordName(ch, songKey);
     return sh.v ? <div onClick={() => strumShape(sh.v.frets, "acoustic", capo || sh.v.capo)} style={{ cursor: "pointer", background: T.card, color: T.text, borderRadius: 14, padding: 4, display: "inline-block", border: `1px solid ${T.border}` }}><ChordBox frets={sh.v.frets} name={nm} capo={capo || sh.v.capo} width={big ? 150 : 92} /></div> : <div style={{ fontSize: 12, opacity: 0.8 }}>no shape</div>; }
   if (inst === "keys") return <div onClick={() => { AE.tone(sh.lh, 1.3, 0, 0.7); AE.chord(sh.rh, 1.3); }} style={{ cursor: "pointer", width: "100%" }}><Piano start={36} octaves={big ? 4 : 3} highlight={[...sh.rh, sh.lh]} roots={[sh.lh]} height={big ? 86 : 54} labels={false} /><div style={{ fontSize: big ? 13 : 11, fontWeight: 800, marginTop: 4 }}>RH {sh.rh.map((m) => spell(m, songKey)).join(" ")} · LH {spell(sh.lh, songKey)}</div></div>;
   if (inst === "bass") return <div onClick={() => AE.play("bass", 28 + sh.e, 1.2, 0, 0.9)} style={{ cursor: "pointer", width: "100%" }}>{big && <Fretboard tuning={[28, 33, 38, 43]} pcs={[sh.bpc, (sh.bpc + 7) % 12]} rootPc={sh.bpc} frets={12} />}<div style={{ fontSize: big ? 14 : 11.5, fontWeight: 800, marginTop: 4 }}>{spell(sh.bpc, songKey)} · E fret {sh.e} · A fret {sh.a}</div></div>;
@@ -448,10 +448,11 @@ function LiveScreen({ id }) {
   useEffect(() => { if (!play) setBeat(-1); }, [play]);
   if (!song) return null;
   const s = secs[si] || { name: "", lines: [] }; const nx = secs[si + 1];
+  const gk = guessKey(song.chart, song.key);
   const pick = (li, ci, c) => { setPos({ li, ci }); if (!play) strumChord(c, song.key); };
   const goSec = (i) => { setSi(i); setPos(null); };
   const setKey = (k) => { setSongs((ss) => ss.map((x) => (x.id === id ? { ...x, key: k } : x))); setCapo(0); };
-  const nameOf = (c) => (inst === "guitar" && capo ? spell((chordRoot(c, song.key) - capo + 12) % 12, co.shapeKey) + c.q : chordName(c, song.key));
+  const nameOf = (c) => (inst === "guitar" && capo ? chordName(c, co.shapeKey) : chordName(c, song.key));
   const Big = ({ f, label, dim }) => f ? (
     <div style={{ flex: dim ? "0 0 38%" : 1, minWidth: 0, opacity: dim ? 0.75 : 1, textAlign: "center" }}>
       <div style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: 2, opacity: 0.8 }}>{label}</div>
@@ -464,6 +465,7 @@ function LiveScreen({ id }) {
   return (
     <div onTouchStart={(e) => { tx.current = e.touches[0].clientX; }} onTouchEnd={(e) => { if (tx.current == null || play) return; const dx = e.changedTouches[0].clientX - tx.current; tx.current = null; if (Math.abs(dx) > 70) goSec(Math.max(0, Math.min(secs.length - 1, si + (dx < 0 ? 1 : -1)))); }}>
       <TopBar title={song.title} sub={`Key ${keyLabel(song.key)} · ${song.bpm} bpm · ${song.meter} · LIVE`} right={<Btn small variant="soft" onClick={() => setShowKey((v) => !v)}>Key {keyLabel(song.key)}</Btn>} />
+      {gk && <Card tone="soft" style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.5, border: `1.5px solid ${T.pop}` }}><b>🎯 Key check:</b> these chords fit <b>{keyLabel(gk.key)}</b>, not {keyLabel(song.key)} — so numbers, transposing and capo shapes will be off. <div style={{ marginTop: 8 }}><Btn small variant="accent" onClick={() => { setSongs((ss) => ss.map((x) => (x.id === id ? { ...x, chart: reinterpret(x.chart, x.key, gk.key), key: gk.key } : x))); setCapo(0); }}>Fix: key {keyLabel(gk.key)} — same chords</Btn></div></Card>}
       {showKey && <Scroller style={{ marginBottom: 8 }}>{SONG_KEYS.map((k, i) => <Chip key={k} active={song.key === i} onClick={() => setKey(i)}>{k}{song.origKey === i ? " ★" : ""}</Chip>)}</Scroller>}
       <div style={{ marginBottom: 8 }}><Seg value={inst} onChange={setInst} options={[{ value: "chart", label: "Chart" }, { value: "guitar", label: "🎸 Guitar" }, { value: "keys", label: "🎹 Keys" }, { value: "bass", label: "Bass" }]} /></div>
       <Scroller style={{ marginBottom: 8 }}>{[["both", "Chords + numbers"], ["nums", "Numbers (for calling)"], ["names", "Chords"]].map(([v, l]) => <Chip key={v} active={mode === v} onClick={() => setMode(v)}>{l}</Chip>)}</Scroller>

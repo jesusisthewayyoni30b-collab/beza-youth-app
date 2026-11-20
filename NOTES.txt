@@ -1,5 +1,2 @@
-Live mode upgraded: pick Guitar, Keys or Bass and see the real chord shapes, piano hands and bass frets for every chord on stage
-Play along: the chords move with the click, one bar each, with NOW and NEXT shown big — plus capo options, key change and swipe between sections
-Chat: tap your message to Edit or Delete it (leaders can delete any message)
-Key check: if chords were typed with the wrong key selected, the app spots the real key and fixes the numbers in one tap
-Editor: when writing as chords, changing the key keeps your chord names exactly as typed; chord spelling is cleaner (Bb not A#)
+Capo fixed: with a capo, every chord name and shape now matches the capo key (Eb with capo 3 shows Am G F C shapes)
+Key check now also shows in Live mode, so a wrong key is caught before you play
