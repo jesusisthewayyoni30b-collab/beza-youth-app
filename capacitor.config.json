@@ -3,12 +3,12 @@
   "appName": "Beza Youth",
   "webDir": "shell",
   "server": {
-    "url": "https://jesusisthewayyoni30b-collab.github.io/beza-youth-app/",
+    "url": "https://beza-youth.web.app/",
     "androidScheme": "https",
     "errorPath": "index.html"
   },
   "android": {
-    "appendUserAgent": "BezaShell/2",
+    "appendUserAgent": "BezaShell/3",
     "backgroundColor": "#07090b"
   },
   "plugins": {

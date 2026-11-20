@@ -1,5 +1,3 @@
-Help & feedback now works: send bugs, ideas and questions to the leaders, plus quick help answers
-New cinematic sound for the intro (turn it off in Settings → Intro sound)
-Microphone fix: the Range Tester now hears quieter laptop and phone mics, with a live mic level bar
-Finger exercises: finger numbers under every note, plus a simple "How to read this" guide
-Practice reminders: choose your time, days and daily goal (Settings → Practice reminder)
+New home: the app now lives at beza-youth.web.app
+Android: download the new app once, then it updates itself as always
+Help & feedback, practice reminders, intro sound and mic fixes from the last update

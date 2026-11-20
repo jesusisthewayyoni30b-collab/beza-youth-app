@@ -155,7 +155,7 @@ const AE = (() => {
   const micErr = (e) => {
     const n = (e && e.name) || ""; const inFrame = window.self !== window.top;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return "This browser can't use the microphone. Open the app in Chrome (Android/computer) or Safari (iPhone).";
-    if (inFrame) return "The microphone is blocked in this preview. Open the real website: jesusisthewayyoni30b-collab.github.io/beza-youth-app";
+    if (inFrame) return "The microphone is blocked in this preview. Open the real website: beza-youth.web.app";
     if (n === "NotAllowedError" || n === "SecurityError") return "Microphone access is blocked. Tap the 🔒 (or ⓘ) next to the web address → Permissions → Microphone → Allow, then try again. On a computer also check your system's privacy settings.";
     if (n === "NotFoundError" || n === "OverconstrainedError") return "No microphone found. Plug in or turn on a mic and try again.";
     if (n === "NotReadableError") return "Another app is using the microphone (Zoom, WhatsApp call…). Close it and try again.";

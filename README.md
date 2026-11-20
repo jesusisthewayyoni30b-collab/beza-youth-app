@@ -2,8 +2,8 @@
 
 Training app for the Beza International Church youth worship team: singers, musicians and sound.
 
-- **Website:** https://jesusisthewayyoni30b-collab.github.io/beza-youth-app/
-- **Android:** [Download BezaYouth.apk](https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/BezaYouth.apk)
+- **Website:** https://beza-youth.web.app
+- **Android:** [Download BezaYouth.apk](https://beza-youth.web.app/download)
 - **iPhone:** open the website in Safari → Share → Add to Home Screen
 
 Every push to `main` rebuilds the website and the APK automatically (see `.github/workflows/build.yml`).
