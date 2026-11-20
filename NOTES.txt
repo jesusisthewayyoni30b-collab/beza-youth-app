@@ -1,3 +1,4 @@
+Leader code can now be any easy phrase, spaces and capitals don't matter
 Real team accounts: create your account with email or Google, and your progress is saved online
 Live team chat on every phone: All team, Singers, Musicians, Sound and Leaders
 Songs and chord charts are shared with the whole team instantly

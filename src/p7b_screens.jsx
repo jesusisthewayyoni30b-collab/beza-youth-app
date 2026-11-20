@@ -857,7 +857,7 @@ function SettingsScreen() {
       {options.map(([v, l]) => <button key={v} onClick={() => onChange(v)} style={{ border: "none", borderRadius: 99, padding: "5px 10px", fontFamily: FONT, fontSize: 11.5, fontWeight: 700, cursor: "pointer", background: value === v ? T.accent : "transparent", color: value === v ? T.accentText : T.sub }}>{l}</button>)}
     </div>
   );
-  const tryCode = (c) => { if (CLOUD.on) { CLOUD.set(`leaders/${user.uid}`, { code: c.toUpperCase().trim(), name: user.name }, false).then(() => { setLeader(true); setGate(false); setCode(""); toast("Leaders Board unlocked 🛡️"); push({ screen: "leaders" }); }).catch(() => { setErr(true); setTimeout(() => { setErr(false); setCode(""); }, 700); }); return; } if (c.toUpperCase() === LEADER_CODE) { setLeader(true); setGate(false); setCode(""); toast("Leaders Board unlocked 🛡️"); push({ screen: "leaders" }); } else { setErr(true); setTimeout(() => { setErr(false); setCode(""); }, 700); } };
+  const tryCode = (c) => { if (CLOUD.on) { CLOUD.set(`leaders/${user.uid}`, { code: c.toUpperCase().replace(/[^A-Z0-9]/g, ""), name: user.name }, false).then(() => { setLeader(true); setGate(false); setCode(""); toast("Leaders Board unlocked 🛡️"); push({ screen: "leaders" }); }).catch(() => { setErr(true); setTimeout(() => { setErr(false); setCode(""); }, 700); }); return; } if (c.toUpperCase() === LEADER_CODE) { setLeader(true); setGate(false); setCode(""); toast("Leaders Board unlocked 🛡️"); push({ screen: "leaders" }); } else { setErr(true); setTimeout(() => { setErr(false); setCode(""); }, 700); } };
   const startHold = () => { clearTimeout(hold.current); hold.current = setTimeout(() => { if (navigator.vibrate) navigator.vibrate(30); setGate(true); }, 2500); };
   const endHold = () => clearTimeout(hold.current);
   return (
@@ -922,11 +922,12 @@ function SettingsScreen() {
       <Sheet open={gate} onClose={() => setGate(false)}>
         <div style={{ textAlign: "center", padding: "6px 0 10px" }}>
           <div style={{ fontFamily: GRAFF, fontSize: 28 }}>Leader code</div>
-          <label style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16, cursor: "text" }} className={err ? "bz-shake" : ""}>
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} style={{ width: 42, height: 52, borderRadius: 14, display: "grid", placeItems: "center", fontSize: 22, fontWeight: 800, background: T.card2, border: `2px solid ${err ? T.bad : code.length === i ? T.accent : T.border}` }}>{code[i] ? "•" : ""}</div>)}
-            <input autoFocus value={code} maxLength={6} onChange={(e) => { const v = e.target.value.replace(/[^a-z0-9]/gi, ""); setCode(v); if (v.length === 6) tryCode(v); }} style={{ position: "absolute", opacity: 0, width: 1, height: 1 }} />
-          </label>
-          <div style={{ fontSize: 12, color: err ? T.bad : T.faint, marginTop: 12 }}>{err ? "Wrong code" : " "}</div>
+          <div className={err ? "bz-shake" : ""} style={{ marginTop: 16 }}>
+            <input autoFocus value={code} maxLength={40} placeholder="Type the leader code" onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === "Enter" && code.trim() && tryCode(code.replace(/[^a-z0-9]/gi, ""))}
+              style={{ width: "100%", boxSizing: "border-box", textAlign: "center", fontSize: 18, fontWeight: 800, letterSpacing: 1, padding: "14px 12px", borderRadius: 16, border: `2px solid ${err ? T.bad : T.border}`, background: T.card2, color: T.text, fontFamily: FONT, outline: "none" }} />
+            <Btn full style={{ marginTop: 12 }} icon={Shield} onClick={() => code.trim() && tryCode(code.replace(/[^a-z0-9]/gi, ""))}>Unlock</Btn>
+          </div>
+          <div style={{ fontSize: 12, color: err ? T.bad : T.faint, marginTop: 12 }}>{err ? "Wrong code" : "Spaces and capitals don't matter"}</div>
         </div>
       </Sheet>
     </div>
