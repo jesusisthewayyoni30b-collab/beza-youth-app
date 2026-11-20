@@ -73,8 +73,9 @@ function Login() {
 
 const START_LEVELS = [["New to this", 0], ["Some experience", 1], ["Comfortable", 2], ["Experienced", 3]];
 function Onboarding({ onDone, initial, inSheet }) {
-  const { T, user } = useApp();
+  const { T, user, settings } = useApp();
   const [step, setStep] = useState(0);
+  const [rem, setRem] = useState({ notif: true, reminder: settings.reminder || "18:00", days: settings.days || [0, 1, 2, 3, 4, 5, 6], goal: settings.goal || 20 });
   const [roles, setRoles] = useState(initial || []);
   const [levels, setLevels] = useState((user && user.levels) || {});
   const toggle = (id) => setRoles((r) => (r.includes(id) ? r.filter((x) => x !== id) : [...r, id]));
@@ -100,6 +101,16 @@ function Onboarding({ onDone, initial, inSheet }) {
           </div>
           <Btn full style={{ marginTop: 18 }} disabled={!roles.length} onClick={() => setStep(1)} icon={ChevronRight}>Continue ({roles.length} chosen)</Btn>
         </>
+      ) : step === 2 ? (
+        <>
+          <div style={{ fontFamily: GRAFF, fontSize: 32, lineHeight: 1.05, textAlign: "center", margin: "10px 0 6px", textShadow: `3px 3px 0 ${T.pop}` }}>When will you practise?</div>
+          <div style={{ textAlign: "center", color: T.sub, fontSize: 13, marginBottom: 16 }}>Pick a time that fits your day. A little every day beats a lot once a week. You can change this anytime in Settings.</div>
+          <Card><ReminderPicker value={rem} onChange={setRem} /></Card>
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <Btn variant="ghost" onClick={() => setStep(1)} icon={ChevronLeft}>Back</Btn>
+            <Btn full onClick={() => onDone(roles, levels, rem)} icon={Check}>Let's go!</Btn>
+          </div>
+        </>
       ) : (
         <>
           <div style={{ fontFamily: GRAFF, fontSize: 32, lineHeight: 1.05, textAlign: "center", margin: "10px 0 6px", textShadow: `3px 3px 0 ${T.pop}` }}>Where are you starting?</div>
@@ -112,7 +123,7 @@ function Onboarding({ onDone, initial, inSheet }) {
           ); })}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <Btn variant="ghost" onClick={() => setStep(0)} icon={ChevronLeft}>Back</Btn>
-            <Btn full onClick={() => onDone(roles, levels)} icon={Check}>Let's go!</Btn>
+            {inSheet ? <Btn full onClick={() => onDone(roles, levels)} icon={Check}>Save</Btn> : <Btn full onClick={() => setStep(2)} icon={ChevronRight}>Next: practice time</Btn>}
           </div>
         </>
       )}
@@ -128,7 +139,7 @@ function HomeScreen() {
   const first = user.name.split(" ")[0];
   const today = new Date().toDateString();
   const minsToday = logs.filter((l) => new Date(l.at).toDateString() === today).reduce((s, l) => s + l.mins, 0);
-  const goal = 30; const pct = Math.min(1, minsToday / goal);
+  const goal = settings.goal || 20; const pct = Math.min(1, minsToday / goal);
   const [day, setDay] = useState(new Date().getDate());
   const mine = assignments.filter((a) => a.toMe && a.status !== "done");
   const sess = sessionsFor(user.roles)[0];
@@ -154,7 +165,7 @@ function HomeScreen() {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.85, letterSpacing: 1 }}>TODAY'S PRACTICE</div>
-            <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, marginTop: 2 }}>{pct >= 1 ? "Goal smashed! 🔥" : pct > 0 ? `${minsToday} of ${goal} minutes — keep going` : "Let's start your 30 minutes"}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, marginTop: 2 }}>{pct >= 1 ? "Goal smashed! 🔥" : pct > 0 ? `${minsToday} of ${goal} minutes — keep going` : `Let's start your ${goal} minutes`}</div>
             {sess && <Btn small variant="light" style={{ marginTop: 12 }} icon={Play} onClick={() => push({ screen: "session", id: sess.id })}>{sess.title}</Btn>}
           </div>
           <Ring pct={pct} size={86} stroke={9} color={T.graffiti ? "#C6FF3D" : T.pop} track="rgba(255,255,255,0.25)"><span style={{ fontSize: 16 }}>{Math.round(pct * 100)}%</span></Ring>
@@ -205,6 +216,13 @@ function HomeScreen() {
       </div>
 
       <UpdateCard />
+      {reminderDue(settings, minsToday) && (
+        <Card tone="hero" style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12 }} onClick={() => push({ screen: "tool", id: user.roles.includes("singer") ? "vocalgym" : user.roles.includes("keys") ? "keysdrills" : "ear" })}>
+          <NeonIcon icon={Bell} colors={NEON.gold} size={42} />
+          <div style={{ flex: 1 }}><div style={{ fontWeight: 800, fontSize: 14.5 }}>It's practice time ⏰</div><div style={{ fontSize: 12.5, opacity: 0.8 }}>Your {to12(settings.reminder)} session · {Math.max(0, (settings.goal || 20) - minsToday)} min left to reach today's goal</div></div>
+          <ChevronRight />
+        </Card>
+      )}
 
       <SectionTitle action="Schedule" onAction={() => push({ screen: "schedule" })}>This week</SectionTitle>
       <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
@@ -600,7 +618,7 @@ const BADGES = [
   { id: "all", label: "Track master", icon: Award, test: (s) => s.user.roles.some((r) => CURRICULUM[r] && CURRICULUM[r].all.every((i) => s.done.has(i))) },
 ];
 function ProgressScreen() {
-  const { T, user, done, logs, streak, voice, assignments, sessionsDone, push } = useApp();
+  const { T, user, done, logs, streak, voice, assignments, sessionsDone, push, settings } = useApp();
   const minutes = logs.reduce((s, l) => s + l.mins, 0);
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return { label: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()], mins: logs.filter((l) => new Date(l.at).toDateString() === d.toDateString()).reduce((s, l) => s + l.mins, 0) }; });
   const mx = Math.max(30, ...days.map((d) => d.mins));
@@ -646,7 +664,7 @@ function ProgressScreen() {
         </div>
       </Card>
       <SectionTitle>Practice calendar · last 5 weeks</SectionTitle>
-      <PracticeCalendar logs={logs} goal={30} />
+      <PracticeCalendar logs={logs} goal={settings.goal || 20} />
       {assignments.filter((a) => a.toMe).length > 0 && (<>
         <SectionTitle>Assignments</SectionTitle>
         {assignments.filter((a) => a.toMe).map((a) => (
@@ -834,7 +852,7 @@ function ProfileScreen() {
 function SettingsScreen() {
   const { T, settings, setSettings, themeId, setThemeId, update, runUpdate, checkUpdate, user, setUser, toast, leader, setLeader, push, replayIntro } = useApp();
   const [midiMsg, setMidiMsg] = useState(midiState.connected ? midiState.inputs.join(", ") : "");
-  const [gate, setGate] = useState(false);
+  const [gate, setGate] = useState(false); const [remOpen, setRemOpen] = useState(false);
   const [code, setCode] = useState(""); const [err, setErr] = useState(false);
   const hold = useRef(null);
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
@@ -891,7 +909,7 @@ function SettingsScreen() {
         <Row icon={Sparkles} label="Replay intro animation" onClick={replayIntro} />
       </Group>
       <Group title="Practice">
-        <Row icon={Bell} label="Daily reminder" value={settings.notif ? to12(settings.reminder) : "Off"} right={<Toggle on={settings.notif} onChange={(v) => set("notif", v)} />} />
+        <Row icon={Bell} label="Practice reminder" value={settings.notif ? `${to12(settings.reminder)} · ${settings.goal || 20} min` : "Off"} onClick={() => setRemOpen(true)} />
         <Row icon={Timer} label="Metronome sound" right={<Mini options={[["click", "Click"], ["wood", "Wood"], ["beep", "Beep"]]} value={settings.click} onChange={(v) => { set("click", v); AE.settings.click = v; AE.click(true); }} />} />
         <Row icon={Music} label="Reference pitch" right={<Mini options={[[440, "A440"], [442, "A442"]]} value={settings.a4} onChange={(v) => set("a4", v)} />} />
       </Group>
@@ -912,6 +930,11 @@ function SettingsScreen() {
         <BezaLogo width={120} />
       </div>
       <div style={{ textAlign: "center", fontSize: 11, color: T.faint, lineHeight: 1.6 }}>Beza Youth Worship Team · v{update.version}<br />Piano: Salamander Grand (CC-BY) · Guitar/bass/drums: Tone.js sample libraries</div>
+      <Sheet open={remOpen} onClose={() => setRemOpen(false)}>
+        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}>Practice reminder</div>
+        <ReminderPicker value={{ notif: settings.notif, reminder: settings.reminder, days: settings.days, goal: settings.goal }} onChange={(r) => setSettings((x) => ({ ...x, ...r }))} />
+        <Btn full style={{ marginTop: 16 }} icon={Check} onClick={async () => { const r = await applyReminders(settings, true); setRemOpen(false); toast(r === "denied" ? "Notifications are blocked. Allow them in your phone settings." : r === "scheduled" ? `Reminder set for ${to12(settings.reminder)} ✓` : settings.notif ? `Saved ✓ We'll remind you at ${to12(settings.reminder)} when the app is open` : "Reminder off"); }}>Save</Btn>
+      </Sheet>
       <Sheet open={gate} onClose={() => setGate(false)}>
         <div style={{ textAlign: "center", padding: "6px 0 10px" }}>
           <div style={{ fontFamily: GRAFF, fontSize: 28 }}>Leader code</div>

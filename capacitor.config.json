@@ -8,7 +8,12 @@
     "errorPath": "index.html"
   },
   "android": {
-    "appendUserAgent": "BezaShell/1",
+    "appendUserAgent": "BezaShell/2",
     "backgroundColor": "#07090b"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#22E4FF"
+    }
   }
 }

@@ -180,7 +180,7 @@ export default function BezaYouthWorshipTeam() {
   const [voiceRange, setVoiceRange] = useState(saved.voiceRange || null);
   const [avatar, setAvatar] = useState(saved.avatar || null);
   const [leader, setLeader] = useState(!!saved.leader);
-  const [settings, setSettings] = useState({ lang: "en", notif: true, reminder: "18:00", click: "click", a4: 440, pcKeys: true, autoUpdate: true, ...(saved.settings || {}) });
+  const [settings, setSettings] = useState({ lang: "en", notif: true, reminder: "18:00", days: [0, 1, 2, 3, 4, 5, 6], goal: 20, click: "click", a4: 440, pcKeys: true, autoUpdate: true, ...(saved.settings || {}) });
   const [update, setUpdate] = useState({ version: BEZA_BUILD_NAME, build: BEZA_BUILD, available: false, progress: null, remote: null });
   const [assignments, setAssignments] = useState(saved.assignments || []);
   const [sessionsDone, setSessionsDone] = useState(saved.sessionsDone || {});
@@ -222,7 +222,7 @@ export default function BezaYouthWorshipTeam() {
       for (let i = 0; i < 40 && !ok; i++) { try { prof = await CLOUD.get(`users/${u.uid}`); ok = true; } catch (e) { if (local) break; await new Promise((r) => setTimeout(r, 1500)); } }
       if (prof) {
         setUserRaw({ uid: u.uid, name: prof.name || u.name || "Member", email: u.email, roles: prof.roles || [], levels: prof.levels || {} });
-        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setVoiceRange(prof.voiceRange || null); setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
+        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setVoiceRange(prof.voiceRange || null); if (prof.prefs) { setSettings((x) => ({ ...x, ...prof.prefs })); applyReminders({ ...settings, ...prof.prefs }, false); } setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
       } else if (!ok && local) {
         setUserRaw({ ...local.user });
       } else if (legacy) {
@@ -272,7 +272,8 @@ export default function BezaYouthWorshipTeam() {
     setUserRaw(u); setTabRaw("home"); setStacks({ learn: [], practice: [], home: [], songs: [], games: [], progress: [], chat: [] });
     if (!CLOUD.on && u && u.roles && u.roles.length && !logs.length) { const now = Date.now(); setLogs([2, 3, 4, 6, 7, 9, 11].map((d, i) => ({ at: now - d * 864e5, mins: [15, 30, 10, 25, 20, 30, 12][i], what: ["Vocal Gym", "Daily Vocal Workout", "Ear training", "Harmony drills", "Breath Lab", "Daily Keys Workout", "Scale studies"][i] }))); setDone(new Set()); }
   };
-  const setRoles = (roles, levels) => {
+  const setRoles = (roles, levels, rem) => {
+    if (rem) { const ns = { ...settings, ...rem }; setSettings(ns); applyReminders(ns, true).then((r) => toast(r === "scheduled" ? `Reminder set for ${to12(ns.reminder)} ⏰` : r === "denied" ? "Notifications blocked: you can allow them later in phone settings" : ns.notif ? `We will remind you at ${to12(ns.reminder)} ⏰` : "Welcome to the team!")); }
     setUserRaw((u) => ({ ...u, roles, levels: { ...(u.levels || {}), ...levels } }));
     if (CLOUD.on && user && user.uid && !(user.roles || []).length) { const pick = CURRICULUM.heart.all[0]; CLOUD.set(`assignments/welcome-${user.uid}`, { id: `welcome-${user.uid}`, toUid: user.uid, fromUid: user.uid, from: "Beza Youth leaders", role: "heart", kind: "lesson", ref: pick, title: LESSONS[pick].title, due: "Before Saturday rehearsal", comment: "Welcome to the team! Before anything else — skills, songs, sound — start here. Read it slowly, pray through it, and come ready to share one thing God spoke to you 🙏", status: "sent", at: Date.now() }, false).catch(() => { }); return; }
     if (!CLOUD.on && !assignments.some((a) => a.toMe)) { const pick = CURRICULUM.heart.all[0];
@@ -301,6 +302,7 @@ export default function BezaYouthWorshipTeam() {
     assignments, setAssignments, sessionsDone, setSessionsDone, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
   };
   const needsOnboarding = user && (!user.roles || !user.roles.length);
+  useWebReminder(settings, logs.filter((l) => new Date(l.at).toDateString() === new Date().toDateString()).reduce((s, l) => s + l.mins, 0));
   const L = STR[settings.lang];
   const win = useWinSize();
   const view = /[?&]web=1/.test(window.location.search) ? "web" : "auto";
@@ -329,7 +331,7 @@ export default function BezaYouthWorshipTeam() {
             big ? <AuthDesktop>{CLOUD.on ? <CloudLogin desktop /> : <Login />}</AuthDesktop>
               : <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}>{CLOUD.on ? <CloudLogin /> : <Login />}</div>
           ) : needsOnboarding ? (
-            <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}><div style={big ? { maxWidth: 760, margin: "0 auto", padding: "40px 24px 60px" } : undefined}><Onboarding onDone={(r, lv) => setRoles(r, lv)} /></div></div>
+            <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}><div style={big ? { maxWidth: 760, margin: "0 auto", padding: "40px 24px 60px" } : undefined}><Onboarding onDone={(r, lv, rem) => setRoles(r, lv, rem)} /></div></div>
           ) : (
             <>
               {web && <SideNav tab={tab} onTab={setTab} labels={L} />}

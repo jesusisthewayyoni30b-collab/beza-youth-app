@@ -81,7 +81,7 @@ const CLOUD_GROUPS = [
 /* Runs inside the app: keeps local state and the cloud in sync */
 function CloudSync({ uid, onTeam }) {
   const ctx = useApp();
-  const { user, done, logs, voice, voiceRange, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader } = ctx;
+  const { user, done, logs, voice, voiceRange, settings, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader } = ctx;
   const me = useRef({}); me.current = { uid, user, leader };
   const people = useRef([]); // all users incl. me: {uid, name, roles, leader}
   const [peopleV, setPeopleV] = useState(0);
@@ -90,10 +90,10 @@ function CloudSync({ uid, onTeam }) {
   useEffect(() => {
     if (!user || !user.roles) return;
     const t = setTimeout(() => {
-      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, voiceRange: voiceRange || null, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
+      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, voiceRange: voiceRange || null, prefs: { notif: !!settings.notif, reminder: settings.reminder || "18:00", days: settings.days || [0, 1, 2, 3, 4, 5, 6], goal: settings.goal || 20 }, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
     }, 1500);
     return () => clearTimeout(t);
-  }, [uid, user, done, logs, voice, voiceRange, avatar, games, sessionsDone, leader]);
+  }, [uid, user, done, logs, voice, voiceRange, settings.notif, settings.reminder, (settings.days || []).join(","), settings.goal, avatar, games, sessionsDone, leader]);
 
   /* ---- team members ---- */
   useEffect(() => CLOUD.listen("users", {}, (list) => {

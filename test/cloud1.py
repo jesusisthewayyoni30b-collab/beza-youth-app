@@ -1,6 +1,7 @@
 import asyncio, json
 from playwright.async_api import async_playwright
 FAKE=open("test/fakecloud.js").read()
+REM_SHOT=True
 async def newpage(ctx, errs, tag):
     pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(tag+": "+str(e)))
     pg.on("console", lambda m: m.type=="warning" and errs.append(tag+" warn: "+m.text))
@@ -15,6 +16,9 @@ async def signup(pg, name, email, roles):
     for r in roles:
         await pg.locator("button").filter(has_text=r).first.click(); await pg.wait_for_timeout(100)
     await pg.locator("button").filter(has_text="Continue (").click(); await pg.wait_for_timeout(300)
+    await pg.locator("button").filter(has_text="Next: practice time").click(); await pg.wait_for_timeout(300)
+    if REM_SHOT: await pg.screenshot(path="test/c_rem.png")
+    await pg.locator("button").filter(has_text="8:00 PM").first.click()
     await pg.locator("button").filter(has_text="Let's go").click(); await pg.wait_for_timeout(2500)
 async def main():
     async with async_playwright() as p:
