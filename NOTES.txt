@@ -1,2 +1,4 @@
-Ear Gym: the in-tune / sharp / flat and pitch-difference drills now use the real piano, not a beep
-Piano sounds load sooner after opening the app
+New: Music Basics for everyone: what −5 / +2 mean, half steps, keys, the number system, and a "find my key" calculator with a quiz
+Chord Library rebuilt: every key and mode (major, minor, dorian, mixolydian, lydian, phrygian, locrian, harmonic & melodic minor) on piano and guitar, with numbers
+Transpose tool shows how the numbers stay and the chords move, plus a full capo chart
+Songs: tap "What does −5 mean?" next to Change key

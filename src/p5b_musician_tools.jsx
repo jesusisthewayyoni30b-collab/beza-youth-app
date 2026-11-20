@@ -328,7 +328,7 @@ function ChordTile({ root, q }) {
   return (
     <Card pad={8} style={{ textAlign: "center" }}>
       <div onClick={() => strumShape(v.frets, "acoustic", v.capo)} className="bz-press" style={{ cursor: "pointer" }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: T.sub, letterSpacing: 0.5 }}>{(ct ? ct.name : q).toUpperCase()}</div>
+        <div style={{ fontSize: 10, fontWeight: 800, color: T.sub, letterSpacing: 0.5 }}>{ct ? ct.name : q || "Major"}</div>
         <ChordBox frets={v.frets} name={name} capo={v.capo} width={118} />
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>

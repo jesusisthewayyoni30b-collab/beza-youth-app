@@ -1,6 +1,7 @@
 
 /* ================================ TOOLS REGISTRY ================================ */
 const TOOLS = {
+  basics: { title: "Music Basics", desc: "What −5 means · keys · numbers · find your key", icon: BookOpen, roles: ["singer", "keys", "acoustic", "lead", "bass", "drums", "sound"], C: MusicBasics },
   vocalgym: { title: "Vocal Gym", desc: "40+ warm-ups & exercises", icon: Mic, roles: ["singer"], C: VocalGym },
   breath: { title: "Breath Lab", desc: "Beginner → Expert + sustain challenge", icon: Wind, roles: ["singer"], C: BreathLab },
   harmony: { title: "Harmony Drills", desc: "17 drills · mute your part", icon: Users, roles: ["singer"], C: HarmonyDrills },
@@ -9,7 +10,7 @@ const TOOLS = {
   ear: { title: "Ear Gym", desc: "13 trainers · pitch, melody, harmony", icon: Headphones, roles: ["singer", "keys", "acoustic", "lead", "bass"], C: EarTrainer },
   rhythm: { title: "Rhythm Lab", desc: "26 lessons · odd meters · polyrhythms", icon: Timer, roles: ["singer", "keys", "acoustic", "lead", "bass", "drums"], C: RhythmLab },
   numbers: { title: "Number System", desc: "Progressions in every key", icon: Layers, roles: ["singer", "keys", "acoustic", "lead", "bass"], C: NumberSystem },
-  chords: { title: "Chord Library", desc: "Every chord · inversions · voicings", icon: Music, roles: ["keys", "acoustic", "lead", "bass"], C: ChordLibrary },
+  chords: { title: "Chord Library", desc: "Every key & mode · numbers · transpose · capo", icon: Music, roles: ["keys", "acoustic", "lead", "bass"], C: ChordLibraryHub },
   keysdrills: { title: "Keys Drills", desc: "Technique & progressions", icon: PianoIcon, roles: ["keys"], C: KeysDrills },
   fingers: { title: "Finger Exercises", desc: "Animated tab · real sounds", icon: Guitar, roles: ["acoustic", "lead", "bass"], C: FingerExercises },
   shapes: { title: "Shapes & Capo", desc: "Every chord in all 12 keys · fingers · capo", icon: Guitar, roles: ["acoustic", "lead"], C: GuitarShapes },

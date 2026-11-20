@@ -263,7 +263,7 @@ function SongScreen({ id, share: share0 }) {
           <Btn full variant="light" icon={Send} onClick={() => setShare(true)}>Send to group</Btn>
         </div>
       </Card>
-      <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "14px 2px 6px" }}>CHANGE KEY (singer moved it? tap the new key)</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 2px 6px" }}><span style={{ fontSize: 11.5, fontWeight: 800, color: T.sub }}>CHANGE KEY (singer moved it? tap the new key)</span><span onClick={() => push({ screen: "tool", id: "basics", props: { tab: "transpose" } })} style={{ fontSize: 11.5, fontWeight: 800, color: ink(T, T.accent), cursor: "pointer", textDecoration: "underline" }}>What does −5 mean?</span></div>
       <Scroller>{SONG_KEYS.map((k, i) => <Chip key={k} active={song.key === i} onClick={() => setKey(i)}>{k}{song.origKey === i ? " ★" : ""}</Chip>)}</Scroller>
       <div style={{ margin: "12px 0" }}><Seg value={view} onChange={setView} options={[{ value: "chart", label: "Chart" }, { value: "guitar", label: "Guitar" }, { value: "keys", label: "Keys" }, { value: "bass", label: "Bass" }, { value: "drums", label: "Drums" }, { value: "vocals", label: "Vocals" }]} /></div>
       {view === "chart" && (
