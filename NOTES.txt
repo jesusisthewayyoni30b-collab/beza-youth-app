@@ -1,3 +1,4 @@
+New app icon that fits every phone shape
 New home: the app now lives at beza-youth.web.app
 Android: download the new app once, then it updates itself as always
 Help & feedback, practice reminders, intro sound and mic fixes from the last update
