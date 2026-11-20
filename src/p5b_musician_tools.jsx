@@ -117,7 +117,22 @@ function FingerExercises({ embedded, inst: i0, ex: e0 }) {
               </div>
             );
           })}
+          <div style={{ display: "flex", alignItems: "center", height: 22, marginTop: 4, borderTop: "1px dashed rgba(255,255,255,0.25)", paddingTop: 4 }}>
+            <div style={{ width: 16, fontSize: 9, opacity: 0.7, fontWeight: 800, fontFamily: FONT }}>FIN</div>
+            {view.map((n, k) => { const notes = Array.isArray(n[0]) ? n : [n]; const fr = notes.map((nt) => nt[1]); const pos = Math.max(1, Math.min(...fxFrets(notesX).filter((f) => f > 0))); const fing = fr.map((f) => (f === 0 ? "o" : Math.max(1, Math.min(4, f - pos + 1)))).join("/"); const on = start + k === i;
+              return <div key={k} style={{ flex: 1, textAlign: "center", fontSize: 11, fontWeight: 800, color: on ? T.accent : "rgba(255,255,255,0.75)", fontFamily: FONT }}>{fing}</div>; })}
+          </div>
         </div>
+        <details style={{ marginTop: 10, background: "rgba(0,0,0,0.2)", borderRadius: 12, padding: "8px 12px" }}>
+          <summary style={{ cursor: "pointer", fontWeight: 800, fontSize: 13 }}>How to read this (tab)</summary>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, marginTop: 6, opacity: 0.92 }}>
+            <div>• Each <b>line is a string</b>. The bottom line <b>{kind === "bass" ? "E" : "E"}</b> is your <b>thickest</b> string; the top line is the thinnest.</div>
+            <div>• The <b>number is the fret</b> to press on that string. <b>5</b> = 5th fret, <b>0</b> = play the string open.</div>
+            <div>• Read <b>left → right</b>, one note at a time, like words in a sentence. Notes stacked on top of each other are played together.</div>
+            <div>• <b>FIN</b> = which finger: <b>1</b> index, <b>2</b> middle, <b>3</b> ring, <b>4</b> pinky, <b>o</b> open. One finger per fret: at fret {Math.max(1, Math.min(...fxFrets(notesX).filter((f) => f > 0)))} your index finger stays on that fret.</div>
+            <div>• Tap <b>Play along</b>: the highlighted note shows where you are. Start slow; speed comes later.</div>
+          </div>
+        </details>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <Btn full variant={run ? "light" : "accent"} icon={run ? Square : Play} onClick={() => { setRun((r) => !r); setI(-1); }}>{run ? "Stop" : "Play along"}</Btn>
         </div>

@@ -1,3 +1,4 @@
+Finger exercises: finger numbers under every note, plus a simple "How to read this" guide
 New: choose your practice time, days and daily goal when you join, and change it anytime in Settings → Practice reminder
 The Android app now sends real practice reminders, even when it's closed (download the new app when asked)
 Your daily goal now drives the Home ring and the practice calendar
