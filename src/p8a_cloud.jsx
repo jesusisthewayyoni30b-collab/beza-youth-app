@@ -205,7 +205,7 @@ const AUTH_ERR = {
   "auth/popup-blocked": "Your browser blocked the Google window. Try again.",
   "auth/unauthorized-domain": "This web address isn't allowed to sign in yet (Firebase → Authorized domains).",
 };
-function CloudLogin() {
+function CloudLogin({ desktop }) {
   const { T, toast } = useApp();
   const [mode, setMode] = useState("up");
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [pw, setPw] = useState("");
@@ -222,8 +222,9 @@ function CloudLogin() {
   };
   const forgot = async () => { if (!email.trim()) return setErr("Type your email above first, then tap \"Forgot password\"."); try { await CLOUD.reset(email.trim()); toast("Password reset email sent 📩"); setErr(""); } catch (e) { fail(e); } };
   return (
-    <div style={{ padding: "18px 22px 30px", minHeight: "100%", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "grid", placeItems: "center", margin: "26px 0 22px" }}><LogoLockup width={270} center /></div>
+    <div style={{ padding: desktop ? 0 : "18px 22px 30px", minHeight: desktop ? undefined : "100%", display: "flex", flexDirection: "column", maxWidth: desktop ? undefined : 480, margin: desktop ? undefined : "0 auto", boxSizing: "border-box" }}>
+      {desktop ? <div style={{ marginBottom: 18 }}><div style={{ fontSize: 30, fontWeight: 900, letterSpacing: -0.5 }}>Welcome 👋</div><div style={{ fontSize: 14.5, color: T.sub, marginTop: 4 }}>Create your account or sign in to continue.</div></div>
+        : <div style={{ display: "grid", placeItems: "center", margin: "26px 0 22px" }}><LogoLockup width={270} center /></div>}
       <Card style={{ padding: 18 }}>
         <Seg value={mode} onChange={(m) => { setMode(m); setErr(""); }} options={[{ value: "up", label: "Create account" }, { value: "in", label: "Sign in" }]} />
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
@@ -250,4 +251,36 @@ function CloudLogin() {
 }
 function CloudSplash() {
   return <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "#07090b" }}><img alt="Beza Youth" src="assets/logo-white.png" style={{ width: 170, opacity: 0.9 }} className="bz-pulse" /><HoloStyle /></div>;
+}
+
+/* desktop sign-in: split screen (brand story left, form right) */
+function AuthDesktop({ children }) {
+  const { T } = useApp();
+  const feats = [[BookOpen, NEON.classes, "Lessons for every role", "Singers, keys, guitar, bass, drums and sound, plus the Heart of Worship."], [Music, NEON.time, "Songs & chord charts", "Every chart in numbers, any key, every instrument. Ready for Saturday."], [MessageCircle, NEON.good, "Team chat & leaders", "Groups for singers and musicians, assignments and real progress."]];
+  return (
+    <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(420px, 1fr)" }}>
+      <HoloStyle />
+      <div style={{ position: "relative", overflow: "hidden", background: "radial-gradient(120% 90% at 20% 10%, #1B2B44 0%, #0A0E14 60%, #07090B 100%)", color: "#F2F8FF", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "56px 64px" }}>
+        <div style={{ position: "absolute", right: -160, top: -120, width: 520, height: 520, borderRadius: "50%", background: "radial-gradient(circle, rgba(34,228,255,.18), transparent 65%)" }} />
+        <div style={{ position: "absolute", left: -120, bottom: -160, width: 520, height: 520, borderRadius: "50%", background: "radial-gradient(circle, rgba(181,123,255,.16), transparent 65%)" }} />
+        <div style={{ position: "relative" }}><LogoLockup width={300} /></div>
+        <div style={{ position: "relative", maxWidth: 560 }}>
+          <div style={{ fontSize: 13, letterSpacing: 3, fontWeight: 800, color: "#22E4FF" }}>BEZA YOUTH WORSHIP TEAM</div>
+          <div style={{ fontSize: 46, fontWeight: 900, lineHeight: 1.08, marginTop: 10, letterSpacing: -1 }}>Train together.<br />Serve together.</div>
+          <div style={{ display: "grid", gap: 18, marginTop: 34 }}>
+            {feats.map(([I, c, t, d]) => (
+              <div key={t} style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                <NeonIcon icon={I} colors={c} size={46} />
+                <div><div style={{ fontWeight: 800, fontSize: 16 }}>{t}</div><div style={{ fontSize: 13.5, opacity: 0.7, marginTop: 2, lineHeight: 1.45 }}>{d}</div></div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ position: "relative", fontSize: 12, opacity: 0.5 }}>Beza International Church · Rehearsals Friday · We serve Saturdays at 3:00 PM</div>
+      </div>
+      <div className="bz-noscroll" style={{ overflowY: "auto", display: "grid", placeItems: "center", padding: "40px 32px", background: T.bg }}>
+        <div style={{ width: "100%", maxWidth: 440 }}>{children}</div>
+      </div>
+    </div>
+  );
 }

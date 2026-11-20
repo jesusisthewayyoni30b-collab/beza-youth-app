@@ -48,7 +48,7 @@ input::placeholder,textarea::placeholder{color:inherit;opacity:.45}
 .bz-side-item{transition:background .2s,color .2s}
 .bz-side-item:hover{filter:brightness(1.08)}
 .bz-top{padding-top:50px}
-@media (max-width:520px){.bz-stage{padding:0}.bz-device{width:100vw;height:100vh;height:100dvh;border-radius:0;box-shadow:none}.bz-status{display:none}.bz-top{padding-top:max(14px,env(safe-area-inset-top))}}
+@media (max-width:999px){.bz-stage{padding:0}.bz-device{width:100vw;height:100vh;height:100dvh;border-radius:0;box-shadow:none}.bz-status{display:none}.bz-top{padding-top:max(14px,env(safe-area-inset-top))}}
 `;
 
 const LS_KEY = "beza-youth-team-v2";
@@ -303,7 +303,9 @@ export default function BezaYouthWorshipTeam() {
   const L = STR[settings.lang];
   const win = useWinSize();
   const view = settings.view || (/[?&]web=1/.test(window.location.search) ? "web" : "auto");
-  const web = !!user && !needsOnboarding && (view === "web" || (view === "auto" && win.w >= 1000));
+  const big = view === "web" || (view === "auto" && win.w >= 1000);
+  const web = !!user && !needsOnboarding && big;
+  const full = big || view === "auto"; // never show the phone-frame preview to real users
   const scaled = web && win.w < 1000; const VW = 1280; const sc = scaled ? win.w / VW : 1; const VH = scaled ? win.h / sc : win.h;
   const panel = web && (scaled ? VW : win.w) >= 1240;
   ctx.web = web;
@@ -315,7 +317,7 @@ export default function BezaYouthWorshipTeam() {
       {CLOUD.on && user && user.uid && user.roles && user.roles.length > 0 && <CloudSync uid={user.uid} onTeam={() => setTeamV((v) => v + 1)} />}
       <style>{FONT_FACES + CSS}</style>
       {update.available && <UpdateGate />}
-      <div className={`bz-root bz-stage${web ? " bz-web" : ""}${scaled ? " bz-scaled" : ""}`} style={{ background: T.dark ? "#07090b" : "#d9dfe1", fontFamily: FONT, ["--bz-accent"]: T.accent, ["--bz-thumb"]: T.dark ? "#1b2328" : "#fff", ["--ico-blob"]: T.blob }}>
+      <div className={`bz-root bz-stage${web || (big && full) ? " bz-web" : ""}${scaled ? " bz-scaled" : ""}`} style={{ background: T.dark ? "#07090b" : "#d9dfe1", fontFamily: FONT, ["--bz-accent"]: T.accent, ["--bz-thumb"]: T.dark ? "#1b2328" : "#fff", ["--ico-blob"]: T.blob }}>
         <div className="bz-device" ref={setHost} style={{ background: T.bg, color: T.text, ...(scaled ? { width: VW, height: VH, transform: `scale(${sc})`, transformOrigin: "0 0" } : {}) }}>
           <div style={{ position: "absolute", inset: 0, backgroundImage: `${NOISE_SVG}, ${WEAVE}`, opacity: T.texture, pointerEvents: "none", mixBlendMode: T.dark ? "overlay" : "multiply" }} />
           {T.graffiti && <GraffitiBG />}
@@ -323,9 +325,10 @@ export default function BezaYouthWorshipTeam() {
             <span>{time}</span><span style={{ width: 110, height: 28, borderRadius: 20, background: "#000", position: "absolute", left: "50%", transform: "translateX(-50%)", top: 8 }} /><span style={{ display: "flex", gap: 5, alignItems: "center" }}><Radio size={14} noBlob /><span style={{ width: 24, height: 12, borderRadius: 4, border: `1.6px solid ${T.text}`, display: "inline-block", position: "relative" }}><span style={{ position: "absolute", inset: 1.5, right: 5, background: T.text, borderRadius: 2 }} /></span></span>
           </div>
           {authState === "loading" ? <CloudSplash /> : !user ? (
-            <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}>{CLOUD.on ? <CloudLogin /> : <Login />}</div>
+            big ? <AuthDesktop>{CLOUD.on ? <CloudLogin desktop /> : <Login />}</AuthDesktop>
+              : <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}>{CLOUD.on ? <CloudLogin /> : <Login />}</div>
           ) : needsOnboarding ? (
-            <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}><Onboarding onDone={(r, lv) => setRoles(r, lv)} /></div>
+            <div className="bz-noscroll bz-top" style={{ position: "absolute", inset: 0, overflowY: "auto" }}><div style={big ? { maxWidth: 760, margin: "0 auto", padding: "40px 24px 60px" } : undefined}><Onboarding onDone={(r, lv) => setRoles(r, lv)} /></div></div>
           ) : (
             <>
               {web && <SideNav tab={tab} onTab={setTab} labels={L} />}
