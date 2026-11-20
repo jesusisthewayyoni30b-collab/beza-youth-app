@@ -1,6 +1,2 @@
-Range Tester: Baritone range updated to A2–A4
-Intro sound fixed
-Fresh start: everyone begins from a clean slate. Create your account again to join the team
-Much smoother opening: the app no longer loads every instrument at once
-New, more accurate tuner and range tester: steady readings for voice, piano, guitar and bass
-New app icon: the Beza Youth logo
+New Gain Lab for the sound team: real sound, a real meter, and a soundcheck challenge
+New website icon
