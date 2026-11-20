@@ -1,8 +1,4 @@
-Songs: tempo box fixed (type it, use + / −, or tap tempo), removed the first sung note box
-Computers now get a full web layout from the very first screen: intro, sign-in and setup
-Leader code can now be any easy phrase, spaces and capitals don't matter
-Real team accounts: create your account with email or Google, and your progress is saved online
-Live team chat on every phone: All team, Singers, Musicians, Sound and Leaders
-Songs and chord charts are shared with the whole team instantly
-Leaders see real members' progress and can send assignments and announcements
-Photos in chat are shrunk and shared with everyone
+Team schedule cleared: leaders will post the real schedule
+Microphone fixes for the Range Tester and chord listening, with clear help if the mic is blocked
+Your voice type and range from the Range Tester are saved to your profile, and leaders can see them
+Removed the layout setting: computers get the website, phones get the app layout automatically

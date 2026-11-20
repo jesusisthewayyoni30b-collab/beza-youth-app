@@ -2,18 +2,7 @@
 /* ================================ SCREENS ================================ */
 /* The team's real rhythm: Friday rehearsal (≈4–7/8 PM), Saturday run-through before the 3:00 PM youth program, where we serve. */
 const WEEK = (() => { const now = new Date(); const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7)); return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return { d, n: x.getDate() }; }); })();
-const WEEKLY_EVENTS = {
-  Fri: [
-    { t: "15:45", end: "16:00", title: "Arrive · pray together", sub: "Come warmed up — phones away", who: ["Liya Desta"] },
-    { t: "16:00", end: "19:30", title: "Friday rehearsal", sub: "Usually 4 PM to 7–8 PM · the end time can change, watch the group chat", who: ["Liya Desta", "Dawit Alemu", "Abel Mekonnen", "Hanna Tesfaye", "Eyob Fikru"] },
-  ],
-  Sat: [
-    { t: "12:30", end: "14:15", title: "Saturday run-through", sub: "Final rehearsal before the program · start time set by leaders", who: ["Liya Desta", "Dawit Alemu", "Selam Girma"] },
-    { t: "14:15", end: "14:45", title: "Line check & soundcheck", sub: "Line check → monitors → FOH", who: ["Eyob Fikru", "Nahom Kebede"] },
-    { t: "14:45", end: "15:00", title: "Team prayer", sub: "Hearts ready before we lead", who: ["Liya Desta"] },
-    { t: "15:00", end: "18:00", title: "Youth program — we serve", sub: "Starts 3:00 PM · lead the youth into worship", who: ["Liya Desta", "Hanna Tesfaye", "Meron Haile", "Dawit Alemu", "Abel Mekonnen", "Yonas Bekele", "Eyob Fikru"] },
-  ],
-};
+const WEEKLY_EVENTS = {}; // empty for now: leaders will set the real schedule
 const EVENTS = Object.fromEntries(WEEK.map((w) => [w.n, WEEKLY_EVENTS[w.d] || []]));
 const colorOf = (name) => (TEAM.find((m) => m.name === name) || {}).color || "#F5A94C";
 function UpdateCard() { return null; }
@@ -81,7 +70,7 @@ function ScheduleScreen({ startDay }) {
         <Btn full variant="pop" style={{ marginTop: 16, padding: "15px 0", fontSize: 16 }} onClick={() => { setRem((r) => ({ ...r, [day]: true })); toast("Reminder set ⏰ — we'll notify you 1 hour before"); }}>{rem[day] ? "Reminder set ✓" : "Set Reminder"}</Btn>
       </Card>
       <div style={{ fontSize: 20, fontWeight: 700, margin: "22px 2px 12px" }}>{{ Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" }[WEEK[idx].d]}, {day}th</div>
-      {evs.length === 0 && <Card tone="soft" style={{ textAlign: "center", fontSize: 13 }}>No team events. Perfect day for a 5-minute drill 😉</Card>}
+      {evs.length === 0 && <Card tone="soft" style={{ textAlign: "center", fontSize: 13 }}>No events yet. The leaders will post the team schedule here soon.</Card>}
       <div style={{ position: "relative" }}>
         {shown.map((h) => {
           const ev = evs.find((e) => e.t.slice(0, 2) === h.slice(0, 2));

@@ -517,7 +517,7 @@ function useChordMic(on, names, onHear) {
     (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); if (stop) return;
-        ctx = AE.get(); const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.5; src.connect(an);
+        ctx = AE.get(); const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.5; src.connect(an); AE.listen(an);
         const buf = new Float32Array(an.frequencyBinCount); const binHz = ctx.sampleRate / an.fftSize;
         const loop = () => {
           an.getFloatFrequencyData(buf); const chroma = new Array(12).fill(0); let energy = 0;
@@ -532,7 +532,7 @@ function useChordMic(on, names, onHear) {
           raf = requestAnimationFrame(loop);
         };
         loop();
-      } catch (e) { setErr("Microphone not available — allow mic access, or use the TAP button."); }
+      } catch (e) { setErr(AE.micErr(e) + " You can also use the TAP button."); }
     })();
     return () => { stop = true; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach((t) => t.stop()); };
   }, [on]); // eslint-disable-line

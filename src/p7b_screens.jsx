@@ -783,7 +783,7 @@ function ChatScreen() {
 
 /* ================================ PROFILE & SETTINGS ================================ */
 function ProfileScreen() {
-  const { T, user, setUser, setRoles, avatar, setAvatar, voice, done, logs, streak, push, leader } = useApp();
+  const { T, user, setUser, setRoles, avatar, setAvatar, voice, voiceRange, done, logs, streak, push, leader } = useApp();
   const fileRef = useRef(null);
   const [editRoles, setEditRoles] = useState(false);
   const minutes = logs.reduce((s, l) => s + l.mins, 0);
@@ -805,7 +805,7 @@ function ProfileScreen() {
         <div style={{ fontWeight: 800, fontSize: 21, marginTop: 12 }}>{user.name}</div>
         <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
           {user.roles.map((r) => <span key={r} style={{ fontSize: 11.5, fontWeight: 800, padding: "4px 10px", borderRadius: 99, background: roleOf(r).color, color: "#111" }}>{roleLabel(r)}</span>)}
-          {voice && <span style={{ fontSize: 11.5, fontWeight: 800, padding: "4px 10px", borderRadius: 99, background: "rgba(0,0,0,0.25)" }}>{voice}</span>}
+          {voice && <span style={{ fontSize: 11.5, fontWeight: 800, padding: "4px 10px", borderRadius: 99, background: "rgba(0,0,0,0.25)" }}>🎤 {voice}{voiceRange ? ` · ${voiceRange.label}` : ""}</span>}
         </div>
         <div style={{ display: "flex", marginTop: 18 }}>
           <HoloStyle />
@@ -863,13 +863,6 @@ function SettingsScreen() {
   return (
     <div>
       <TopBar title={STR[settings.lang].settings} />
-      <Group title="Layout">
-        <div style={{ padding: "12px 0" }}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>How the app looks</div>
-          <div style={{ fontSize: 11.5, color: T.sub, marginBottom: 10 }}>Auto shows the website layout on big screens (laptop, iPad) and the phone layout on phones. Pick Website to preview it right here.</div>
-          <Seg options={[{ value: "auto", label: "Auto" }, { value: "phone", label: "📱 Phone" }, { value: "web", label: "🖥️ Website" }]} value={settings.view || "auto"} onChange={(v) => setSettings((s) => ({ ...s, view: v }))} />
-        </div>
-      </Group>
       <Group title="Appearance">
         <div style={{ padding: "12px 0" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
@@ -1026,7 +1019,7 @@ function LeadersBoard() {
           <div>
             <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
               <Avatar name={sel.name} size={58} color={sel.color} />
-              <div><div style={{ fontWeight: 800, fontSize: 18 }}>{sel.name}</div><div style={{ fontSize: 12.5, color: T.sub }}>{sel.roles.map(roleLabel).join(" · ")}{sel.voice ? ` · ${sel.voice}` : ""} · {sel.last}</div></div>
+              <div><div style={{ fontWeight: 800, fontSize: 18 }}>{sel.name}</div><div style={{ fontSize: 12.5, color: T.sub }}>{sel.roles.map(roleLabel).join(" · ")}{sel.voice ? ` · ${sel.voice}${sel.voiceRange ? ` (${sel.voiceRange.label})` : ""}` : ""} · {sel.last}</div></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, margin: "16px 0" }}>
               {[[`${Math.round(sel.prog * 100)}%`, "Progress"], [<span>{sel.streak} <Glyph icon={Flame} /></span>, "Streak"], [`${sel.mins}`, "Minutes"]].map(([v, l]) => <Card key={l} tone="card2" pad={10} style={{ textAlign: "center" }}><div style={{ fontWeight: 800, fontSize: 17 }}>{v}</div><div style={{ fontSize: 11, color: T.sub }}>{l}</div></Card>)}

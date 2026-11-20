@@ -54,7 +54,7 @@ function VoiceSpectrum({ low, high, live, highlight }) {
 }
 
 function RangeTester({ track, embedded }) {
-  const { T, setVoice, voice } = useApp();
+  const { T, setVoice, voice, setVoiceRange, toast } = useApp();
   const [phase, setPhase] = useState("intro");
   const [live, setLive] = useState(null);
   const [low, setLow] = useState(null);
@@ -70,7 +70,7 @@ function RangeTester({ track, embedded }) {
       const ctx = AE.get();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
       streamRef.current = stream;
-      const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 2048; src.connect(an);
+      const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 2048; src.connect(an); AE.listen(an);
       const buf = new Float32Array(an.fftSize); let frame = 0;
       const loop = () => {
         rafRef.current = requestAnimationFrame(loop); if ((frame++) % 2) return;
@@ -85,10 +85,10 @@ function RangeTester({ track, embedded }) {
         } else setLive(null);
       };
       loop(); setPhase("low");
-    } catch (e) { setErr("The microphone isn't available in this preview. It works in the real app and website, or you can try the demo result."); }
+    } catch (e) { setErr(AE.micErr(e)); }
   };
   const result = low != null && high != null ? classifyVoice(low, high) : null;
-  useEffect(() => { if (phase === "result" && result) setVoice(result.name); }, [phase]); // eslint-disable-line
+  useEffect(() => { if (phase === "result" && result) { setVoice(result.name); setVoiceRange && setVoiceRange({ low, high, label: `${nnOct(low)}–${nnOct(high)}`, at: Date.now() }); toast && toast(`${result.name} saved to your profile ✓`); } }, [phase]); // eslint-disable-line
   const cents = live != null ? Math.round((live - Math.round(live)) * 100) : 0;
 
   return (

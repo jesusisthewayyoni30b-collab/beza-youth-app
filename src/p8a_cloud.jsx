@@ -81,7 +81,7 @@ const CLOUD_GROUPS = [
 /* Runs inside the app: keeps local state and the cloud in sync */
 function CloudSync({ uid, onTeam }) {
   const ctx = useApp();
-  const { user, done, logs, voice, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader } = ctx;
+  const { user, done, logs, voice, voiceRange, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader } = ctx;
   const me = useRef({}); me.current = { uid, user, leader };
   const people = useRef([]); // all users incl. me: {uid, name, roles, leader}
   const [peopleV, setPeopleV] = useState(0);
@@ -90,15 +90,15 @@ function CloudSync({ uid, onTeam }) {
   useEffect(() => {
     if (!user || !user.roles) return;
     const t = setTimeout(() => {
-      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
+      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, voiceRange: voiceRange || null, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
     }, 1500);
     return () => clearTimeout(t);
-  }, [uid, user, done, logs, voice, avatar, games, sessionsDone, leader]);
+  }, [uid, user, done, logs, voice, voiceRange, avatar, games, sessionsDone, leader]);
 
   /* ---- team members ---- */
   useEffect(() => CLOUD.listen("users", {}, (list) => {
     people.current = list.map((u) => ({ uid: u._id, name: u.name || "Member", roles: u.roles || [], leader: !!u.leader }));
-    const others = list.filter((u) => u._id !== uid && u.roles && u.roles.length).map((u) => ({ id: u._id, uid: u._id, name: u.name || "Member", roles: u.roles || [], voice: u.voice || null, color: u.color || colorForUid(u._id), leader: !!u.leader, avatar: u.avatar || null, games: u.games || { best: {} }, ...memberStats(u) }));
+    const others = list.filter((u) => u._id !== uid && u.roles && u.roles.length).map((u) => ({ id: u._id, uid: u._id, name: u.name || "Member", roles: u.roles || [], voice: u.voice || null, voiceRange: u.voiceRange || null, color: u.color || colorForUid(u._id), leader: !!u.leader, avatar: u.avatar || null, games: u.games || { best: {} }, ...memberStats(u) }));
     TEAM.length = 0; others.sort((a, b) => a.name.localeCompare(b.name)).forEach((m) => TEAM.push(m));
     setPeopleV((v) => v + 1); onTeam && onTeam();
   }), [uid]); // eslint-disable-line

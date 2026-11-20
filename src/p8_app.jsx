@@ -177,6 +177,7 @@ export default function BezaYouthWorshipTeam() {
   const [done, setDone] = useState(() => new Set(saved.done || []));
   const [logs, setLogs] = useState(saved.logs || []);
   const [voice, setVoice] = useState(saved.voice || null);
+  const [voiceRange, setVoiceRange] = useState(saved.voiceRange || null);
   const [avatar, setAvatar] = useState(saved.avatar || null);
   const [leader, setLeader] = useState(!!saved.leader);
   const [settings, setSettings] = useState({ lang: "en", notif: true, reminder: "18:00", click: "click", a4: 440, pcKeys: true, autoUpdate: true, ...(saved.settings || {}) });
@@ -200,7 +201,7 @@ export default function BezaYouthWorshipTeam() {
   const [host, setHost] = useState(null);
   const toastTimer = useRef(null);
 
-  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ themeV: 2, themeId, user, done: [...done], logs: logs.slice(0, 400), voice, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat: Object.fromEntries(Object.entries(chat).map(([k, v]) => [k, v.slice(-60).map((m) => (m.file && (m.file.url || m.file.audio) ? { ...m, file: { ...m.file, url: null, audio: null } } : m))])) })); } catch (e) { } }, [themeId, user, done, logs, voice, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat]);
+  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ themeV: 2, themeId, user, done: [...done], logs: logs.slice(0, 400), voice, voiceRange, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat: Object.fromEntries(Object.entries(chat).map(([k, v]) => [k, v.slice(-60).map((m) => (m.file && (m.file.url || m.file.audio) ? { ...m, file: { ...m.file, url: null, audio: null } } : m))])) })); } catch (e) { } }, [themeId, user, done, logs, voice, voiceRange, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat]);
   useEffect(() => { if (!CLOUD.on && !groups && user && user.roles && user.roles.length) setGroups(defaultGroups(user, leader)); }, [user, groups]); // eslint-disable-line
   useEffect(() => { if (!CLOUD.on && leader && groups) { const l = groups.find((g) => g.id === "leaders"); if (l && !l.members.includes("@me")) setGroups((gs) => gs.map((g) => (g.id === "leaders" ? { ...g, members: [...g.members, "@me"] } : g))); } }, [leader]); // eslint-disable-line
   useEffect(() => { AE.settings.a4 = settings.a4; AE.settings.click = settings.click; }, [settings]);
@@ -221,7 +222,7 @@ export default function BezaYouthWorshipTeam() {
       for (let i = 0; i < 40 && !ok; i++) { try { prof = await CLOUD.get(`users/${u.uid}`); ok = true; } catch (e) { if (local) break; await new Promise((r) => setTimeout(r, 1500)); } }
       if (prof) {
         setUserRaw({ uid: u.uid, name: prof.name || u.name || "Member", email: u.email, roles: prof.roles || [], levels: prof.levels || {} });
-        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
+        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setVoiceRange(prof.voiceRange || null); setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
       } else if (!ok && local) {
         setUserRaw({ ...local.user });
       } else if (legacy) {
@@ -296,13 +297,13 @@ export default function BezaYouthWorshipTeam() {
 
   const ctx = {
     T, themeId, setThemeId, user, setUser, setRoles, tab, setTab, push, pop, done, completeLesson, logs, logPractice, minutes: logs.reduce((s, l) => s + l.mins, 0), streak,
-    voice, setVoice, avatar, setAvatar, leader, setLeader, settings, setSettings, update, runUpdate, checkUpdate, toast, chat, setChat, feed, setFeed, plan, setPlan,
+    voice, setVoice, voiceRange, setVoiceRange, avatar, setAvatar, leader, setLeader, settings, setSettings, update, runUpdate, checkUpdate, toast, chat, setChat, feed, setFeed, plan, setPlan,
     assignments, setAssignments, sessionsDone, setSessionsDone, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
   };
   const needsOnboarding = user && (!user.roles || !user.roles.length);
   const L = STR[settings.lang];
   const win = useWinSize();
-  const view = settings.view || (/[?&]web=1/.test(window.location.search) ? "web" : "auto");
+  const view = /[?&]web=1/.test(window.location.search) ? "web" : "auto";
   const big = view === "web" || (view === "auto" && win.w >= 1000);
   const web = !!user && !needsOnboarding && big;
   const full = big || view === "auto"; // never show the phone-frame preview to real users

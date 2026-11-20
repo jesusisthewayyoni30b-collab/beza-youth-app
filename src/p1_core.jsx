@@ -152,6 +152,16 @@ const AE = (() => {
   const banks = {}; const loading = {}; const drums = {}; let drumsLoading = null;
   const active = new Set();
   const listeners = new Set();
+  const micErr = (e) => {
+    const n = (e && e.name) || ""; const inFrame = window.self !== window.top;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return "This browser can't use the microphone. Open the app in Chrome (Android/computer) or Safari (iPhone).";
+    if (inFrame) return "The microphone is blocked in this preview. Open the real website: jesusisthewayyoni30b-collab.github.io/beza-youth-app";
+    if (n === "NotAllowedError" || n === "SecurityError") return "Microphone access is blocked. Tap the 🔒 (or ⓘ) next to the web address → Permissions → Microphone → Allow, then try again. On a computer also check your system's privacy settings.";
+    if (n === "NotFoundError" || n === "OverconstrainedError") return "No microphone found. Plug in or turn on a mic and try again.";
+    if (n === "NotReadableError") return "Another app is using the microphone (Zoom, WhatsApp call…). Close it and try again.";
+    return "Couldn't start the microphone (" + (n || "error") + "). Reload the page and try again.";
+  };
+  const listen = (an) => { try { const z = ctx.createGain(); z.gain.value = 0; an.connect(z); z.connect(ctx.destination); } catch (e) { } };
   const get = () => {
     if (!ctx) {
       const C = window.AudioContext || window.webkitAudioContext;
@@ -269,7 +279,7 @@ const AE = (() => {
   }
   const preloadAll = () => { get(); ["piano", "acoustic", "electric", "bass"].forEach(load); loadDrums(); };
   async function decodeFile(file) { const c = get(); const ab = await file.arrayBuffer(); return await new Promise((res, rej) => c.decodeAudioData(ab, res, rej)); }
-  return { preloadAll, get, out, noise, pink, play, tone, chord, strum, hit, click, kick, snare, hat, tom, glide, drone, load, loadDrums, isReady, onReady, stopAll, decodeFile, settings, bank: (i) => banks[i], drumBuf: (n) => drums[n] };
+  return { micErr, listen, preloadAll, get, out, noise, pink, play, tone, chord, strum, hit, click, kick, snare, hat, tom, glide, drone, load, loadDrums, isReady, onReady, stopAll, decodeFile, settings, bank: (i) => banks[i], drumBuf: (n) => drums[n] };
 })();
 function useSamples(inst) {
   const [ready, setReady] = useState(() => AE.isReady(inst));
