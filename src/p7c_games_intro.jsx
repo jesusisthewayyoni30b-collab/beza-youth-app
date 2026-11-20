@@ -7,7 +7,7 @@ function playIntroSound(fromT = 0) {
   const ctx = new C(); const now = ctx.currentTime + 0.05; const T0 = now - fromT;
   const out = ctx.createGain(); out.gain.value = 0.9; const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3; out.connect(comp); comp.connect(ctx.destination);
   // reverb (generated impulse)
-  const IRS = 16000; const rev = ctx.createConvolver(); const len = Math.floor(IRS * 2.2); const ir = ctx.createBuffer(2, len, IRS);
+  const IRS = ctx.sampleRate; const rev = ctx.createConvolver(); const len = Math.floor(IRS * 1.8); const ir = ctx.createBuffer(2, len, IRS);
   for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); let g = 1; const k = Math.pow(0.001, 1 / len); for (let i = 0; i < len; i++) { d[i] = (Math.random() * 2 - 1) * g; g *= k; } }
   rev.buffer = ir; const revG = ctx.createGain(); revG.gain.value = 0.55; rev.connect(revG); revG.connect(out);
   const dly = ctx.createDelay(1); dly.delayTime.value = 0.32; const fb = ctx.createGain(); fb.gain.value = 0.38; const dlyG = ctx.createGain(); dlyG.gain.value = 0.35; dly.connect(fb); fb.connect(dly); dly.connect(dlyG); dlyG.connect(out); dlyG.connect(rev);

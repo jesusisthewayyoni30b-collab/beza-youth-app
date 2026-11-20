@@ -1,3 +1,4 @@
+Intro sound fixed
 Fresh start: everyone begins from a clean slate. Create your account again to join the team
 Much smoother opening: the app no longer loads every instrument at once
 New, more accurate tuner and range tester: steady readings for voice, piano, guitar and bass
