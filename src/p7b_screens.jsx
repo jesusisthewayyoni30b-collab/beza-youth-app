@@ -907,6 +907,7 @@ function SettingsScreen() {
         </div>
         <Row icon={Globe} label="Language" right={<Mini options={[["en", "English"], ["am", "አማርኛ"]]} value={settings.lang} onChange={(v) => set("lang", v)} />} />
         <Row icon={Sparkles} label="Replay intro animation" onClick={replayIntro} />
+        <Row icon={Volume2} label="Intro sound" right={<Toggle on={settings.introSound !== false} onChange={(v) => set("introSound", v)} />} />
       </Group>
       <Group title="Practice">
         <Row icon={Bell} label="Practice reminder" value={settings.notif ? `${to12(settings.reminder)} · ${settings.goal || 20} min` : "Off"} onClick={() => setRemOpen(true)} />

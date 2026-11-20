@@ -531,7 +531,7 @@ function useChordMic(on, names, onHear) {
     if (!on) { setHeard(null); setLevel(0); return; } let stream, raf, ctx, stop = false; let stable = { n: null, k: 0 }; let lastFire = null;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); if (stop) return;
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } }); if (stop) return;
         ctx = AE.get(); const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.5; src.connect(an); AE.listen(an);
         const buf = new Float32Array(an.frequencyBinCount); const binHz = ctx.sampleRate / an.fftSize;
         const loop = () => {

@@ -1,6 +1,42 @@
 
 /* ================================ INTRO (modern / futuristic) ================================ */
+
+/* ---- cinematic intro sound (synthesised, ~5s): riser → boom + shimmer chord → bell sparkle ---- */
+function playIntroSound(fromT = 0) {
+  const C = window.AudioContext || window.webkitAudioContext; if (!C) return null;
+  const ctx = new C(); const now = ctx.currentTime + 0.05; const T0 = now - fromT;
+  const out = ctx.createGain(); out.gain.value = 0.9; const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3; out.connect(comp); comp.connect(ctx.destination);
+  // reverb (generated impulse)
+  const rev = ctx.createConvolver(); const len = ctx.sampleRate * 3.2; const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+  rev.buffer = ir; const revG = ctx.createGain(); revG.gain.value = 0.55; rev.connect(revG); revG.connect(out);
+  const dly = ctx.createDelay(1); dly.delayTime.value = 0.32; const fb = ctx.createGain(); fb.gain.value = 0.38; const dlyG = ctx.createGain(); dlyG.gain.value = 0.35; dly.connect(fb); fb.connect(dly); dly.connect(dlyG); dlyG.connect(out); dlyG.connect(rev);
+  const at = (t) => Math.max(now, T0 + t);
+  const live = (t) => T0 + t >= now - 0.02;
+  // 1) whoosh riser 0 → 1.3s
+  if (live(1.2)) { const nb = ctx.createBuffer(1, ctx.sampleRate * 1.6, ctx.sampleRate); const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const n = ctx.createBufferSource(); n.buffer = nb; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.4; bp.frequency.setValueAtTime(220, at(0)); bp.frequency.exponentialRampToValueAtTime(5200, at(1.25));
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at(0)); g.gain.exponentialRampToValueAtTime(0.35, at(1.15)); g.gain.exponentialRampToValueAtTime(0.0001, at(1.4));
+    n.connect(bp); bp.connect(g); g.connect(out); g.connect(rev); n.start(at(0)); n.stop(at(1.5));
+    const sub = ctx.createOscillator(); sub.type = "sine"; sub.frequency.setValueAtTime(41, at(0)); sub.frequency.exponentialRampToValueAtTime(73, at(1.25)); const sg = ctx.createGain(); sg.gain.setValueAtTime(0.0001, at(0)); sg.gain.exponentialRampToValueAtTime(0.25, at(1.2)); sg.gain.exponentialRampToValueAtTime(0.0001, at(1.35)); sub.connect(sg); sg.connect(out); sub.start(at(0)); sub.stop(at(1.4)); }
+  // 2) impact boom at 1.3s
+  if (live(1.6)) { const b = ctx.createOscillator(); b.type = "sine"; b.frequency.setValueAtTime(95, at(1.3)); b.frequency.exponentialRampToValueAtTime(32, at(2.3)); const bg = ctx.createGain(); bg.gain.setValueAtTime(0.0001, at(1.29)); bg.gain.exponentialRampToValueAtTime(0.9, at(1.32)); bg.gain.exponentialRampToValueAtTime(0.0001, at(2.6)); b.connect(bg); bg.connect(out); b.start(at(1.29)); b.stop(at(2.7)); }
+  // 3) shimmer pad chord (Dadd9) 1.3 → 5s
+  [50, 57, 64, 66, 69, 74].forEach((m, k) => { [-7, 7].forEach((det) => {
+    const o = ctx.createOscillator(); o.type = k < 2 ? "triangle" : "sawtooth"; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12); o.detune.value = det;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(300, at(1.3)); lp.frequency.exponentialRampToValueAtTime(2600, at(2.8)); lp.frequency.exponentialRampToValueAtTime(900, at(5));
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at(1.3)); g.gain.exponentialRampToValueAtTime(0.045, at(1.9)); g.gain.setValueAtTime(0.045, at(3.9)); g.gain.exponentialRampToValueAtTime(0.0001, at(5.2));
+    o.connect(lp); lp.connect(g); g.connect(out); g.connect(rev); o.start(at(1.3)); o.stop(at(5.3)); }); });
+  // 4) bell sparkle arpeggio + final chime at 3.9s
+  const bell = (t, m, v = 0.18, dur = 1.6) => { if (!live(t)) return; [1, 2.76, 5.4].forEach((h, i) => { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12) * h; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at(t)); g.gain.exponentialRampToValueAtTime(v / (i + 1.5), at(t) + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, at(t) + dur / (i + 1)); o.connect(g); g.connect(out); g.connect(dly); g.connect(rev); o.start(at(t)); o.stop(at(t) + dur); }); };
+  [[1.45, 86], [1.7, 81], [1.95, 90], [2.2, 88], [2.45, 93]].forEach(([t, m]) => bell(t, m, 0.12));
+  bell(3.9, 81, 0.22, 2.4); bell(3.9, 88, 0.16, 2.4);
+  setTimeout(() => { try { ctx.close(); } catch (e) { } }, Math.max(500, (5.6 - fromT) * 1000 + 3000));
+  return ctx;
+}
 function Intro({ onDone }) {
+  const { settings } = useApp();
+  const [needTap, setNeedTap] = useState(false); const t0r = useRef(performance.now()); const sndRef = useRef(null);
   const [out, setOut] = useState(false);
   const [pct, setPct] = useState(0);
   const cv = useRef(null);
@@ -25,6 +61,7 @@ function Intro({ onDone }) {
     };
     raf = requestAnimationFrame(tick);
     const a1 = setTimeout(() => setOut(true), 4300); const a2 = setTimeout(onDone, 5100);
+    if (settings.introSound !== false) { try { const sc = playIntroSound(0); sndRef.current = sc; if (sc && sc.state !== "running") { sc.close(); sndRef.current = null; setNeedTap(true); } } catch (e) { } }
     return () => { cancelAnimationFrame(raf); clearTimeout(a1); clearTimeout(a2); };
   }, []); // eslint-disable-line
   const mono = "ui-monospace, 'SF Mono', Menlo, monospace";
@@ -32,6 +69,7 @@ function Intro({ onDone }) {
   return (
     <div onClick={() => { setOut(true); setTimeout(onDone, 600); }} style={{ position: "absolute", inset: 0, zIndex: 200, overflow: "hidden", cursor: "pointer", background: "radial-gradient(90% 60% at 50% 40%, #0B1424 0%, #05070D 60%, #020306 100%)", transition: "opacity .8s ease, filter .8s ease, transform .8s cubic-bezier(.7,0,.3,1)", opacity: out ? 0 : 1, filter: out ? "blur(10px) brightness(1.4)" : "none", transform: out ? "scale(1.06)" : "none", fontFamily: FONT }}>
       <canvas ref={cv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+      {needTap && <button onClick={(e) => { e.stopPropagation(); setNeedTap(false); const el = (performance.now() - t0r.current) / 1000; if (el < 4.6) playIntroSound(el); }} style={{ position: "absolute", right: 24, bottom: 64, zIndex: 5, padding: "8px 14px", borderRadius: 99, border: "1px solid rgba(200,235,255,0.35)", background: "rgba(10,16,28,0.6)", color: "rgba(220,240,255,0.9)", fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11, letterSpacing: 2, cursor: "pointer" }}>🔊 TAP FOR SOUND</button>}
       {/* soft aurora */}
       <div style={{ position: "absolute", left: "50%", top: "38%", width: 520, height: 520, marginLeft: -260, marginTop: -260, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,255,0.22) 0%, rgba(34,228,255,0.08) 40%, transparent 70%)", filter: "blur(10px)", animation: "fxBreathe 4s ease-in-out .4s both" }} />
       {/* HUD */}

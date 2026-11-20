@@ -1,6 +1,4 @@
+New cinematic sound for the intro (turn it off in Settings → Intro sound)
+Microphone fix: the Range Tester now hears quieter laptop and phone mics, with a live mic level bar
 Finger exercises: finger numbers under every note, plus a simple "How to read this" guide
-New: choose your practice time, days and daily goal when you join, and change it anytime in Settings → Practice reminder
-The Android app now sends real practice reminders, even when it's closed (download the new app when asked)
-Your daily goal now drives the Home ring and the practice calendar
-Team schedule cleared: leaders will post the real schedule
-Mic fixes, and your voice type and range are saved to your profile
+Practice reminders: choose your time, days and daily goal (Settings → Practice reminder)

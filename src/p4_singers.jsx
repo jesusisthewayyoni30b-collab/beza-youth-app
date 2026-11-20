@@ -1,9 +1,10 @@
 
 /* ============================ SINGER TOOLS ============================ */
 function autoCorrelate(input, sr) {
-  let size = input.length, rms = 0;
-  for (let i = 0; i < size; i++) rms += input[i] * input[i];
-  rms = Math.sqrt(rms / size); if (rms < 0.012) return -1;
+  let size = input.length, rms = 0, peak = 0;
+  for (let i = 0; i < size; i++) { rms += input[i] * input[i]; const a = Math.abs(input[i]); if (a > peak) peak = a; }
+  rms = Math.sqrt(rms / size); if (rms < 0.0025 || peak < 0.006) return -1;
+  input = input.map((x) => x / peak); // normalise so quiet laptop/phone mics still work
   let r1 = 0, r2 = size - 1; const th = 0.2;
   for (let i = 0; i < size / 2; i++) if (Math.abs(input[i]) < th) { r1 = i; break; }
   for (let i = 1; i < size / 2; i++) if (Math.abs(input[size - i]) < th) { r2 = size - i; break; }
@@ -59,7 +60,7 @@ function RangeTester({ track, embedded }) {
   const [live, setLive] = useState(null);
   const [low, setLow] = useState(null);
   const [high, setHigh] = useState(null);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(""); const [lvl, setLvl] = useState(0); const silent = useRef(0); const [deaf, setDeaf] = useState(false);
   const streamRef = useRef(null), rafRef = useRef(0), st = useRef({ n: null, c: 0 }), phaseRef = useRef(phase);
   phaseRef.current = phase;
   const stop = () => { cancelAnimationFrame(rafRef.current); if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; } };
@@ -68,13 +69,15 @@ function RangeTester({ track, embedded }) {
     setErr(""); setLow(null); setHigh(null);
     try {
       const ctx = AE.get();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      streamRef.current = stream;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+      streamRef.current = stream; if (ctx.state !== "running") await ctx.resume();
       const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 2048; src.connect(an); AE.listen(an);
       const buf = new Float32Array(an.fftSize); let frame = 0;
       const loop = () => {
         rafRef.current = requestAnimationFrame(loop); if ((frame++) % 2) return;
-        an.getFloatTimeDomainData(buf); const f = autoCorrelate(buf, ctx.sampleRate);
+        an.getFloatTimeDomainData(buf); let r = 0; for (let k = 0; k < buf.length; k += 4) r += buf[k] * buf[k]; r = Math.sqrt(r / (buf.length / 4)); setLvl(Math.min(1, r * 12));
+        if (r < 0.002) { silent.current++; if (silent.current > 240) setDeaf(true); } else { silent.current = 0; setDeaf(false); }
+        const f = autoCorrelate(buf, ctx.sampleRate);
         if (f > 60 && f < 1400) {
           const m = ftom(f, AE.settings.a4); setLive(m); const r = Math.round(m);
           if (st.current.n === r) st.current.c++; else { st.current.n = r; st.current.c = 1; }
@@ -111,6 +114,11 @@ function RangeTester({ track, embedded }) {
               {live != null && <div style={{ position: "absolute", left: `calc(${50 + cents}% - 6px)`, top: -2, width: 12, height: 12, borderRadius: 9, background: Math.abs(cents) < 15 ? T.good : T.pop, transition: "left .1s" }} />}
             </div>
             <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 6 }}>{live != null ? `${cents > 0 ? "+" : ""}${cents} cents` : "Waiting for your voice…"}</div>
+            {(phase === "low" || phase === "high") && <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", marginTop: 10 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1, opacity: 0.7 }}>MIC</span>
+              <div style={{ width: 140, height: 6, borderRadius: 9, background: "rgba(255,255,255,0.2)", overflow: "hidden" }}><div style={{ width: `${Math.round(lvl * 100)}%`, height: "100%", background: lvl > 0.08 ? "#3DFFB0" : "#FFC23D", transition: "width .08s" }} /></div>
+            </div>}
+            {deaf && (phase === "low" || phase === "high") && <div style={{ fontSize: 12, marginTop: 8, opacity: 0.9 }}>We can't hear anything. Check the right microphone is selected (click the 🎙 icon in the address bar) and that it isn't muted.</div>}
             {(low != null || high != null) && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600 }}>Low: {low != null ? nnOct(low) : "—"} · High: {high != null ? nnOct(high) : "—"}</div>}
           </>
         )}
