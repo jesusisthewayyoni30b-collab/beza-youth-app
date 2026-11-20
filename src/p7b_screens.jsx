@@ -708,9 +708,18 @@ function ChatScreen() {
   const [grp, setGrp] = useState(0);
   const [recent, setRecent] = useState(["🙏", "🔥", "❤️", "😂", "🙌", "🎤", "🎹", "🥁"]);
   const [reactFor, setReactFor] = useState(null);
+  const [editId, setEditId] = useState(null); const [delMsg, setDelMsg] = useState(null);
+  const inRef = useRef(null);
   const fileRef = useRef(null); const listRef = useRef(null);
   useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [chat, ch]);
-  const send = (extra = {}) => { if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...extra }] })); setTxt(""); setEmo(false); };
+  const startEdit = (m) => { setEditId(m.id); setTxt(m.text || ""); setReactFor(null); setEmo(false); setTimeout(() => inRef.current && inRef.current.focus(), 30); };
+  const cancelEdit = () => { setEditId(null); setTxt(""); };
+  const doDelete = (m) => { setChat((c) => ({ ...c, [ch]: (c[ch] || []).filter((x) => x.id !== m.id) })); setDelMsg(null); if (editId === m.id) cancelEdit(); };
+  const send = (extra = {}) => {
+    if (editId != null && !extra.file) { const t = txt.trim(); const orig = (chat[ch] || []).find((x) => x.id === editId);
+      if (t && orig && t !== orig.text) setChat((c) => ({ ...c, [ch]: (c[ch] || []).map((x) => (x.id === editId ? { ...x, text: t, edited: true } : x)) }));
+      cancelEdit(); return; }
+    if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...extra }] })); setTxt(""); setEmo(false); };
   const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const isImg = f.type.startsWith("image/");
     if (CLOUD.on) { e.target.value = ""; const kb = f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB";
       if (!isImg) { send({ file: { name: f.name, size: kb + " · not uploaded (photos only)" } }); return; }
@@ -770,9 +779,15 @@ function ChatScreen() {
                   {["🙏", "❤️", "🔥", "😂", "🙌", "😮", "👏"].map((e) => <button key={e} onClick={() => react(m.id, e)} style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", padding: "2px 3px" }}>{e}</button>)}
                 </div>
               )}
+              {reactFor === m.id && (m.me || leader) && (
+                <div className="bz-up" style={{ display: "flex", gap: 6, justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 6 }}>
+                  {m.me && m.text && !m.song && <button onClick={() => startEdit(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}><Edit size={13} noBlob /> Edit</button>}
+                  <button onClick={() => { setDelMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: "#ff5a6e", border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>🗑 Delete</button>
+                </div>
+              )}
               <div style={{ display: "flex", gap: 4, justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
                 {m.react && Object.entries(m.react).map(([e, n]) => <span key={e} onClick={() => react(m.id, e)} style={{ fontSize: 11, padding: "1px 7px", borderRadius: 99, background: T.card2, cursor: "pointer" }}>{e} {n}</span>)}
-                <span style={{ fontSize: 10, color: T.faint, margin: "0 4px" }}>{to12(m.t)}</span>
+                <span style={{ fontSize: 10, color: T.faint, margin: "0 4px" }}>{m.edited ? "edited · " : ""}{to12(m.t)}</span>
               </div>
             </div>
             {m.me && <Avatar name={user.name} src={avatar} size={30} color={T.pop} />}
@@ -787,10 +802,16 @@ function ChatScreen() {
           </div>
         </Card>
       )}
+      <Sheet open={!!delMsg} onClose={() => setDelMsg(null)} title="Delete this message?">
+        {delMsg && <div style={{ fontSize: 13, color: T.sub, background: T.card2, borderRadius: 12, padding: "10px 12px", marginBottom: 12, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "hidden" }}>{delMsg.text || (delMsg.song ? "🎵 Song chart" : delMsg.file ? "📎 " + delMsg.file.name : "")}</div>}
+        <div style={{ fontSize: 12.5, color: T.sub, marginBottom: 12 }}>{delMsg && !delMsg.me ? `This removes ${delMsg.from}'s message for everyone in ${cur.label}.` : `This removes it for everyone in ${cur.label}. It can't be undone.`}</div>
+        <div style={{ display: "flex", gap: 8 }}><Btn full variant="soft" onClick={() => setDelMsg(null)}>Cancel</Btn><Btn full variant="accent" onClick={() => doDelete(delMsg)} style={{ background: "#ff3b5c", color: "#fff" }}>Delete</Btn></div>
+      </Sheet>
+      {editId != null && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", marginBottom: 6, borderRadius: 12, background: T.card2, fontSize: 12, color: T.sub, flexShrink: 0 }}><Edit size={14} noBlob /><span style={{ flex: 1, fontWeight: 700 }}>Editing message</span><button onClick={cancelEdit} style={{ background: "none", border: "none", color: T.text, fontFamily: FONT, fontWeight: 800, cursor: "pointer" }}>Cancel ✕</button></div>}
       {!canPost && <div style={{ textAlign: "center", fontSize: 12, color: T.sub, padding: "12px 0", flexShrink: 0 }}>📣 Only leaders can post in this group</div>}
       {canPost && <div style={{ display: "flex", alignItems: "center", gap: 6, background: T.card, borderRadius: 999, padding: 5, border: `1.5px solid ${T.border}`, flexShrink: 0 }}>
         <button onClick={() => setEmo((v) => !v)} style={{ width: 38, height: 38, borderRadius: 99, border: "none", background: emo ? T.soft : "transparent", color: T.text, display: "grid", placeItems: "center", cursor: "pointer" }}><Smile size={21} /></button>
-        <input value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Message the team…" style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: T.text, fontFamily: FONT, fontSize: 14 }} />
+        <input ref={inRef} value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); if (e.key === "Escape" && editId != null) cancelEdit(); }} placeholder={editId != null ? "Edit your message…" : "Message the team…"} style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: T.text, fontFamily: FONT, fontSize: 14 }} />
         <button onClick={() => setSongPick(true)} title="Send a song chart" style={{ width: 38, height: 38, borderRadius: 99, border: "none", background: "transparent", color: T.text, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Music size={20} noBlob /></button>
         <button onClick={() => fileRef.current.click()} style={{ width: 38, height: 38, borderRadius: 99, border: "none", background: "transparent", color: T.text, display: "grid", placeItems: "center", cursor: "pointer" }}><Paperclip size={20} /></button>
         <input ref={fileRef} type="file" hidden onChange={onFile} />

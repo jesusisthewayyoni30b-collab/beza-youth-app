@@ -31,7 +31,7 @@ service cloud.firestore {
         allow read: if signedIn() && canSee();
         allow create: if signedIn() && canSee() && request.resource.data.uid == me()
           && (grp().get('announce', false) != true || isLeader());
-        allow update: if signedIn() && canSee() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['react']);
+        allow update: if signedIn() && canSee() && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['react']) || (resource.data.uid == me() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited', 'react'])));
         allow delete: if isLeader() || (signedIn() && resource.data.uid == me());
       }
     }

@@ -1,4 +1,5 @@
-New: Music Basics for everyone: what −5 / +2 mean, half steps, keys, the number system, and a "find my key" calculator with a quiz
-Chord Library rebuilt: every key and mode (major, minor, dorian, mixolydian, lydian, phrygian, locrian, harmonic & melodic minor) on piano and guitar, with numbers
-Transpose tool shows how the numbers stay and the chords move, plus a full capo chart
-Songs: tap "What does −5 mean?" next to Change key
+Live mode upgraded: pick Guitar, Keys or Bass and see the real chord shapes, piano hands and bass frets for every chord on stage
+Play along: the chords move with the click, one bar each, with NOW and NEXT shown big — plus capo options, key change and swipe between sections
+Chat: tap your message to Edit or Delete it (leaders can delete any message)
+Key check: if chords were typed with the wrong key selected, the app spots the real key and fixes the numbers in one tap
+Editor: when writing as chords, changing the key keeps your chord names exactly as typed; chord spelling is cleaner (Bb not A#)

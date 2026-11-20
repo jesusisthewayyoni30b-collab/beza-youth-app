@@ -1,0 +1,57 @@
+import asyncio, json
+from playwright.async_api import async_playwright
+exec(open("test/cloud1.py").read().split("async def main")[0])
+V="div[style*='display: block']"
+def msgs(S): return sorted([(k.split('/')[-1], v.get('text'), v.get('edited')) for k,v in S['docs'].items() if '/messages/' in k and not v.get('sys')])
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(executable_path="/usr/bin/google-chrome")
+        ctx = await b.new_context(viewport={"width":412,"height":880}); await ctx.add_init_script(FAKE)
+        errs=[]
+        A = await newpage(ctx, errs, "A"); await signup(A, "Hanna Tesfaye", "hanna@x.com", ["Acoustic guitar"])
+        B = await newpage(ctx, errs, "B"); await signup(B, "Dawit Alemu", "dawit@x.com", ["Keys"])
+        for P in (A,B): await P.get_by_role("button", name="Chat", exact=True).last.click(); await P.wait_for_timeout(700)
+        inp = A.get_by_placeholder("Message the team…")
+        await inp.fill("Rehersal at 5"); await inp.press("Enter"); await A.wait_for_timeout(300)
+        await inp.fill("delete me please"); await inp.press("Enter"); await A.wait_for_timeout(1500)
+        print("after send:", msgs(await A.evaluate("window.__fake.S()")))
+        print("B sees:", await B.get_by_text("Rehersal at 5").count(), await B.get_by_text("delete me please").count())
+        # B taps A's message -> should NOT see Edit, no Delete (not leader)
+        await B.get_by_text("Rehersal at 5").click(); await B.wait_for_timeout(300)
+        print("B edit/delete buttons:", await B.get_by_role("button", name="Edit").count(), await B.get_by_role("button", name="🗑 Delete").count())
+        await B.get_by_text("Rehersal at 5").click()
+        # A edits
+        await A.get_by_text("Rehersal at 5").click(); await A.wait_for_timeout(300)
+        await A.get_by_role("button", name="Edit").last.click(); await A.wait_for_timeout(300)
+        await A.screenshot(path="test/ce_edit.png")
+        ed = A.get_by_placeholder("Edit your message…"); print("prefill:", await ed.input_value())
+        await ed.fill("Rehearsal at 5:30 🙏"); await ed.press("Enter"); await A.wait_for_timeout(1500)
+        print("after edit:", msgs(await A.evaluate("window.__fake.S()")))
+        print("B sees edited:", await B.get_by_text("Rehearsal at 5:30 🙏").count(), "label:", await B.get_by_text("edited ·", exact=False).count())
+        # A deletes
+        await A.get_by_text("delete me please").click(); await A.wait_for_timeout(300)
+        await A.get_by_role("button", name="🗑 Delete").click(); await A.wait_for_timeout(400)
+        await A.screenshot(path="test/ce_del.png")
+        await A.get_by_role("button", name="Delete", exact=True).last.click(); await A.wait_for_timeout(1500)
+        print("after delete:", msgs(await A.evaluate("window.__fake.S()")))
+        print("B still sees deleted:", await B.get_by_text("delete me please").count())
+        await B.screenshot(path="test/ce_B.png")
+        # reload A: edit persisted, deletion stays
+        await A.reload(); await A.wait_for_timeout(800); await A.mouse.click(200,400); await A.wait_for_timeout(2500)
+        await A.get_by_role("button", name="Chat", exact=True).last.click(); await A.wait_for_timeout(800)
+        print("A after reload:", await A.get_by_text("Rehearsal at 5:30 🙏").count(), await A.get_by_text("delete me please").count())
+        # ---- live mode ----
+        await A.get_by_role("button", name="Songs", exact=True).last.click(); await A.wait_for_timeout(600)
+        await A.locator(V).get_by_text("Amazing Grace").first.click(); await A.wait_for_timeout(500)
+        await A.get_by_role("button", name="Live mode").click(); await A.wait_for_timeout(700)
+        await A.screenshot(path="test/live0.png", full_page=True)
+        await A.get_by_role("button", name="Play along", exact=False).click(); await A.wait_for_timeout(5200)
+        await A.screenshot(path="test/live_play.png")
+        await A.get_by_role("button", name="Stop").click()
+        await A.get_by_role("button", name="🎹 Keys").click(); await A.wait_for_timeout(500)
+        await A.screenshot(path="test/live_keys.png")
+        await A.get_by_role("button", name="Bass").click(); await A.wait_for_timeout(500)
+        await A.screenshot(path="test/live_bass.png")
+        print("\n".join(e for e in errs if "AudioContext" not in e)[:2000])
+        await b.close()
+asyncio.run(main())

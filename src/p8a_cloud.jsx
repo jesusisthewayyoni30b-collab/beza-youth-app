@@ -138,11 +138,11 @@ function CloudSync({ uid, onTeam }) {
   /* ---- chat messages for the groups I can see ---- */
   const visible = (groups || []).filter((g) => g.everyone || (g.members || []).includes("@me") || leader).filter((g) => !g.leadersOnly || leader).map((g) => g.id);
   const visKey = visible.join(",");
-  const cMirror = useRef({}); const cReady = useRef({});
+  const cMirror = useRef({}); const cReady = useRef({}); const cText = useRef({}); const cRemote = useRef({});
   useEffect(() => {
     const offs = visible.map((gid) => CLOUD.listen(`groups/${gid}/messages`, { order: ["at", "desc"], limit: 120 }, (list) => {
-      const msgs = list.map((m) => ({ id: m._id, uid: m.uid, from: m.from, color: m.color, text: m.text || "", song: m.song || undefined, file: m.file ? { ...m.file, url: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, me: m.uid === uid, at: toMs(m.at), t: chatTime(toMs(m.at)) })).sort((a, b) => a.at - b.at);
-      cMirror.current[gid] = {}; msgs.forEach((m) => { cMirror.current[gid][m.id] = stable(m.react); });
+      const msgs = list.map((m) => ({ id: m._id, uid: m.uid, from: m.from, color: m.color, text: m.text || "", song: m.song || undefined, file: m.file ? { ...m.file, url: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, edited: !!m.edited, me: m.uid === uid, at: toMs(m.at), t: chatTime(toMs(m.at)) })).sort((a, b) => a.at - b.at);
+      cMirror.current[gid] = {}; cText.current[gid] = {}; cRemote.current[gid] = new Set(msgs.map((m) => m.id)); msgs.forEach((m) => { cMirror.current[gid][m.id] = stable(m.react); cText.current[gid][m.id] = m.text || ""; });
       cReady.current[gid] = true;
       setChat((c) => ({ ...c, [gid]: msgs }));
     }));
@@ -150,13 +150,18 @@ function CloudSync({ uid, onTeam }) {
   }, [visKey, uid]); // eslint-disable-line
   useEffect(() => {
     Object.keys(chat || {}).forEach((gid) => {
-      if (!cReady.current[gid]) return; const mir = cMirror.current[gid] || (cMirror.current[gid] = {});
+      if (!cReady.current[gid]) return; const mir = cMirror.current[gid] || (cMirror.current[gid] = {}); const txm = cText.current[gid] || (cText.current[gid] = {});
+      const here = new Set((chat[gid] || []).map((m) => String(m.id))); const rem = cRemote.current[gid] || new Set();
+      rem.forEach((id) => { if (!here.has(id)) { rem.delete(id); delete mir[id]; delete txm[id]; CLOUD.del(`groups/${gid}/messages/${id}`).catch((e) => console.warn("del", e && e.code)); } });
       (chat[gid] || []).forEach((m) => {
         const key = String(m.id);
         if (mir[key] === undefined) {
-          const docId = key.includes("_") ? key : `${key}_${uid.slice(0, 6)}`; mir[key] = stable(m.react || {}); mir[docId] = mir[key];
+          const docId = key.includes("_") ? key : `${key}_${uid.slice(0, 6)}`; mir[key] = stable(m.react || {}); mir[docId] = mir[key]; txm[key] = txm[docId] = m.text || "";
           CLOUD.set(`groups/${gid}/messages/${docId}`, strip({ uid, from: m.sys ? "" : (me.current.user.name || "Member"), color: colorForUid(uid), text: m.text || "", song: m.song, file: m.file && (m.file.data || !m.file.url) ? { name: m.file.name, size: m.file.size, data: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, at: CLOUD.now() }), false).catch((e) => console.warn("send", e && e.code));
-        } else if (mir[key] !== stable(m.react || {})) { mir[key] = stable(m.react || {}); CLOUD.update(`groups/${gid}/messages/${key}`, { react: m.react || {} }).catch(() => { }); }
+        } else {
+          const pid = key.includes("_") ? key : `${key}_${uid.slice(0, 6)}`;
+          if (m.edited && txm[key] !== undefined && txm[key] !== (m.text || "")) { txm[key] = m.text || ""; CLOUD.update(`groups/${gid}/messages/${pid}`, { text: m.text || "", edited: true }).catch((e) => console.warn("edit", e && e.code)); }
+          if (mir[key] !== stable(m.react || {})) { mir[key] = stable(m.react || {}); CLOUD.update(`groups/${gid}/messages/${key}`, { react: m.react || {} }).catch(() => { }); } }
       });
     });
   }, [chat]); // eslint-disable-line
