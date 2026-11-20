@@ -31,6 +31,11 @@ async def main():
         await A.get_by_role("button", name="Capo 3", exact=False).first.click(); await A.wait_for_timeout(300)
         await A.get_by_role("button", name="Am 6m").first.click(); await A.wait_for_timeout(300)
         await A.screenshot(path="test/capo3_live.png")
+        await A.get_by_role("button", name="🎹 Keys").click(); await A.wait_for_timeout(300)
+        await A.get_by_role("button", name="+3 · play C", exact=False).first.click(); await A.wait_for_timeout(300)
+        t = await A.locator(V).inner_text(); print("live keys +3:", "Set your keyboard's transpose to +3" in t, t.split("NOW")[1][:60].replace("\n"," ") if "NOW" in t else "")
+        await A.screenshot(path="test/keys_tr_live.png")
+        await A.go_back() if False else None
         print("live banner:", await A.get_by_text("Key check", exact=False).count())
         print("\n".join(e for e in errs if "AudioContext" not in e)[:1500])
         await b.close()

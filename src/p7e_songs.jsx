@@ -145,19 +145,32 @@ function GuitarView({ chords, songKey }) {
     </div>
   );
 }
-function KeysView({ chords, songKey }) {
-  const { T } = useApp(); const [style, setStyle] = useState("smooth");
+/* keyboard TRANSPOSE button = the keys player's capo: play easy shapes, the keyboard shifts the sound */
+const KEY_TR = [0, -1, -2, -3, -4, -5, -6, 1, 2, 3, 4, 5, 6];
+function KeysTransposeRow({ songKey, tr, setTr }) {
+  const { T } = useApp(); const easy = [0, 7, 5, 2, 9];
+  return (<>
+    <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "4px 2px 6px" }}>KEYBOARD TRANSPOSE</div>
+    <Scroller>{KEY_TR.map((t) => { const pk = (songKey - t + 120) % 12; return <Chip key={t} active={tr === t} onClick={() => setTr(t)}>{t === 0 ? "0 · no transpose" : `${t > 0 ? "+" + t : "−" + Math.abs(t)} · play ${SONG_KEYS[pk]}`}{t !== 0 && easy.includes(pk) ? " ✓" : ""}</Chip>; })}</Scroller>
+    {tr !== 0 && <Card tone="soft" style={{ margin: "10px 0", fontSize: 12.5, lineHeight: 1.5 }}>Set your keyboard's transpose to <b>{tr > 0 ? "+" + tr : "−" + Math.abs(tr)}</b>, then play in <b>{SONG_KEYS[(songKey - tr + 120) % 12]}</b>. It will sound in <b>{SONG_KEYS[songKey]}</b> with the band. Turn transpose back to <b>0</b> after the song!</Card>}
+  </>);
+}
+function KeysView({ chords, songKey: realKey }) {
+  const { T } = useApp(); const [style, setStyle] = useState("smooth"); const [tr, setTr] = useState(0);
+  const songKey = (realKey - tr + 120) % 12;
   const voiced = useMemo(() => { let prev = null; return chords.map((ch) => { const r = chordRoot(ch, songKey); const ct = CHORD_TYPES.find((c) => c.id === ch.q) || CHORD_TYPES[0]; const pcs = ct.iv.map((x) => (r + x) % 12); const rh = style === "smooth" ? voiceLead(prev, pcs) : ct.iv.map((x) => 60 + ((r + 12 - 0) % 12) + x - (r > 6 ? 12 : 0)); prev = rh; const bpc = ch.bass ? (songKey + degPc(ch.bass)) % 12 : r; return { rh, lh: 36 + bpc }; }); }, [chords, songKey, style]);
   return (
     <div>
+      <KeysTransposeRow songKey={realKey} tr={tr} setTr={setTr} />
+      <div style={{ height: 10 }} />
       <Seg value={style} onChange={setStyle} options={[{ value: "smooth", label: "Smooth (voice-led)" }, { value: "root", label: "Root position" }]} />
       <Card tone="soft" style={{ margin: "10px 0", fontSize: 12.5, lineHeight: 1.5 }}>Right hand = highlighted notes · left hand plays the <b>bass note</b> (orange, low). "Smooth" moves your hand as little as possible between chords — the way pros play worship.</Card>
       {chords.map((ch, i) => (
         <Card key={chordNum(ch)} pad={12} style={{ marginTop: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <div style={{ minWidth: 44, height: 34, padding: "0 8px", borderRadius: 10, background: T.accent, color: T.accentText, display: "grid", placeItems: "center", fontWeight: 900 }}>{chordNum(ch)}</div>
-            <div style={{ flex: 1 }}><div style={{ fontWeight: 900, fontSize: 18 }}>{chordName(ch, songKey)}</div><div style={{ fontSize: 11.5, color: T.sub }}>RH: {voiced[i].rh.map((m) => spell(m, songKey)).join(" · ")} · LH: {spell(voiced[i].lh, songKey)}</div></div>
-            <Btn small variant="soft" icon={Play} onClick={() => { AE.tone(voiced[i].lh, 1.3, 0, 0.7); AE.chord(voiced[i].rh, 1.3); }}>Hear</Btn>
+            <div style={{ flex: 1 }}><div style={{ fontWeight: 900, fontSize: 18 }}>{chordName(ch, songKey)}{tr !== 0 && <span style={{ fontSize: 12, color: T.sub, fontWeight: 600 }}> · sounds {chordName(ch, realKey)}</span>}</div><div style={{ fontSize: 11.5, color: T.sub }}>RH: {voiced[i].rh.map((m) => spell(m, songKey)).join(" · ")} · LH: {spell(voiced[i].lh, songKey)}</div></div>
+            <Btn small variant="soft" icon={Play} onClick={() => { AE.tone(voiced[i].lh + tr, 1.3, 0, 0.7); AE.chord(voiced[i].rh.map((m) => m + tr), 1.3); }}>Hear</Btn>
           </div>
           <Piano start={36} octaves={4} highlight={[...voiced[i].rh, voiced[i].lh]} roots={[voiced[i].lh]} height={74} labels={false} />
         </Card>
@@ -275,7 +288,7 @@ function SongScreen({ id, share: share0 }) {
       <Card tone="hero" style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 800, opacity: 0.8, letterSpacing: 1 }}>OUR KEY</div><div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1 }}>{keyLabel(song.key)}</div></div>
-          <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.6, opacity: 0.92 }}>{song.bpm} bpm · {song.meter}<br />Original key {keyLabel(song.origKey != null ? song.origKey : song.key)}{song.origKey != null && song.origKey !== song.key ? ` (${(((song.key - song.origKey + 18) % 12) - 6) > 0 ? "+" : ""}${((song.key - song.origKey + 18) % 12) - 6} semitones)` : ""}<br />{chords.length} chords</div>
+          <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.6, opacity: 0.92 }}>{song.bpm} bpm · {song.meter}<br />Original key {keyLabel(song.origKey != null ? song.origKey : song.key)}{(() => { const t = song.origKey != null ? ((song.key - song.origKey + 18) % 12) - 6 : 0; return <> · transpose <b>{t > 0 ? "+" + t : t === 0 ? "0" : "−" + Math.abs(t)}</b>{t === 0 ? " (original key)" : ""}</>; })()}<br />{chords.length} chords</div>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <Btn full variant="accent" icon={Zap} onClick={() => push({ screen: "live", id })}>Live mode</Btn>
@@ -408,13 +421,13 @@ function liveShape(ch, songKey, inst, capo) {
   if (inst === "bass") { const bpc = ch.bass ? (songKey + degPc(ch.bass)) % 12 : r; return { bpc, e: (bpc - 4 + 12) % 12, a: (bpc - 9 + 12) % 12 }; }
   return {};
 }
-function LiveShape({ ch, songKey, inst, capo, shapeKey, size = "big" }) {
+function LiveShape({ ch, songKey, inst, capo, shapeKey, size = "big", tr = 0 }) {
   const { T } = useApp(); const big = size === "big";
   if (!ch || ch.mark) return null;
   const sh = liveShape(ch, songKey, inst, capo);
   if (inst === "guitar") { const nm = capo ? chordName(ch, shapeKey) : chordName(ch, songKey);
     return sh.v ? <div onClick={() => strumShape(sh.v.frets, "acoustic", capo || sh.v.capo)} style={{ cursor: "pointer", background: T.card, color: T.text, borderRadius: 14, padding: 4, display: "inline-block", border: `1px solid ${T.border}` }}><ChordBox frets={sh.v.frets} name={nm} capo={capo || sh.v.capo} width={big ? 150 : 92} /></div> : <div style={{ fontSize: 12, opacity: 0.8 }}>no shape</div>; }
-  if (inst === "keys") return <div onClick={() => { AE.tone(sh.lh, 1.3, 0, 0.7); AE.chord(sh.rh, 1.3); }} style={{ cursor: "pointer", width: "100%" }}><Piano start={36} octaves={big ? 4 : 3} highlight={[...sh.rh, sh.lh]} roots={[sh.lh]} height={big ? 86 : 54} labels={false} /><div style={{ fontSize: big ? 13 : 11, fontWeight: 800, marginTop: 4 }}>RH {sh.rh.map((m) => spell(m, songKey)).join(" ")} · LH {spell(sh.lh, songKey)}</div></div>;
+  if (inst === "keys") return <div onClick={() => { AE.tone(sh.lh + tr, 1.3, 0, 0.7); AE.chord(sh.rh.map((m) => m + tr), 1.3); }} style={{ cursor: "pointer", width: "100%" }}><Piano start={36} octaves={big ? 4 : 3} highlight={[...sh.rh, sh.lh]} roots={[sh.lh]} height={big ? 86 : 54} labels={false} /><div style={{ fontSize: big ? 13 : 11, fontWeight: 800, marginTop: 4 }}>RH {sh.rh.map((m) => spell(m, songKey)).join(" ")} · LH {spell(sh.lh, songKey)}</div></div>;
   if (inst === "bass") return <div onClick={() => AE.play("bass", 28 + sh.e, 1.2, 0, 0.9)} style={{ cursor: "pointer", width: "100%" }}>{big && <Fretboard tuning={[28, 33, 38, 43]} pcs={[sh.bpc, (sh.bpc + 7) % 12]} rootPc={sh.bpc} frets={12} />}<div style={{ fontSize: big ? 14 : 11.5, fontWeight: 800, marginTop: 4 }}>{spell(sh.bpc, songKey)} · E fret {sh.e} · A fret {sh.a}</div></div>;
   return null;
 }
@@ -427,7 +440,7 @@ function LiveScreen({ id }) {
   const [play, setPlay] = useState(false); const [beat, setBeat] = useState(-1); const [showKey, setShowKey] = useState(false);
   const songKey = song ? song.key : 0;
   const capoOpts = useMemo(() => [{ capo: 0, label: "No capo", shapeKey: songKey }, ...[0, 7, 2, 9, 4].map((sk) => ({ capo: (songKey - sk + 12) % 12, shapeKey: sk })).filter((o) => o.capo > 0 && o.capo <= 7).map((o) => ({ ...o, label: `Capo ${o.capo} (${SONG_KEYS[o.shapeKey]} shapes)` }))].sort((a, b) => a.capo - b.capo), [songKey]);
-  const [capo, setCapo] = useState(0); const co = capoOpts.find((x) => x.capo === capo) || capoOpts[0];
+  const [ktr, setKtr] = useState(0); const [capo, setCapo] = useState(0); const co = capoOpts.find((x) => x.capo === capo) || capoOpts[0];
   useEffect(() => { let lock = null; try { navigator.wakeLock && navigator.wakeLock.request("screen").then((l) => { lock = l; }).catch(() => { }); } catch (e) { } return () => { try { lock && lock.release(); } catch (e) { } }; }, []);
   const secs = song ? parseChart(song.chart, song.key) : [];
   /* flat list of every real chord in the song, so play-along can walk through it bar by bar */
@@ -452,24 +465,26 @@ function LiveScreen({ id }) {
   const pick = (li, ci, c) => { setPos({ li, ci }); if (!play) strumChord(c, song.key); };
   const goSec = (i) => { setSi(i); setPos(null); };
   const setKey = (k) => { setSongs((ss) => ss.map((x) => (x.id === id ? { ...x, key: k } : x))); setCapo(0); };
-  const nameOf = (c) => (inst === "guitar" && capo ? chordName(c, co.shapeKey) : chordName(c, song.key));
+  const pk = (song.key - ktr + 120) % 12;
+  const nameOf = (c) => (inst === "guitar" && capo ? chordName(c, co.shapeKey) : inst === "keys" && ktr ? chordName(c, pk) : chordName(c, song.key));
   const Big = ({ f, label, dim }) => f ? (
     <div style={{ flex: dim ? "0 0 38%" : 1, minWidth: 0, opacity: dim ? 0.75 : 1, textAlign: "center" }}>
       <div style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: 2, opacity: 0.8 }}>{label}</div>
       {mode !== "nums" && <div style={{ fontSize: dim ? 26 : 46, fontWeight: 900, lineHeight: 1.05 }}>{nameOf(f.c)}</div>}
       {mode !== "names" && <div style={{ fontSize: mode === "nums" ? (dim ? 30 : 52) : dim ? 14 : 18, fontWeight: 900, color: mode === "nums" ? "inherit" : ink(T, T.pop) }}>{chordNum(f.c)}</div>}
-      {inst === "guitar" && capo > 0 && !dim && <div style={{ fontSize: 11, opacity: 0.8 }}>sounds {chordName(f.c, song.key)}</div>}
-      {inst !== "chart" && <div style={{ marginTop: 6, display: "flex", justifyContent: "center" }}><LiveShape ch={f.c} songKey={song.key} inst={inst} capo={capo} shapeKey={co.shapeKey} size={dim ? "small" : "big"} /></div>}
+      {((inst === "guitar" && capo > 0) || (inst === "keys" && ktr !== 0)) && !dim && <div style={{ fontSize: 11, opacity: 0.8 }}>sounds {chordName(f.c, song.key)}</div>}
+      {inst !== "chart" && <div style={{ marginTop: 6, display: "flex", justifyContent: "center" }}><LiveShape ch={f.c} songKey={inst === "keys" ? pk : song.key} tr={inst === "keys" ? ktr : 0} inst={inst} capo={capo} shapeKey={co.shapeKey} size={dim ? "small" : "big"} /></div>}
     </div>) : null;
   const secChords = uniqueChords([s]);
   return (
     <div onTouchStart={(e) => { tx.current = e.touches[0].clientX; }} onTouchEnd={(e) => { if (tx.current == null || play) return; const dx = e.changedTouches[0].clientX - tx.current; tx.current = null; if (Math.abs(dx) > 70) goSec(Math.max(0, Math.min(secs.length - 1, si + (dx < 0 ? 1 : -1)))); }}>
       <TopBar title={song.title} sub={`Key ${keyLabel(song.key)} · ${song.bpm} bpm · ${song.meter} · LIVE`} right={<Btn small variant="soft" onClick={() => setShowKey((v) => !v)}>Key {keyLabel(song.key)}</Btn>} />
-      {gk && <Card tone="soft" style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.5, border: `1.5px solid ${T.pop}` }}><b>🎯 Key check:</b> these chords fit <b>{keyLabel(gk.key)}</b>, not {keyLabel(song.key)} — so numbers, transposing and capo shapes will be off. <div style={{ marginTop: 8 }}><Btn small variant="accent" onClick={() => { setSongs((ss) => ss.map((x) => (x.id === id ? { ...x, chart: reinterpret(x.chart, x.key, gk.key), key: gk.key } : x))); setCapo(0); }}>Fix: key {keyLabel(gk.key)} — same chords</Btn></div></Card>}
+      {gk && <Card tone="soft" style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.5, border: `1.5px solid ${T.pop}` }}><b>🎯 Key check:</b> these chords fit <b>{keyLabel(gk.key)}</b>, not {keyLabel(song.key)} — so numbers, transposing and capo shapes will be off. <div style={{ marginTop: 8 }}><Btn small variant="accent" onClick={() => { setSongs((ss) => ss.map((x) => (x.id === id ? { ...x, chart: reinterpret(x.chart, x.key, gk.key), key: gk.key } : x))); setCapo(0); setKtr(0); }}>Fix: key {keyLabel(gk.key)} — same chords</Btn></div></Card>}
       {showKey && <Scroller style={{ marginBottom: 8 }}>{SONG_KEYS.map((k, i) => <Chip key={k} active={song.key === i} onClick={() => setKey(i)}>{k}{song.origKey === i ? " ★" : ""}</Chip>)}</Scroller>}
       <div style={{ marginBottom: 8 }}><Seg value={inst} onChange={setInst} options={[{ value: "chart", label: "Chart" }, { value: "guitar", label: "🎸 Guitar" }, { value: "keys", label: "🎹 Keys" }, { value: "bass", label: "Bass" }]} /></div>
       <Scroller style={{ marginBottom: 8 }}>{[["both", "Chords + numbers"], ["nums", "Numbers (for calling)"], ["names", "Chords"]].map(([v, l]) => <Chip key={v} active={mode === v} onClick={() => setMode(v)}>{l}</Chip>)}</Scroller>
       {inst === "guitar" && capoOpts.length > 1 && <Scroller style={{ marginBottom: 8 }}>{capoOpts.map((x) => <Chip key={x.capo} active={x.capo === capo} onClick={() => setCapo(x.capo)}>{x.label}</Chip>)}</Scroller>}
+      {inst === "keys" && <div style={{ marginBottom: 8 }}><KeysTransposeRow songKey={song.key} tr={ktr} setTr={setKtr} /></div>}
       <Scroller style={{ marginBottom: 10 }}>{secs.map((x, i) => <Chip key={i} active={i === si} onClick={() => goSec(i)}>{x.name}</Chip>)}</Scroller>
       {(cur || nxt) && (
         <Card tone="hero" style={{ padding: 14, marginBottom: 10, position: "sticky", top: 0, zIndex: 4, boxShadow: "0 10px 30px rgba(0,0,0,0.35)" }}>
@@ -497,7 +512,7 @@ function LiveScreen({ id }) {
       {inst !== "chart" && secChords.length > 0 && <>
         <SectionTitle>{inst === "guitar" ? "Shapes" : inst === "keys" ? "Hands" : "Bass notes"} in this {s.name.toLowerCase()}</SectionTitle>
         <div className="bz-noscroll" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-          {secChords.map((c) => <Card key={chordNum(c)} pad={8} style={{ flexShrink: 0, width: inst === "guitar" ? 112 : 190, textAlign: "center" }}><div style={{ fontWeight: 900, fontSize: 15 }}>{nameOf(c)} <span style={{ color: ink(T, T.pop), fontSize: 12 }}>{chordNum(c)}</span></div><LiveShape ch={c} songKey={song.key} inst={inst} capo={capo} shapeKey={co.shapeKey} size="small" /></Card>)}
+          {secChords.map((c) => <Card key={chordNum(c)} pad={8} style={{ flexShrink: 0, width: inst === "guitar" ? 112 : 190, textAlign: "center" }}><div style={{ fontWeight: 900, fontSize: 15 }}>{nameOf(c)} <span style={{ color: ink(T, T.pop), fontSize: 12 }}>{chordNum(c)}</span></div><LiveShape ch={c} songKey={inst === "keys" ? pk : song.key} tr={inst === "keys" ? ktr : 0} inst={inst} capo={capo} shapeKey={co.shapeKey} size="small" /></Card>)}
         </div>
       </>}
       {nx && <Card tone="soft" style={{ marginTop: 10, fontSize: 13 }}>Next section: <b>{nx.name}</b> — {nx.lines.flatMap((l) => l.chords).filter((c) => !c.mark).slice(0, 8).map((c) => (mode === "names" ? nameOf(c) : mode === "nums" ? chordNum(c) : nameOf(c) + " (" + chordNum(c) + ")")).join("  ")}</Card>}

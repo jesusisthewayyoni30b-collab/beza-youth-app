@@ -56,17 +56,17 @@ function TransposeCalc({ showChords = true }) {
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, opacity: 0.8 }}>SONG IS IN</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>{KEY_ORDER.map((k) => <Chip key={k} active={from === k} onClick={() => setFrom(k)}>{keyNm(k)}</Chip>)}</div>
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, opacity: 0.8, marginTop: 14 }}>TRANSPOSE BY</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>{[-7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7].map((a) => <Chip key={a} active={amt === a} onClick={() => setAmt(a)}>{a > 0 ? "+" + a : a}</Chip>)}</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>{[-7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7].map((a) => <Chip key={a} active={amt === a} onClick={() => setAmt(a)}>{a > 0 ? "+" + a : a}</Chip>)}</div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, margin: "18px 0 6px" }}>
         <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, opacity: 0.7 }}>FROM</div><div style={{ fontSize: 40, fontWeight: 900 }}>{keyNm(from)}</div></div>
-        <div style={{ fontSize: 22, fontWeight: 900, opacity: 0.9 }}>{amt > 0 ? `+${amt} →` : `${amt} →`}</div>
+        <div style={{ fontSize: 22, fontWeight: 900, opacity: 0.9 }}>{amt > 0 ? `+${amt} →` : amt === 0 ? "0 →" : `${amt} →`}</div>
         <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, opacity: 0.7 }}>NEW KEY</div><div style={{ fontSize: 40, fontWeight: 900, color: "#C6FF3D" }}>{keyNm(to)}</div></div>
       </div>
-      <div style={{ textAlign: "center", fontSize: 13, opacity: 0.9 }}>{amt < 0 ? `${Math.abs(amt)} half step${Math.abs(amt) > 1 ? "s" : ""} DOWN (lower, easier for high notes)` : `${amt} half step${amt > 1 ? "s" : ""} UP (higher, brighter)`}</div>
+      <div style={{ textAlign: "center", fontSize: 13, opacity: 0.9 }}>{amt === 0 ? "0 = no transpose: the song stays in its original key" : amt < 0 ? `${Math.abs(amt)} half step${Math.abs(amt) > 1 ? "s" : ""} DOWN (lower, easier for high notes)` : `${amt} half step${amt > 1 ? "s" : ""} UP (higher, brighter)`}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 10 }}>
         {walk.map((p, i) => <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ padding: "4px 8px", borderRadius: 8, fontWeight: 800, fontSize: 13, background: i === 0 ? "rgba(255,255,255,0.18)" : i === walk.length - 1 ? "#C6FF3D" : "rgba(255,255,255,0.08)", color: i === walk.length - 1 ? "#111" : "inherit" }}>{keyNm(p)}</span>{i < walk.length - 1 && <span style={{ opacity: 0.6, fontSize: 11 }}>{amt < 0 ? "−1" : "+1"}</span>}</span>)}
       </div>
-      <div style={{ fontSize: 12, opacity: 0.8, textAlign: "center", marginTop: 8 }}>Count every key on the piano, black keys too. Same new key: {other > 0 ? "+" + other : other} (just an octave {other > 0 ? "higher" : "lower"}).</div>
+      {amt !== 0 && <div style={{ fontSize: 12, opacity: 0.8, textAlign: "center", marginTop: 8 }}>Count every key on the piano, black keys too. Same new key: {other > 0 ? "+" + other : other} (just an octave {other > 0 ? "higher" : "lower"}).</div>}
       {showChords && <div style={{ marginTop: 12, background: "rgba(0,0,0,0.2)", borderRadius: 14, padding: 10 }}>
         <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.8, marginBottom: 6 }}>THE NUMBERS STAY THE SAME, THE CHORDS MOVE</div>
         {[0, 1, 2, 3].map((k) => <div key={k} style={{ display: "grid", gridTemplateColumns: "50px 1fr 20px 1fr", alignItems: "center", fontSize: 14, padding: "3px 0" }}><b>{ex[k].num}</b><span>{ex[k].name}</span><span style={{ opacity: 0.5 }}>→</span><b style={{ color: "#C6FF3D" }}>{ex2[k].name}</b></div>)}
@@ -121,7 +121,7 @@ function BasicsSteps() {
 }
 function BasicsTranspose() {
   const { T } = useApp();
-  const mkQ = () => { const from = KEY_ORDER[Math.floor(Math.random() * 12)]; const amt = [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5][Math.floor(Math.random() * 10)]; const ans = (from + amt + 120) % 12; const opts = new Set([ans]); while (opts.size < 4) opts.add((ans + [1, -1, 2, -2, 5, 7][Math.floor(Math.random() * 6)] + 120) % 12); return { from, amt, ans, opts: [...opts].sort(() => Math.random() - 0.5) }; };
+  const mkQ = () => { const from = KEY_ORDER[Math.floor(Math.random() * 12)]; const amt = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5][Math.floor(Math.random() * 11)]; const ans = (from + amt + 120) % 12; const opts = new Set([ans]); while (opts.size < 4) opts.add((ans + [1, -1, 2, -2, 5, 7][Math.floor(Math.random() * 6)] + 120) % 12); return { from, amt, ans, opts: [...opts].sort(() => Math.random() - 0.5) }; };
   const [q, setQ] = useState(mkQ); const [pick, setPick] = useState(null); const [score, setScore] = useState([0, 0]);
   return (
     <>
