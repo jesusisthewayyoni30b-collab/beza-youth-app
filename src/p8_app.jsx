@@ -249,6 +249,7 @@ export default function BezaYouthWorshipTeam() {
     try {
       const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) return null;
       const v = await r.json();
+      if (v.epoch && localStorage.getItem("beza-epoch") !== v.epoch) { window.location.replace(window.location.pathname + "?reset=" + Date.now()); return null; } // the page wipes itself before the app starts
       const shellOld = v.minShell && shellVersion() > 0 && shellVersion() < v.minShell;
       if ((v.build && v.build !== BEZA_BUILD) || shellOld) { setUpdate((u) => ({ ...u, available: true, remote: v, shellOld })); return v; }
       setUpdate((u) => ({ ...u, available: false, remote: v })); return false;

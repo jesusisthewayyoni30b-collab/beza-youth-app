@@ -9,6 +9,14 @@
 <title>Beza Youth Worship Team</title>
 <script>if(/github\.io$/.test(location.hostname)&&!/BezaShell/.test(navigator.userAgent)){location.replace("https://beza-youth.web.app/"+location.search)}</script>
 <style>html,body{margin:0;background:#07090b;overscroll-behavior:none}#root{min-height:100vh}</style>
-</head><body><div id="root"></div><script src="samples.js"></script><script src="app.js?v=__BUILD__"></script>
+</head><body><div id="root"></div><script>
+/* clean-slate reset: when leaders bump "epoch", every device forgets local data and signs out before the app starts */
+(function(){try{var x=new XMLHttpRequest();x.open("GET","version.json?t="+Date.now(),false);x.send();if(x.status!==200)return;var v=JSON.parse(x.responseText);if(!v.epoch||localStorage.getItem("beza-epoch")===v.epoch)return;
+Object.keys(localStorage).forEach(function(k){localStorage.removeItem(k)});try{sessionStorage.clear()}catch(e){}
+["firebaseLocalStorageDb","firestore/[DEFAULT]/beza-youth/main","firebase-heartbeat-database","firebase-installations-database"].forEach(function(n){try{indexedDB.deleteDatabase(n)}catch(e){}});
+if(indexedDB.databases)indexedDB.databases().then(function(d){d.forEach(function(x){if(x.name&&/fire/i.test(x.name))indexedDB.deleteDatabase(x.name)})});
+localStorage.setItem("beza-epoch",v.epoch)}catch(e){}})();
+</script>
+<script src="samples.js"></script><script src="app.js?v=__BUILD__"></script>
 <script>if("serviceWorker" in navigator&&location.protocol==="https:"&&!/claude\.ai|claudeusercontent/.test(location.host)){try{navigator.serviceWorker.register("sw.js")}catch(e){}}</script>
 </body></html>
