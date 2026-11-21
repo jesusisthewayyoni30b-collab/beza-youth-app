@@ -78,8 +78,8 @@ function DripBG() {
       <g opacity="0.33">{drips.map((d, i) => <g key={i} fill={d.c}><rect x={d.x} y={-4} width={d.w} height={d.h} rx={d.w / 2} /><circle cx={d.x + d.w / 2} cy={d.h} r={d.w * 0.85} /></g>)}<rect x="0" y="-4" width="400" height="22" fill="#FF2BD6" /><rect x="0" y="14" width="400" height="8" fill="#00F5FF" /></g>
       <g opacity="0.3" filter="url(#ng)" fill="none" strokeWidth="2.5">
         <text x="20" y="330" fontFamily="Sedgwick Ave Display, cursive" fontSize="110" stroke="#00F5FF" transform="rotate(-8 20 330)">HOLY</text>
-        <text x="90" y="520" fontFamily="Sedgwick Ave Display, cursive" fontSize="96" stroke="#FF2BD6" transform="rotate(5 90 520)">GHOST</text>
-        <text x="10" y="700" fontFamily="Permanent Marker, cursive" fontSize="70" stroke="#B6FF00" transform="rotate(-4 10 700)">FIRE</text>
+        <text x="90" y="520" fontFamily="Sedgwick Ave Display, cursive" fontSize="96" stroke="#FF2BD6" transform="rotate(5 90 520)">SPIRIT</text>
+        <text x="10" y="700" fontFamily="Permanent Marker, cursive" fontSize="70" stroke="#B6FF00" transform="rotate(-4 10 700)">GRACE</text>
         <path d="M300 620 l30 -50 l10 30 l30 -50" stroke="#FFB800" strokeWidth="5" strokeLinecap="round" />
         <path d="M60 790 q40 -40 80 0 t80 0 t80 0" stroke="#7B2CFF" strokeWidth="5" />
         <circle cx="320" cy="250" r="40" stroke="#FF2BD6" strokeWidth="5" /><circle cx="320" cy="250" r="22" stroke="#00F5FF" strokeWidth="4" />
