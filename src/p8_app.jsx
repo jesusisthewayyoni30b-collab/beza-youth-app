@@ -399,6 +399,7 @@ export default function BezaYouthWorshipTeam() {
   const setPlan = (fn) => { const next = fn(plan); const m = {}; next.forEach((x) => (m[x.id] = x.done)); setPlanDone(m); };
   const streak = useMemo(() => { let s = 0; for (let d = 0; d < 60; d++) { const day = new Date(); day.setDate(day.getDate() - d); const has = logs.some((l) => new Date(l.at).toDateString() === day.toDateString()); if (has) s++; else if (d > 0) break; } return s; }, [logs]);
 
+  if (typeof window !== "undefined") window.__bzMe = { name: user && user.name, avatar };
   const unread = useMemo(() => { const u = {}; Object.entries(chat || {}).forEach(([gid, list]) => { const r = chatRead[gid] || 0; const n = (list || []).filter((m) => !m.me && !m.sys && (m.at || 0) > r).length; if (n) u[gid] = n; }); return u; }, [chat, chatRead]);
   const ctx = {
     T, themeId, setThemeId, user, setUser, setRoles, tab, setTab, push, pop, done, completeLesson, logs, logPractice, minutes: logs.reduce((s, l) => s + l.mins, 0), streak,

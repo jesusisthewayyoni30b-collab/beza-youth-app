@@ -160,7 +160,10 @@ function IconBubble({ icon: Icon, tone = "soft", size = 44, custom }) {
 const hexLum = (c) => { const m = /^#?([0-9a-f]{6})$/i.exec(c || ""); if (!m) return 0.3; const n = parseInt(m[1], 16); const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(n >> 16) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255); };
 /* make a brand/role colour readable as TEXT on the current theme's cards */
 const ink = (T, c) => { const m = /^#?([0-9a-f]{6})$/i.exec(c || ""); if (!m) return c; let n = parseInt(m[1], 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; const bgL = T.dark ? 0.12 : 0.9; for (let i = 0; i < 14; i++) { const L = hexLum("#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)); if ((Math.max(L, bgL) + 0.05) / (Math.min(L, bgL) + 0.05) >= 4.5) break; if (T.dark) { r = Math.round(r + (255 - r) * 0.2); g = Math.round(g + (255 - g) * 0.2); b = Math.round(b + (255 - b) * 0.2); } else { r = Math.round(r * 0.85); g = Math.round(g * 0.85); b = Math.round(b * 0.85); } } return `rgb(${r},${g},${b})`; };
-function Avatar({ name = "?", src, size = 40, color = "#F5A94C", ring }) {
+function Avatar({ name = "?", src: src0, size = 40, color = "#F5A94C", ring }) {
+  /* use the real profile picture wherever we can find it (team members, and "me" / "You") */
+  let src = src0;
+  if (!src) { const me = typeof window !== "undefined" && window.__bzMe; if (me && me.avatar && (name === me.name || name === "You" || name === "@me")) src = me.avatar; else { const m = (typeof TEAM !== "undefined" ? TEAM : []).find((x) => x.name === name); if (m && m.avatar) src = m.avatar; } }
   const initials = name.split(" ").map((s) => s[0]).join("").slice(0, size < 34 ? 1 : 2).toUpperCase();
   return (
     <div style={{ width: size, height: size, borderRadius: 999, flexShrink: 0, background: src ? `url(${src}) center/cover` : color, color: hexLum(color) > 0.3 ? "#1B1F24" : "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: size * 0.36, boxShadow: ring ? `0 0 0 3px ${ring}` : "none" }}>
