@@ -803,18 +803,19 @@ function ChatScreen() {
   const emoGroups = [["Recent", recent.join(" ")], ...EMOJI_GROUPS];
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <TabHeader title="Chat" sub={CLOUD.on ? `● ${1 + TEAM.filter((m) => Date.now() - (m.lastMs || 0) < 10 * 60000).length} online · ${TEAM.length + 1} on the team` : "● 9 online"} right={leader ? <Btn small variant="soft" icon={Users} onClick={() => push({ screen: "groups" })}>Manage</Btn> : null} />
+      <TabHeader title="Chat" sub={CLOUD.on ? `● ${1 + TEAM.filter(isOnline).length} online · ${TEAM.length + 1} on the team` : "● 9 online"} right={leader ? <Btn small variant="soft" icon={Users} onClick={() => push({ screen: "groups" })}>Manage</Btn> : null} />
       <Scroller style={{ marginBottom: 8, flexShrink: 0 }}>{chans.map((c) => <Chip key={c.id} active={ch === c.id} onClick={() => setCh(c.id)}>{c.emoji ? c.emoji + " " : ""}{c.label}{c.leadersOnly ? " 🔒" : ""}{unread[c.id] && ch !== c.id ? <span style={{ marginLeft: 6, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 99, background: "#FF3B5C", color: "#fff", fontSize: 10.5, fontWeight: 900, display: "inline-grid", placeItems: "center" }}>{unread[c.id]}</span> : null}</Chip>)}</Scroller>
       <div onClick={() => setInfo(true)} className="bz-press" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 12, background: T.card2, fontSize: 11.5, color: T.sub, marginBottom: 6, cursor: "pointer", flexShrink: 0 }}>
         <Users size={14} noBlob /><span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cur.everyone ? `Everyone on the team · ${TEAM.length + 1} members` : `${cur.members.length} members${cur.announce ? " · only leaders can post" : ""}`}{!cur.everyone && !cur.members.includes("@me") ? " · you're viewing as leader" : ""}</span><ChevronRight size={14} noBlob />
       </div>
       <Sheet open={info} onClose={() => setInfo(false)} title={`${cur.emoji || ""} ${cur.label}`}>
         <div style={{ maxHeight: 380, overflowY: "auto" }} className="bz-noscroll">
-          {(cur.everyone ? [...TEAM.map((m) => m.name), "@me"] : cur.members).map((n) => { const me = n === "@me"; const m = TEAM.find((x) => x.name === n); return (
+          {(cur.everyone ? [...TEAM.map((m) => m.name), "@me"] : cur.members).slice().sort((x, y) => { const on = (n) => n === "@me" || isOnline(TEAM.find((t) => t.name === n)); return (on(y) ? 1 : 0) - (on(x) ? 1 : 0); }).map((n) => { const me = n === "@me"; const m = TEAM.find((x) => x.name === n); const onl = me || isOnline(m); return (
             <div key={n} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px", borderTop: `1px solid ${T.border}` }}>
               <Avatar name={me ? user.name : n} src={me ? avatar : null} size={34} color={me ? T.pop : m ? m.color : colorOf(n)} />
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 13.5 }}>{me ? `${user.name} (you)` : n}</div><div style={{ fontSize: 11, color: T.sub }}>{(me ? user.roles : m ? m.roles : []).map(roleLabel).join(" · ")}</div></div>
               {m && m.leader && <Chip style={{ padding: "3px 8px", fontSize: 10.5 }}>Leader</Chip>}
+              {CLOUD.on && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: onl ? T.good : T.faint, whiteSpace: "nowrap", marginLeft: 4 }}><span style={{ width: 9, height: 9, borderRadius: 9, background: onl ? T.good : "transparent", border: onl ? "none" : `1.5px solid ${T.faint}`, boxShadow: onl ? `0 0 8px ${T.good}` : "none" }} />{onl ? "Online" : m && m.lastMs ? `seen ${relTime(m.lastMs)}` : "Offline"}</div>}
             </div>
           ); })}
         </div>

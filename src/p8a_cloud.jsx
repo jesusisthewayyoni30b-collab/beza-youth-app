@@ -49,6 +49,7 @@ const CLOUD = (() => {
 })();
 if (CLOUD.on) TEAM.length = 0; // real members replace the sample team
 
+const isOnline = (m) => !!m && !m.away && Date.now() - (m.lastMs || 0) < 150000;
 const toMs = (t) => (t && typeof t.toMillis === "function" ? t.toMillis() : typeof t === "number" ? t : t && t.seconds ? t.seconds * 1000 : Date.now());
 const relTime = (ms) => { const d = (Date.now() - ms) / 60000; if (d < 2) return "just now"; if (d < 60) return `${Math.round(d)}m ago`; if (d < 1440) return `${Math.round(d / 60)}h ago`; if (d < 2880) return "yesterday"; return `${Math.round(d / 1440)}d ago`; };
 const chatTime = (ms) => { const d = new Date(ms); const now = new Date(); const hm = to12(`${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`); if (d.toDateString() === now.toDateString()) return hm; const y = new Date(now); y.setDate(now.getDate() - 1); if (d.toDateString() === y.toDateString()) return "Yesterday"; return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }); };
@@ -95,10 +96,18 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
     return () => clearTimeout(t);
   }, [uid, user, done, logs, voice, voiceRange, settings.notif, settings.reminder, (settings.days || []).join(","), settings.goal, avatar, games, sessionsDone, leader]);
 
+  /* ---- presence: "online" heartbeat while the app is open ---- */
+  useEffect(() => {
+    const beat = () => { if (document.visibilityState === "visible") CLOUD.update(`users/${uid}`, { lastActive: CLOUD.now(), away: false }).catch(() => { }); };
+    const vis = () => { if (document.visibilityState === "visible") beat(); else CLOUD.update(`users/${uid}`, { away: true }).catch(() => { }); };
+    beat(); const t = setInterval(beat, 60000); document.addEventListener("visibilitychange", vis); window.addEventListener("pagehide", vis);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis); window.removeEventListener("pagehide", vis); };
+  }, [uid]);
+
   /* ---- team members ---- */
   useEffect(() => CLOUD.listen("users", {}, (list) => {
     people.current = list.map((u) => ({ uid: u._id, name: u.name || "Member", roles: u.roles || [], leader: !!u.leader }));
-    const others = list.filter((u) => u._id !== uid && u.roles && u.roles.length).map((u) => ({ id: u._id, uid: u._id, name: u.name || "Member", roles: u.roles || [], voice: u.voice || null, voiceRange: u.voiceRange || null, color: u.color || colorForUid(u._id), leader: !!u.leader, avatar: u.avatar || null, games: u.games || { best: {} }, ...memberStats(u) }));
+    const others = list.filter((u) => u._id !== uid && u.roles && u.roles.length).map((u) => ({ id: u._id, uid: u._id, name: u.name || "Member", roles: u.roles || [], voice: u.voice || null, voiceRange: u.voiceRange || null, color: u.color || colorForUid(u._id), leader: !!u.leader, avatar: u.avatar || null, games: u.games || { best: {} }, away: !!u.away, ...memberStats(u) }));
     TEAM.length = 0; others.sort((a, b) => a.name.localeCompare(b.name)).forEach((m) => TEAM.push(m));
     setPeopleV((v) => v + 1); onTeam && onTeam();
   }), [uid]); // eslint-disable-line
