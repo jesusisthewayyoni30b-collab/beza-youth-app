@@ -173,14 +173,16 @@ function RoutinePlayer({ embedded, id }) {
   const { T, logPractice, toast } = useApp();
   const R = ROUTINES[id] || ROUTINES.sg_body;
   const [i, setI] = useState(0); const [left, setLeft] = useState(R.steps[0][1]); const [run, setRun] = useState(false); const [click, setClick] = useState(true); const [beat, setBeat] = useState(0);
+  const [doneS, setDoneS] = useState({}); const [peek, setPeek] = useState(null);
+  const toggleDone = (k) => setDoneS((d) => ({ ...d, [k]: !d[k] }));
   const step = R.steps[i]; const bpm = step[3];
   useEffect(() => { setI(0); setLeft(R.steps[0][1]); setRun(false); }, [id]); // eslint-disable-line
   useEffect(() => { if (!run) return; const t = setInterval(() => setLeft((l) => l - 1), 1000); return () => clearInterval(t); }, [run]);
   useEffect(() => { if (!run || !bpm || !click) return; let k = 0; const t = setInterval(() => { AE.click(k % 4 === 0); setBeat(k % 4); k++; }, 60000 / bpm); return () => clearInterval(t); }, [run, bpm, click, i]);
   useEffect(() => {
-    if (left > 0) return; AE.chord([72, 76, 79], 0.6);
+    if (left > 0) return; AE.chord([72, 76, 79], 0.6); setDoneS((d) => ({ ...d, [i]: true }));
     if (i < R.steps.length - 1) { setI(i + 1); setLeft(R.steps[i + 1][1]); }
-    else { setRun(false); logPractice(routineMins(id), R.title); toast("Routine complete! 💪"); setI(0); setLeft(R.steps[0][1]); }
+    else { setRun(false); logPractice(routineMins(id), R.title); toast("Routine complete! 💪"); setLeft(R.steps[i][1]); }
   }, [left]); // eslint-disable-line
   const go = (n) => { setI(n); setLeft(R.steps[n][1]); };
   const total = R.steps.reduce((s, x) => s + x[1], 0); const done = R.steps.slice(0, i).reduce((s, x) => s + x[1], 0) + (step[1] - left);
@@ -205,10 +207,16 @@ function RoutinePlayer({ embedded, id }) {
         <div style={{ marginTop: 12 }}><Bar pct={done / total} color="#fff" track="rgba(255,255,255,0.22)" /></div>
       </Card>
       <div style={{ fontSize: 12.5, color: T.sub, margin: "12px 2px" }}>{R.desc}</div>
-      {R.steps.map((s, k) => <Card key={k} pad={11} onClick={() => go(k)} style={{ marginBottom: 7, display: "flex", gap: 10, alignItems: "center", border: k === i ? `2px solid ${T.accent}` : undefined, opacity: k < i ? 0.6 : 1 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 99, display: "grid", placeItems: "center", background: k < i ? T.good : k === i ? T.accent : T.card2, color: k === i ? T.accentText : T.text, fontWeight: 900, fontSize: 12.5, flexShrink: 0 }}>{k < i ? "✓" : k + 1}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 800, fontSize: 13.5 }}>{s[0]}</div><div style={{ fontSize: 11.5, color: T.sub }}>{s[1] >= 60 ? `${Math.round(s[1] / 6) / 10} min` : `${s[1]} s`}{s[3] ? ` · ${s[3]} bpm` : ""}</div></div>
-      </Card>)}
+      <div style={{ fontSize: 11, color: T.faint, margin: "0 2px 8px" }}>Tap a step to read it · tick the box when you've done it</div>
+      {R.steps.map((s, k) => { const dn = !!doneS[k]; const open = peek === k;
+        return <Card key={k} pad={11} style={{ marginBottom: 7, border: k === i ? `2px solid ${T.accent}` : undefined }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button onClick={() => toggleDone(k)} aria-label={dn ? "Mark not done" : "Mark done"} style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, cursor: "pointer", border: `2px solid ${dn ? T.good : T.border}`, background: dn ? T.good : "transparent", color: "#fff", fontWeight: 900, fontSize: 15, display: "grid", placeItems: "center" }}>{dn ? "✓" : ""}</button>
+            <div onClick={() => setPeek(open ? null : k)} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}><div style={{ fontWeight: 800, fontSize: 13.5, textDecoration: dn ? "line-through" : "none", opacity: dn ? 0.6 : 1 }}>{k + 1}. {s[0]}</div><div style={{ fontSize: 11.5, color: T.sub }}>{s[1] >= 60 ? `${Math.round(s[1] / 6) / 10} min` : `${s[1]} s`}{s[3] ? ` · ${s[3]} bpm` : ""}{k === i ? " · now" : ""}</div></div>
+            <span onClick={() => setPeek(open ? null : k)} style={{ color: T.sub, cursor: "pointer", fontSize: 14 }}>{open ? "▲" : "▼"}</span>
+          </div>
+          {open && <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5 }}>{s[2]}{k !== i && <div style={{ marginTop: 8 }}><Btn small variant="soft" icon={Play} onClick={() => { go(k); setPeek(null); }}>Do this step now</Btn></div>}</div>}
+        </Card>; })}
     </div>
   );
 }

@@ -154,7 +154,7 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice }) {
   const cMirror = useRef({}); const cSeen = useRef({}); const cReady = useRef({}); const cText = useRef({}); const cRemote = useRef({});
   useEffect(() => {
     const offs = visible.map((gid) => CLOUD.listen(`groups/${gid}/messages`, { order: ["at", "desc"], limit: 120 }, (list) => {
-      const msgs = list.map((m) => ({ id: m._id, uid: m.uid, from: m.from, color: m.color, text: m.text || "", song: m.song || undefined, file: m.file ? { ...m.file, url: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, edited: !!m.edited, me: m.uid === uid, at: toMs(m.at), t: chatTime(toMs(m.at)) })).sort((a, b) => a.at - b.at);
+      const msgs = list.map((m) => ({ id: m._id, uid: m.uid, from: m.from, color: m.color, text: m.text || "", song: m.song || undefined, file: m.file ? { ...m.file, url: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, edited: !!m.edited, reply: m.reply || undefined, me: m.uid === uid, at: toMs(m.at), t: chatTime(toMs(m.at)) })).sort((a, b) => a.at - b.at);
       cMirror.current[gid] = {}; cText.current[gid] = {}; cRemote.current[gid] = new Set(msgs.map((m) => m.id)); msgs.forEach((m) => { cMirror.current[gid][m.id] = stable(m.react); cText.current[gid][m.id] = m.text || ""; });
       /* new messages from teammates → notification (never on the first load) */
       const top = msgs.reduce((a, m) => Math.max(a, m.at || 0), 0);
@@ -176,7 +176,7 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice }) {
         const key = String(m.id);
         if (mir[key] === undefined) {
           const docId = key.includes("_") ? key : `${key}_${uid.slice(0, 6)}`; mir[key] = stable(m.react || {}); mir[docId] = mir[key]; txm[key] = txm[docId] = m.text || "";
-          CLOUD.set(`groups/${gid}/messages/${docId}`, strip({ uid, from: m.sys ? "" : (me.current.user.name || "Member"), color: colorForUid(uid), text: m.text || "", song: m.song, file: m.file && (m.file.data || !m.file.url) ? { name: m.file.name, size: m.file.size, data: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, at: CLOUD.now() }), false).catch((e) => console.warn("send", e && e.code));
+          CLOUD.set(`groups/${gid}/messages/${docId}`, strip({ uid, from: m.sys ? "" : (me.current.user.name || "Member"), color: colorForUid(uid), text: m.text || "", song: m.song, file: m.file && (m.file.data || !m.file.url) ? { name: m.file.name, size: m.file.size, data: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, reply: m.reply || undefined, at: CLOUD.now() }), false).catch((e) => console.warn("send", e && e.code));
         } else {
           const pid = key.includes("_") ? key : `${key}_${uid.slice(0, 6)}`;
           if (m.edited && txm[key] !== undefined && txm[key] !== (m.text || "")) { txm[key] = m.text || ""; CLOUD.update(`groups/${gid}/messages/${pid}`, { text: m.text || "", edited: true }).catch((e) => console.warn("edit", e && e.code)); }

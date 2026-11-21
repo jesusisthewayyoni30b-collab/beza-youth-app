@@ -638,7 +638,7 @@ function SessionScreen({ id }) {
   const [bi, setBi] = useState(0);
   const [left, setLeft] = useState(s.blocks[0].mins * 60);
   const [run, setRun] = useState(false);
-  const [doneB, setDoneB] = useState({});
+  const [doneB, setDoneB] = useState({}); const [peekB, setPeekB] = useState(null);
   const total = s.blocks.reduce((a, b) => a + b.mins * 60, 0);
   const elapsed = s.blocks.slice(0, bi).reduce((a, b) => a + b.mins * 60, 0) + (s.blocks[bi].mins * 60 - left);
   useEffect(() => { if (!run) return; const iv = setInterval(() => setLeft((l) => l - 1), 1000); return () => clearInterval(iv); }, [run]);
@@ -669,6 +669,17 @@ function SessionScreen({ id }) {
         {s.blocks.map((x, i) => <button key={i} onClick={() => go(i)} style={{ flex: x.mins, height: 30, borderRadius: 9, border: "none", cursor: "pointer", background: i === bi ? T.accent : doneB[i] ? T.good + "55" : T.card2, color: i === bi ? T.accentText : T.text, fontSize: 10, fontWeight: 800, overflow: "hidden", whiteSpace: "nowrap" }}>{x.mins}′</button>)}
       </div>
       <div key={bi}>{T2 && <T2.C embedded {...b.props} />}</div>
+      <SectionTitle>Checklist</SectionTitle>
+      <div style={{ fontSize: 11, color: T.faint, margin: "-6px 2px 8px" }}>Tick each step when you finish it · tap a step to read the coach tip</div>
+      {s.blocks.map((x, k) => { const dn = !!doneB[k]; const open = peekB === k;
+        return <Card key={k} pad={11} style={{ marginBottom: 7, border: k === bi ? `2px solid ${T.accent}` : undefined }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button onClick={() => setDoneB((d) => ({ ...d, [k]: !d[k] }))} aria-label="Done" style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, cursor: "pointer", border: `2px solid ${dn ? T.good : T.border}`, background: dn ? T.good : "transparent", color: "#fff", fontWeight: 900, fontSize: 15, display: "grid", placeItems: "center" }}>{dn ? "✓" : ""}</button>
+            <div onClick={() => setPeekB(open ? null : k)} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}><div style={{ fontWeight: 800, fontSize: 13.5, textDecoration: dn ? "line-through" : "none", opacity: dn ? 0.6 : 1 }}>{k + 1}. {x.name}</div><div style={{ fontSize: 11.5, color: T.sub }}>{x.mins} min{TOOLS[x.tool] ? ` · ${TOOLS[x.tool].title}` : ""}{k === bi ? " · now" : ""}</div></div>
+            <span onClick={() => setPeekB(open ? null : k)} style={{ color: T.sub, cursor: "pointer" }}>{open ? "▲" : "▼"}</span>
+          </div>
+          {open && <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5 }}>{x.guide || "Follow the exercise on screen."}{k !== bi && <div style={{ marginTop: 8 }}><Btn small variant="soft" icon={Play} onClick={() => { go(k); setPeekB(null); }}>Do this step now</Btn></div>}</div>}
+        </Card>; })}
     </div>
   );
 }
@@ -776,7 +787,11 @@ function ChatScreen() {
   const [recent, setRecent] = useState(["🙏", "🔥", "❤️", "😂", "🙌", "🎤", "🎹", "🥁"]);
   const [reactFor, setReactFor] = useState(null);
   const [editId, setEditId] = useState(null); const [delMsg, setDelMsg] = useState(null);
-  const inRef = useRef(null);
+  const inRef = useRef(null); const [replyTo, setReplyTo] = useState(null);
+  const touchDev = typeof window !== "undefined" && ("ontouchstart" in window) && window.innerWidth < 900;
+  useEffect(() => { const el = inRef.current; if (!el) return; el.style.height = "38px"; if (el.scrollHeight > 40) el.style.height = Math.min(el.scrollHeight, 132) + "px"; }, [txt]);
+  const startReply = (m) => { setReplyTo({ id: m.id, from: m.from || user.name, text: (m.text || (m.song ? "🎵 Chord chart" : m.file ? (m.file.url ? "📷 Photo" : "📎 " + m.file.name) : "")).slice(0, 140) }); setReactFor(null); if (editId != null) cancelEdit(); setTimeout(() => inRef.current && inRef.current.focus(), 30); };
+  const jumpTo = (id) => { const el = document.getElementById("bzmsg-" + id); if (!el) return; el.scrollIntoView({ behavior: "smooth", block: "center" }); el.animate && el.animate([{ background: "rgba(198,255,61,0.25)" }, { background: "transparent" }], { duration: 1200 }); };
   const fileRef = useRef(null); const listRef = useRef(null);
   useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [chat, ch]);
   const active = tab === "chat";
@@ -793,7 +808,7 @@ function ChatScreen() {
     if (editId != null && !extra.file) { const t = txt.trim(); const orig = (chat[ch] || []).find((x) => x.id === editId);
       if (t && orig && t !== orig.text) setChat((c) => ({ ...c, [ch]: (c[ch] || []).map((x) => (x.id === editId ? { ...x, text: t, edited: true } : x)) }));
       cancelEdit(); return; }
-    if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), at: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...extra }] })); setTxt(""); setEmo(false); };
+    if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), at: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...(replyTo ? { reply: replyTo } : {}), ...extra }] })); setTxt(""); setEmo(false); setReplyTo(null); };
   const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const isImg = f.type.startsWith("image/");
     if (CLOUD.on) { e.target.value = ""; const kb = f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB";
       if (!isImg) { send({ file: { name: f.name, size: kb + " · not uploaded (photos only)" } }); return; }
@@ -830,11 +845,12 @@ function ChatScreen() {
       <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0" }} className="bz-noscroll">
         {(chat[ch] || []).map((m) => (
           m.sys ? <div key={m.id} style={{ textAlign: "center", fontSize: 11, color: T.faint, margin: "4px 0 12px" }}><span style={{ background: T.card2, padding: "3px 10px", borderRadius: 99 }}>{m.text}</span></div> :
-          <div key={m.id} style={{ display: "flex", gap: 8, justifyContent: m.me ? "flex-end" : "flex-start", marginBottom: 12 }}>
+          <div key={m.id} id={"bzmsg-" + m.id} style={{ display: "flex", gap: 8, justifyContent: m.me ? "flex-end" : "flex-start", marginBottom: 12, borderRadius: 14 }}>
             {!m.me && <Avatar name={m.from} size={30} color={m.color || colorOf(m.from)} />}
             <div style={{ maxWidth: "76%", position: "relative" }}>
               {!m.me && <div style={{ fontSize: 11, color: T.sub, fontWeight: 600, margin: "0 0 3px 4px" }}>{m.from}</div>}
               <div onClick={() => setReactFor(reactFor === m.id ? null : m.id)} style={{ cursor: "pointer", background: m.me ? T.accent : T.card, color: m.me ? T.accentText : T.text, padding: m.file && m.file.url ? 5 : "10px 13px", borderRadius: m.me ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: !m.me ? `1px solid ${T.border}` : "none", fontSize: 13.5, lineHeight: 1.45, transition: "transform .15s", transform: reactFor === m.id ? "scale(1.02)" : "none" }}>
+                {m.reply && <div onClick={(e) => { e.stopPropagation(); jumpTo(m.reply.id); }} style={{ borderLeft: `3px solid ${m.me ? "rgba(0,0,0,0.45)" : T.pop}`, background: m.me ? "rgba(0,0,0,0.10)" : T.card2, borderRadius: 8, padding: "4px 8px", marginBottom: 6, fontSize: 12, cursor: "pointer", maxWidth: 260 }}><div style={{ fontWeight: 800, opacity: 0.9 }}>{m.reply.from}</div><div style={{ opacity: 0.8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.reply.text}</div></div>}
                 {m.file && m.file.url && <img alt="" src={m.file.url} style={{ display: "block", maxWidth: "100%", borderRadius: 14 }} />}
                 {m.file && !m.file.url && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: m.text ? 6 : 0 }}>
@@ -852,11 +868,12 @@ function ChatScreen() {
                   {["🙏", "❤️", "🔥", "😂", "🙌", "😮", "👏"].map((e) => <button key={e} onClick={() => react(m.id, e)} style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", padding: "2px 3px" }}>{e}</button>)}
                 </div>
               )}
-              {reactFor === m.id && (m.me || leader) && (
-                <div className="bz-up" style={{ display: "flex", gap: 6, justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 6 }}>
+              {reactFor === m.id && (
+                <div className="bz-up" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 6 }}>
+                  {canPost && <button onClick={() => startReply(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>↩ Reply</button>}
                   {m.me && m.text && !m.song && <button onClick={() => startEdit(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}><Edit size={13} noBlob /> Edit</button>}
                   {m.me && CLOUD.on && <button onClick={() => { setSeenMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>👁 Seen by {seenBy(m).length}</button>}
-                  <button onClick={() => { setDelMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: "#ff5a6e", border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>🗑 Delete</button>
+                  {(m.me || leader) && <button onClick={() => { setDelMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: "#ff5a6e", border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>🗑 Delete</button>}
                 </div>
               )}
               <div style={{ display: "flex", gap: 4, justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
@@ -889,10 +906,11 @@ function ChatScreen() {
         <div style={{ display: "flex", gap: 8 }}><Btn full variant="soft" onClick={() => setDelMsg(null)}>Cancel</Btn><Btn full variant="accent" onClick={() => doDelete(delMsg)} style={{ background: "#ff3b5c", color: "#fff" }}>Delete</Btn></div>
       </Sheet>
       {editId != null && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", marginBottom: 6, borderRadius: 12, background: T.card2, fontSize: 12, color: T.sub, flexShrink: 0 }}><Edit size={14} noBlob /><span style={{ flex: 1, fontWeight: 700 }}>Editing message</span><button onClick={cancelEdit} style={{ background: "none", border: "none", color: T.text, fontFamily: FONT, fontWeight: 800, cursor: "pointer" }}>Cancel ✕</button></div>}
+      {replyTo && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", marginBottom: 6, borderRadius: 12, background: T.card2, fontSize: 12, flexShrink: 0, borderLeft: `3px solid ${T.pop}` }}><span style={{ fontSize: 15 }}>↩</span><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 800 }}>Replying to {replyTo.from}</div><div style={{ color: T.sub, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{replyTo.text}</div></div><button onClick={() => setReplyTo(null)} style={{ background: "none", border: "none", color: T.text, fontSize: 16, cursor: "pointer" }}>✕</button></div>}
       {!canPost && <div style={{ textAlign: "center", fontSize: 12, color: T.sub, padding: "12px 0", flexShrink: 0 }}>📣 Only leaders can post in this group</div>}
-      {canPost && <div style={{ display: "flex", alignItems: "center", gap: 6, background: T.card, borderRadius: 999, padding: 5, border: `1.5px solid ${T.border}`, flexShrink: 0 }}>
+      {canPost && <div style={{ display: "flex", alignItems: "flex-end", gap: 6, background: T.card, borderRadius: 24, padding: 5, border: `1.5px solid ${T.border}`, flexShrink: 0 }}>
         <button onClick={() => setEmo((v) => !v)} style={{ width: 38, height: 38, borderRadius: 99, border: "none", background: emo ? T.soft : "transparent", color: T.text, display: "grid", placeItems: "center", cursor: "pointer" }}><Smile size={21} /></button>
-        <input ref={inRef} value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); if (e.key === "Escape" && editId != null) cancelEdit(); }} placeholder={editId != null ? "Edit your message…" : "Message the team…"} style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: T.text, fontFamily: FONT, fontSize: 14 }} />
+        <textarea ref={inRef} rows={1} value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !touchDev) { e.preventDefault(); send(); } if (e.key === "Escape") { if (editId != null) cancelEdit(); setReplyTo(null); } }} placeholder={editId != null ? "Edit your message…" : "Message the team…"} style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: T.text, fontFamily: FONT, fontSize: 14, lineHeight: "20px", resize: "none", padding: "9px 2px", height: 38, maxHeight: 132, display: "block", alignSelf: "center", overflowY: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word", boxSizing: "border-box" }} />
         <button onClick={() => setSongPick(true)} title="Send a song chart" style={{ width: 38, height: 38, borderRadius: 99, border: "none", background: "transparent", color: T.text, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Music size={20} noBlob /></button>
         <button onClick={() => fileRef.current.click()} style={{ width: 38, height: 38, borderRadius: 99, border: "none", background: "transparent", color: T.text, display: "grid", placeItems: "center", cursor: "pointer" }}><Paperclip size={20} /></button>
         <input ref={fileRef} type="file" hidden onChange={onFile} />
