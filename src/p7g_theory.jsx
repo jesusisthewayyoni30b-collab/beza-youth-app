@@ -276,21 +276,48 @@ function ChordsByKey({ inst }) {
     </>
   );
 }
+/* a chord diagram for a shape chord, tap to hear it with the capo */
+function CapoShape({ root, q, capo = 0, soundsKey, num }) {
+  const { T } = useApp();
+  const v = (chordVoicings(root, q) || []).find((x) => x.cat === "Open") || (chordVoicings(root, q) || [])[0];
+  const sounds = NOTE_NAMES[(root + capo) % 12] + q;
+  return (
+    <div onClick={() => v && strumShape(v.frets, "acoustic", capo)} className="bz-press" style={{ textAlign: "center", background: T.card2, borderRadius: 14, padding: "6px 2px", cursor: "pointer" }}>
+      {num && <div style={{ fontSize: 11, fontWeight: 900, color: T.sub }}>{num}</div>}
+      {v ? <div style={{ display: "flex", justifyContent: "center" }}><ChordBox frets={v.frets} name={NOTE_NAMES[root] + q} capo={capo || undefined} width={78} /></div> : <div style={{ fontWeight: 900, padding: 20 }}>{NOTE_NAMES[root] + q}</div>}
+      {capo > 0 && <div style={{ fontSize: 10.5, color: T.sub, fontWeight: 700 }}>sounds {sounds}</div>}
+      {v && v.cat !== "Open" && <div style={{ fontSize: 9.5, color: T.faint }}>{v.cat}</div>}
+    </div>
+  );
+}
+const SHAPE_FAMILIES = [[0, "C shapes", "Bright, open. Capo 2 → D, capo 3 → Eb, capo 5 → F."], [7, "G shapes", "The worship favourite. Capo 1 → Ab, capo 3 → Bb, capo 4 → B."], [2, "D shapes", "Sparkly and high. Capo 2 → E, capo 4 → F#."], [9, "A shapes", "Warm. Capo 1 → Bb, capo 2 → B, capo 4 → C#."], [4, "E shapes", "Big and full. Capo 1 → F, capo 3 → G, capo 6 → Bb."]];
 function CapoChart() {
-  const { T } = useApp(); const [key, setKey] = useState(2);
+  const { T } = useApp(); const [key, setKey] = useState(2); const [view, setView] = useState("capo"); const [openRow, setOpenRow] = useState(null);
   const easy = [0, 7, 2, 9, 4]; // C G D A E shape keys
   const rows = Array.from({ length: 10 }, (_, capo) => { const shapeKey = (key - capo + 12) % 12; return { capo, shapeKey, easy: easy.includes(shapeKey) }; });
+  const famChords = (k) => modeChords(k, MAJ_STEPS, false).filter((c) => [0, 1, 2, 3, 4, 5].includes(c.i));
   return (
     <>
-      <Card tone="soft" style={{ fontSize: 13, lineHeight: 1.6 }}>A <b>capo</b> raises every string. Capo on fret 2 = everything sounds <b>+2</b>. So to play in a hard key, put the capo on and play easy shapes. The numbers (1 4 5 6m) never change, only the shapes.</Card>
-      <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "12px 0 6px" }}>THE SONG IS IN (sounding key)</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{KEY_ORDER.map((k) => <Chip key={k} active={key === k} onClick={() => setKey(k)}>{keyNm(k)}</Chip>)}</div>
-      <SectionTitle>Capo options for {keyNm(key)}</SectionTitle>
-      {rows.map((r) => { const ch = modeChords(r.shapeKey, MAJ_STEPS, false).filter((c) => [0, 3, 4, 5].includes(c.i));
-        return <Card key={r.capo} pad={10} style={{ marginBottom: 8, opacity: r.easy ? 1 : 0.6, border: r.easy ? `2px solid ${T.good}` : undefined }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><b>{r.capo === 0 ? "No capo" : `Capo ${r.capo}`} → play <span style={{ color: T.accent }}>{keyNm(r.shapeKey)}</span> shapes</b>{r.easy && <span style={{ fontSize: 11, fontWeight: 800, color: T.good }}>EASY</span>}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginTop: 6, fontSize: 12.5 }}>{ch.map((c) => <div key={c.i} style={{ textAlign: "center", background: T.card2, borderRadius: 10, padding: "6px 2px" }}><div style={{ fontWeight: 900 }}>{c.num}</div><div>{c.name}</div><div style={{ fontSize: 10, color: T.sub }}>sounds {spell((c.root + r.capo) % 12, key)}{c.q}</div></div>)}</div>
-        </Card>; })}
+      <Card tone="soft" style={{ fontSize: 13, lineHeight: 1.6 }}>A <b>capo</b> raises every string. Capo on fret 2 = everything sounds <b>+2</b>. So to play in a hard key, put the capo on and play easy shapes. The numbers (1 4 5 6m) never change, only the shapes. <b>Tap any chord diagram to hear it with the capo.</b></Card>
+      <div style={{ marginTop: 10 }}><Seg value={view} onChange={setView} options={[{ value: "capo", label: "Capo for my key" }, { value: "shapes", label: "The 5 shape families" }]} /></div>
+      {view === "shapes" ? <>
+        <div style={{ fontSize: 12.5, color: T.sub, margin: "12px 2px 4px", lineHeight: 1.5 }}>Every capo trick uses one of these 5 families of open shapes. Learn the chords of each family (1, 2m, 3m, 4, 5, 6m) and you can play in any key.</div>
+        {SHAPE_FAMILIES.map(([k, nm, tip]) => <div key={k}>
+          <SectionTitle>{nm} · key of {NOTE_NAMES[k]}</SectionTitle>
+          <div style={{ fontSize: 12, color: T.sub, margin: "-4px 2px 8px" }}>{tip}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{famChords(k).map((c) => <CapoShape key={c.i} root={c.root} q={c.q} num={c.num} />)}</div>
+        </div>)}
+      </> : <>
+        <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "12px 0 6px" }}>THE SONG IS IN (sounding key)</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{KEY_ORDER.map((k) => <Chip key={k} active={key === k} onClick={() => { setKey(k); setOpenRow(null); }}>{ENH[k] || keyNm(k)}</Chip>)}</div>
+        <SectionTitle>Capo options for {keyNm(key)}</SectionTitle>
+        {rows.map((r) => { const ch = modeChords(r.shapeKey, MAJ_STEPS, false).filter((c) => [0, 3, 4, 5].includes(c.i)); const show = openRow === r.capo || (openRow == null && r.easy);
+          return <Card key={r.capo} pad={10} style={{ marginBottom: 8, opacity: r.easy ? 1 : 0.75, border: r.easy ? `2px solid ${T.good}` : undefined }}>
+            <div onClick={() => setOpenRow(openRow === r.capo ? -1 : r.capo)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}><b>{r.capo === 0 ? "No capo" : `Capo ${r.capo}`} → play <span style={{ color: T.accent }}>{keyNm(r.shapeKey)}</span> shapes</b><span style={{ display: "flex", gap: 8, alignItems: "center" }}>{r.easy && <span style={{ fontSize: 11, fontWeight: 800, color: T.good }}>EASY</span>}<span style={{ color: T.sub }}>{show ? "▲" : "▼"}</span></span></div>
+            {show ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(84px, 1fr))", gap: 6, marginTop: 8 }}>{ch.map((c) => <CapoShape key={c.i} root={c.root} q={c.q} capo={r.capo} num={c.num} />)}</div>
+              : <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginTop: 6, fontSize: 12.5 }}>{ch.map((c) => <div key={c.i} style={{ textAlign: "center", background: T.card2, borderRadius: 10, padding: "6px 2px" }}><div style={{ fontWeight: 900 }}>{c.num}</div><div>{c.name}</div><div style={{ fontSize: 10, color: T.sub }}>sounds {spell((c.root + r.capo) % 12, key)}{c.q}</div></div>)}</div>}
+          </Card>; })}
+      </>}
     </>
   );
 }
