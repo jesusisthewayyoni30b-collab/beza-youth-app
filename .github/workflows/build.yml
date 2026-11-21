@@ -61,18 +61,18 @@ jobs:
           export APP_VERSION_NAME=$(cat ../VERSION)
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
-          cp app/build/outputs/apk/release/app-release.apk ../BezaYouth.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Beza-Youth-Worship-Team.apk
       - uses: actions/upload-artifact@v4
-        with: { name: BezaYouth-apk, path: BezaYouth.apk }
+        with: { name: BezaYouth-apk, path: Beza-Youth-Worship-Team.apk }
       - name: Publish APK download
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-app
           name: Beza Youth — Android app
           body: |
-            Download **BezaYouth.apk** below and open it on your Android phone to install.
+            Download **Beza-Youth-Worship-Team.apk** below and open it on your Android phone to install.
             The app updates itself from the website — you only reinstall when the app tells you to.
-          files: BezaYouth.apk
+          files: Beza-Youth-Worship-Team.apk
           make_latest: true
 
   firebase:

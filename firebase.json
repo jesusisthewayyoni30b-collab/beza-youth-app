@@ -37,17 +37,17 @@
     "redirects": [
       {
         "source": "/BezaYouth.apk",
-        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/BezaYouth.apk",
+        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/Beza-Youth-Worship-Team.apk",
         "type": 302
       },
       {
         "source": "/download",
-        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/BezaYouth.apk",
+        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/Beza-Youth-Worship-Team.apk",
         "type": 302
       },
       {
         "source": "/app",
-        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/BezaYouth.apk",
+        "destination": "https://github.com/jesusisthewayyoni30b-collab/beza-youth-app/releases/latest/download/Beza-Youth-Worship-Team.apk",
         "type": 302
       }
     ]
