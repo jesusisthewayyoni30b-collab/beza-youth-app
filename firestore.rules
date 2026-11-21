@@ -34,6 +34,10 @@ service cloud.firestore {
         allow update: if signedIn() && canSee() && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['react']) || (resource.data.uid == me() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited', 'react'])));
         allow delete: if isLeader() || (signedIn() && resource.data.uid == me());
       }
+      match /reads/{u} {
+        allow read: if signedIn();
+        allow write: if signedIn() && u == me();
+      }
     }
 
     // songs & chord charts: the whole team can add and fix; leaders or the author can delete
@@ -55,6 +59,13 @@ service cloud.firestore {
     }
 
     // assignments: leaders send, members see and complete their own
+    match /questions/{qid} {
+      allow create: if signedIn() && request.resource.data.uid == me();
+      allow read: if isLeader() || (signedIn() && resource.data.uid == me());
+      allow update: if isLeader() || (signedIn() && resource.data.uid == me() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen']));
+      allow delete: if isLeader();
+    }
+
     match /assignments/{aid} {
       allow read: if isLeader() || (signedIn() && resource.data.toUid == me());
       allow create: if isLeader() || (signedIn() && request.resource.data.toUid == me());

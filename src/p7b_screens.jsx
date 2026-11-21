@@ -18,6 +18,8 @@ const TOOLS = {
   changes: { title: "One-Minute Changes", desc: "Mic counts your changes", icon: Repeat, roles: ["acoustic", "lead"], C: ChangeTrainer },
   basslab: { title: "Bass Lab", desc: "Real bass + drums grooves", icon: Activity, roles: ["bass"], C: BassLab },
   groove: { title: "Groove Lab", desc: "Real kit drum machine", icon: Drum, roles: ["drums", "bass"], C: GrooveLab },
+  routine: { title: "Guided routine", desc: "Timed steps", icon: Timer, roles: [], C: RoutinePlayer },
+  metronome: { title: "Metronome", desc: "Any tempo · any time signature · trainers", icon: Timer, roles: ["drums", "keys", "acoustic", "lead", "bass", "singer"], C: Metronome },
   rudiments: { title: "Rudiment Trainer", desc: "Sticking, accents, ramps", icon: Drum, roles: ["drums"], C: RudimentTrainer },
   flow: { title: "Signal Flow & Gain", desc: "Mic → console → speakers", icon: Sliders, roles: ["sound"], C: SignalFlow },
   eq7: { title: "7-Band EQ Lab", desc: "Real audio + ear quiz", icon: Sliders, roles: ["sound"], C: EQ7Lab },
@@ -134,7 +136,7 @@ function Onboarding({ onDone, initial, inSheet }) {
 
 /* ================================ HOME (+) ================================ */
 function HomeScreen() {
-  const { T, user, avatar, settings, push, setTab, feed, done, logs, assignments, plan, setPlan, web } = useApp();
+  const { T, user, avatar, settings, push, setTab, feed, done, logs, assignments, plan, setPlan, web, leader } = useApp();
   const L = STR[settings.lang];
   const hr = new Date().getHours(); const greet = hr < 12 ? L.morn : hr < 17 ? L.aft : L.eve;
   const first = user.name.split(" ")[0];
@@ -191,12 +193,13 @@ function HomeScreen() {
 
       <SectionTitle action="All lessons" onAction={() => setTab("learn")}>Continue learning</SectionTitle>
       <Scroller style={{ gap: 10 }}>
-        {["heart", ...user.roles].map((rid) => { const C = CURRICULUM[rid]; if (!C) return null; const next = C.all.find((id) => !done.has(id)) || C.all[0]; const L2 = LESSONS[next]; const r = roleOf(rid); const p = C.all.filter((i) => done.has(i)).length / C.all.length;
+        {["heart", ...user.roles].map((rid) => { const C = CURRICULUM[rid]; if (!C) return null; const next = C.all.find((id) => !done.has(id)) || C.all[0]; const L2 = LESSONS[next]; const r = roleOf(rid); const p = C.all.filter((i) => done.has(i)).length / C.all.length; const lk = lessonLock(next, rid, done, leader);
           return (
-            <Card key={rid} onClick={() => push({ screen: "lesson", id: next, role: rid })} style={{ minWidth: 230, maxWidth: 230, borderTop: `5px solid ${r.color}` }}>
+            <Card key={rid} onClick={() => push(lk ? { screen: "lesson", id: lk.needId, role: lk.needRole } : { screen: "lesson", id: next, role: rid })} style={{ minWidth: 230, maxWidth: 230, borderTop: `5px solid ${r.color}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 11, fontWeight: 800, color: ink(T, r.color) }}>{r.label.toUpperCase()}</span><span style={{ fontSize: 11, color: T.sub }}>{Math.round(p * 100)}%</span></div>
               <div style={{ fontWeight: 800, fontSize: 15, margin: "6px 0 4px", lineHeight: 1.25 }}>{L2.title}</div>
               <div style={{ fontSize: 11.5, color: T.sub }}>{C.flat ? `Lesson ${C.all.indexOf(next) + 1} of ${C.all.length}` : `Level ${L2.level} · ${LEVELS[L2.level]}`} · {L2.mins} min</div>
+              {lk && <div style={{ fontSize: 11, color: ink(T, T.pop), fontWeight: 700, marginTop: 4 }}>🔒 Opens after the next Heart of Worship lesson</div>}
               <div style={{ marginTop: 10 }}><Bar pct={p} color={r.color} h={6} /></div>
             </Card>
           ); })}
@@ -279,7 +282,7 @@ function HomeScreen() {
 
 /* ================================ LEARN ================================ */
 function LearnScreen() {
-  const { T, user, push, done } = useApp();
+  const { T, user, push, done, leader, toast } = useApp();
   const tracks = ["heart", ...user.roles];
   const [rid, setRid] = useState("heart");
   const [q, setQ] = useState("");
@@ -287,7 +290,7 @@ function LearnScreen() {
   const C = CURRICULUM[rid]; const r = roleOf(rid);
   if (!C) return null;
   const p = C.all.filter((i) => done.has(i)).length / C.all.length;
-  const next = C.all.find((id) => !done.has(id)) || C.all[0];
+  const nx = nextLessonFor(rid, done, leader); const next = nx.id;
   const startLvl = (user.levels && user.levels[rid]) || 0;
   return (
     <div>
@@ -298,7 +301,8 @@ function LearnScreen() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11.5, fontWeight: 800, opacity: 0.8, letterSpacing: 1 }}>{C.tagline.toUpperCase()}</div>
             <div style={{ fontFamily: T.graffiti ? GRAFF : SERIF, fontSize: 30, lineHeight: 1.05, margin: "4px 0 10px" }}>{C.title}</div>
-            <Btn small variant={T.graffiti ? "hero" : "accent"} icon={Play} onClick={() => push({ screen: "lesson", id: next, role: rid })}>Continue</Btn>
+            <Btn small variant={T.graffiti ? "hero" : "accent"} icon={Play} onClick={() => push({ screen: "lesson", id: next, role: nx.role })}>{nx.role !== rid ? "Next: Heart of Worship" : "Continue"}</Btn>
+            {nx.role !== rid && <div style={{ fontSize: 11.5, marginTop: 8, opacity: 0.9, maxWidth: 240 }}>Finish the next Heart of Worship lesson to open your next {C.title} lesson.</div>}
           </div>
           <Ring pct={p} size={80} stroke={8} color={T.graffiti ? "#111" : T.pop} track="rgba(255,255,255,0.35)"><span style={{ fontSize: 15 }}>{Math.round(p * 100)}%</span></Ring>
         </div>
@@ -322,10 +326,10 @@ function LearnScreen() {
               {lv.n === startLvl && <span style={{ fontSize: 10.5, fontWeight: 800, color: T.accent }}>YOUR START</span>}
             </div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {ids.map((id) => { const Ls = LESSONS[id]; const isDone = done.has(id); const shared = id.startsWith("th_");
+              {ids.map((id) => { const Ls = LESSONS[id]; const isDone = done.has(id); const shared = id.startsWith("th_"); const lk = !isDone && lessonLock(id, rid, done, leader);
                 return (
-                  <Card key={id} pad={13} onClick={() => push({ screen: "lesson", id, role: rid })} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 14, display: "grid", placeItems: "center", background: isDone ? T.accent : T.card2, color: isDone ? T.accentText : T.text, flexShrink: 0 }}>{isDone ? <Check size={20} /> : <Book size={20} />}</div>
+                  <Card key={id} pad={13} onClick={() => (lk ? toast(lk.kind === "heart" ? "🔒 Finish the next Heart of Worship lesson first" : "🔒 Finish the lesson before this one first") : push({ screen: "lesson", id, role: rid }))} style={{ display: "flex", alignItems: "center", gap: 12, opacity: lk ? 0.55 : 1 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 14, display: "grid", placeItems: "center", background: isDone ? T.accent : T.card2, color: isDone ? T.accentText : T.text, flexShrink: 0 }}>{isDone ? <Check size={20} /> : lk ? <Lock size={18} /> : <Book size={20} />}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.25 }}>{Ls.title}</div>
                       <div style={{ fontSize: 11.5, color: T.sub, marginTop: 2 }}>{C.flat ? `Lesson ${C.all.indexOf(id) + 1} · ` : ""}{Ls.mins} min{C.flat ? "" : " class"}{shared ? " · theory" : ""}{Ls.quiz.length ? ` · ${Ls.quiz.length} quiz Qs` : " · reflection"}</div>
@@ -380,6 +384,7 @@ function LessonWidget({ kind, p, caption }) {
   else if (kind === "click") { body = <MiniClick bpm={p.bpm} beats={p.beats} sub={p.sub || 1} />; }
   else if (kind === "fret") body = <Fretboard tuning={p.bass ? BASS_TUNING : GUITAR_TUNING} pcs={p.pcs} rootPc={p.root} highlightFrets={p.openOnly ? (p.bass ? [0, 0, 0, 0] : [0, 0, 0, 0, 0, 0]) : undefined} frets={p.openOnly ? 5 : 12} />;
   else if (kind === "box") { const f = box(p.name); body = f ? <div style={{ display: "flex", alignItems: "center", gap: 14 }}><ChordBox frets={f} name={p.name} /><div><div style={{ fontSize: 12.5, color: T.sub, marginBottom: 8 }}>Frets low→high: {f.map((x) => (x < 0 ? "x" : x)).join(" ")}</div><PlayBtn label="Strum" onClick={() => strumShape(f)} /></div></div> : null; }
+  else if (kind === "singcheck") body = <SingCheck notes={p.notes} />;
   else if (kind === "tool") { const t = TOOLS[p.id]; body = <Btn full variant="accent" icon={t ? t.icon : Play} onClick={() => push({ screen: "tool", id: p.id, props: p.props })}>{p.label || (t && t.title)}</Btn>; }
   else if (kind === "breathmini") body = <BreathMini seq={p.seq} />;
   else if (kind === "harmonydemo") { const d = HARMONY_DRILLS.find((x) => x.id === p.drill); body = d ? <div><div style={{ fontWeight: 700, marginBottom: 8 }}>{d.name}</div><div style={{ display: "flex", gap: 8 }}><PlayBtn label="Hear it" onClick={() => { const base = 60; const len = Math.max(...d.parts.map((x) => x.d.length)); for (let i = 0; i < len; i++) setTimeout(() => d.parts.forEach((pt) => { const v = pt.d[i]; if (v != null) AE.tone(degMidi(base, pt.penta ? pentaDeg(v) : v), 0.75 * d.beat, 0, 0.6); }), i * 800 * d.beat); }} /><Btn small variant="soft" onClick={() => push({ screen: "tool", id: "harmony", props: { drill: d.id } })}>Practise it</Btn></div></div> : null; }
@@ -439,11 +444,24 @@ function EqDemo({ f }) {
 
 /* ---------------- Lesson screen (classroom) ---------------- */
 function LessonScreen({ id, role }) {
-  const { T, done, completeLesson, push, user } = useApp();
+  const { T, done, completeLesson, push, user, leader, assignments } = useApp();
   const Ls = LESSONS[id];
   const [ans, setAns] = useState({});
   const [flip, setFlip] = useState({});
   if (!Ls) return <TopBar title="Lesson not found" />;
+  const lock = lessonLock(id, role, done, leader, (assignments || []).some((a) => a.toMe && a.ref === id));
+  if (lock) return (
+    <div>
+      <TopBar title="Locked lesson" sub={roleOf(role).label} />
+      <Card tone="hero" style={{ padding: 22, textAlign: "center" }}>
+        <div style={{ display: "grid", placeItems: "center" }}><NeonIcon icon={Lock} size={64} colors={["#22E4FF", "#B57BFF"]} /></div>
+        <div style={{ fontSize: 22, fontWeight: 900, marginTop: 14, lineHeight: 1.2 }}>{Ls.title}</div>
+        <div style={{ fontSize: 13.5, opacity: 0.9, marginTop: 8, lineHeight: 1.55 }}>{lock.text}</div>
+        <Btn full variant="light" icon={Play} style={{ marginTop: 16 }} onClick={() => push({ screen: "lesson", id: lock.needId, role: lock.needRole })}>Go to: {LESSONS[lock.needId].title}</Btn>
+      </Card>
+      <Card tone="soft" style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}><b>Why are lessons locked?</b> We grow step by step: the heart first, then the skill. Every Heart of Worship lesson you finish opens the next lesson in your department.</Card>
+    </div>
+  );
   const C = CURRICULUM[role]; const idx = C ? C.all.indexOf(id) : -1; const nextId = C && idx >= 0 ? C.all[idx + 1] : null;
   const isDone = done.has(id); const correct = Ls.quiz.filter((q, i) => ans[i] === q[2]).length;
   let sec = 0;
@@ -456,6 +474,7 @@ function LessonScreen({ id, role }) {
         <div style={{ fontSize: 13.5, opacity: 0.92, lineHeight: 1.5 }}>{Ls.sum}</div>
         {isDone && <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(0,0,0,0.25)", borderRadius: 99, padding: "5px 10px", fontSize: 12, fontWeight: 700 }}><Check size={14} /> Completed</div>}
       </Card>
+      {Ls.key && <Card style={{ marginBottom: 14, borderLeft: `5px solid ${T.pop}` }}><div style={{ fontWeight: 900, fontSize: 12.5, letterSpacing: 1, color: ink(T, T.pop), marginBottom: 8 }}>⚡ THE BIG IDEA · 30 SECONDS</div>{Ls.key.map((x, j) => <div key={j} style={{ display: "flex", gap: 10, fontSize: 14, lineHeight: 1.5, marginTop: j ? 6 : 0 }}><b style={{ color: ink(T, T.pop) }}>{j + 1}</b><span>{x}</span></div>)}</Card>}
       {Ls.body.map((b, i) => {
         const [k, a, c, d] = b;
         if (k === "h") { sec++; return <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 8px" }}><div style={{ width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: T.accent, color: T.accentText, fontWeight: 900, fontSize: 13, transform: T.graffiti ? "rotate(-6deg)" : "none" }}>{sec}</div><h3 style={{ margin: 0, fontSize: 18, fontFamily: T.graffiti ? MARKER : FONT, fontWeight: T.graffiti ? 400 : 700 }}>{a}</h3></div>; }
@@ -506,6 +525,8 @@ function LessonScreen({ id, role }) {
         <Btn full style={{ marginTop: 10 }} variant={isDone ? "soft" : "accent"} icon={isDone ? Check : Award} onClick={() => !isDone && completeLesson(id, Ls.mins)}>{isDone ? (C && C.flat ? "Lesson completed" : "Class completed") : (C && C.flat ? "Complete this lesson" : "Complete this class")}</Btn>
         {nextId && <Btn full style={{ marginTop: 8 }} variant="ghost" icon={ChevronRight} onClick={() => push({ screen: "lesson", id: nextId, role })}>Next: {LESSONS[nextId].title}</Btn>}
       </Card>
+      <div style={{ height: 70 }} />
+      <AskLeaderFab context={{ id: "lesson:" + id, title: Ls.title, kind: "lesson", role }} />
     </div>
   );
 }
@@ -530,38 +551,83 @@ function GameArenaCard() {
 function PracticeScreen() {
   const { T, user, push, logs, sessionsDone } = useApp();
   const week = logs.filter((l) => Date.now() - l.at < 7 * 864e5).reduce((s, l) => s + l.mins, 0);
-  const sess = sessionsFor(user.roles);
+  const roles = user.roles || [];
+  const [rid0, setRid] = useState(roles[0]);
+  const rid = roles.includes(rid0) ? rid0 : roles[0];
+  const r = roleOf(rid); const cats = TRAIN[rid] || []; const packs = packsFor(rid); const today = todaysPack(rid);
+  const older = SESSIONS.filter((x) => !x.pack && x.roles.includes(rid));
+  const tools = Object.entries(TOOLS).filter(([, t]) => t.roles.includes(rid));
+  const PackCard = ({ s, hero }) => (
+    <Card tone={hero ? "hero" : "card"} onClick={() => push({ screen: "session", id: s.id })} style={{ minWidth: hero ? 0 : 200, maxWidth: hero ? "none" : 200, minHeight: hero ? 0 : 150 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 800, letterSpacing: 1, opacity: 0.85 }}><span>{(s.day || LEVELS[s.level]).toUpperCase()}</span><span>{sessMins(s)} MIN</span></div>
+      <div style={{ fontFamily: T.graffiti ? MARKER : FONT, fontSize: hero ? 24 : 18, lineHeight: 1.15, margin: "8px 0 4px", fontWeight: T.graffiti ? 400 : 800 }}>{s.title}</div>
+      <div style={{ fontSize: 12, opacity: 0.85, lineHeight: 1.45 }}>{s.desc || s.blocks.map((b) => b.name).slice(0, 3).join(" · ")}</div>
+      <div style={{ display: "flex", gap: 3, marginTop: 10 }}>{s.blocks.map((b, k) => <div key={k} style={{ flex: b.mins, height: 6, borderRadius: 9, background: (T.spray || [T.accent, T.pop])[k % (T.spray ? 6 : 2)] }} />)}</div>
+      {hero && <div style={{ fontSize: 12, marginTop: 10, opacity: 0.9 }}>{s.blocks.map((b) => b.name).join(" → ")}</div>}
+      {sessionsDone[s.id] && <div style={{ fontSize: 11, marginTop: 8, fontWeight: 700 }}>✓ Done {sessionsDone[s.id]}×</div>}
+      {hero && <Btn small variant="light" icon={Play} style={{ marginTop: 12 }}>Start today's workout</Btn>}
+    </Card>
+  );
   return (
     <div>
       <TabHeader title="Practice" sub={`${week} min this week`} />
-      <GameArenaCard />
-      <SectionTitle>30-minute guided sessions</SectionTitle>
-      <Scroller style={{ gap: 10 }}>
-        {sess.map((s, i) => (
-          <Card key={s.id} tone={i % 2 ? "card" : "hero"} onClick={() => push({ screen: "session", id: s.id })} style={{ minWidth: 240, maxWidth: 240, minHeight: 170 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, opacity: 0.85 }}>{LEVELS[s.level].toUpperCase()}</span><span style={{ fontSize: 11, fontWeight: 800 }}>30 MIN</span></div>
-            <div style={{ fontFamily: T.graffiti ? MARKER : FONT, fontSize: 20, lineHeight: 1.15, margin: "10px 0 6px", fontWeight: T.graffiti ? 400 : 800 }}>{s.title}</div>
-            <div style={{ fontSize: 12, opacity: 0.85, lineHeight: 1.45 }}>{s.desc}</div>
-            <div style={{ display: "flex", gap: 3, marginTop: 12 }}>{s.blocks.map((b, k) => <div key={k} style={{ flex: b.mins, height: 6, borderRadius: 9, background: (T.spray || [T.accent, T.pop])[k % (T.spray ? 6 : 2)] }} />)}</div>
-            {sessionsDone[s.id] && <div style={{ fontSize: 11, marginTop: 8, fontWeight: 700 }}>✓ Completed {sessionsDone[s.id]}×</div>}
+      {roles.length > 1 && <Scroller style={{ marginBottom: 12 }}>{roles.map((x) => { const rr = roleOf(x); return <Chip key={x} active={rid === x} onClick={() => setRid(x)} style={{ borderColor: rr.color }}>{rr.label}</Chip>; })}</Scroller>}
+      {rid === "drums" && <Card onClick={() => push({ screen: "tool", id: "metronome" })} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, borderLeft: `5px solid ${r.color}` }}><Timer size={28} blobColor={r.color} /><div style={{ flex: 1 }}><div style={{ fontWeight: 900, fontSize: 15 }}>Metronome</div><div style={{ fontSize: 12, color: T.sub }}>Any tempo · any time signature · speed & gap trainers</div></div><ChevronRight size={18} /></Card>}
+      {today && <><div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 1, color: T.sub, margin: "2px 2px 8px" }}>TODAY'S {r.label.toUpperCase()} WORKOUT</div><PackCard s={today} hero /></>}
+      {packs.length > 0 && <>
+        <SectionTitle>Training packages</SectionTitle>
+        <div style={{ fontSize: 12.5, color: T.sub, margin: "-4px 2px 10px", lineHeight: 1.5 }}>Like a gym split: each day trains one area. Do one package a day — the app suggests today's.</div>
+        <Scroller style={{ gap: 10 }}>{packs.map((s) => <PackCard key={s.id} s={s} />)}</Scroller>
+      </>}
+      {cats.length > 0 && <>
+        <SectionTitle>{r.label} training sections</SectionTitle>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {cats.map((c) => <Card key={c.id} onClick={() => push({ screen: "traincat", rid, cat: c.id })} style={{ minHeight: 112, borderTop: `4px solid ${r.color}` }}>
+            <div style={{ fontSize: 26 }}>{c.emoji}</div>
+            <div style={{ fontWeight: 900, fontSize: 14.5, marginTop: 6, lineHeight: 1.2 }}>{c.title}</div>
+            <div style={{ fontSize: 11.5, color: T.sub, marginTop: 3 }}>{c.items.length} exercises</div>
+          </Card>)}
+        </div>
+      </>}
+      <div style={{ marginTop: 16 }}><GameArenaCard /></div>
+      {older.length > 0 && <>
+        <SectionTitle>More guided sessions</SectionTitle>
+        <Scroller style={{ gap: 10 }}>{older.map((s) => <PackCard key={s.id} s={s} />)}</Scroller>
+      </>}
+      <SectionTitle>All {r.label} tools</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {tools.map(([id, t]) => (
+          <Card key={id} onClick={() => push({ screen: "tool", id })} style={{ minHeight: 100 }}>
+            <t.icon size={24} blobColor={r.color} />
+            <div style={{ fontWeight: 800, fontSize: 13.5, marginTop: 8 }}>{t.title}</div>
+            <div style={{ fontSize: 11.5, color: T.sub }}>{t.desc}</div>
           </Card>
         ))}
-      </Scroller>
-      {user.roles.map((rid, ri) => { const r = roleOf(rid); const list = Object.entries(TOOLS).filter(([, t]) => t.roles.includes(rid) && !user.roles.slice(0, ri).some((prev) => t.roles.includes(prev))); if (!list.length) return null;
-        return (
-          <div key={rid}>
-            <SectionTitle>{r.label} tools</SectionTitle>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {list.map(([id, t], i) => (
-                <Card key={id} onClick={() => push({ screen: "tool", id })} style={{ minHeight: 110, transform: T.graffiti && i % 3 === 0 ? "rotate(-1deg)" : "none" }}>
-                  <t.icon size={26} blobColor={r.color} />
-                  <div style={{ fontWeight: 800, fontSize: 14, marginTop: 10 }}>{t.title}</div>
-                  <div style={{ fontSize: 11.5, color: T.sub }}>{t.desc}</div>
-                </Card>
-              ))}
+      </div>
+    </div>
+  );
+}
+
+function TrainCategory({ rid, cat }) {
+  const { T, push } = useApp();
+  const c = (TRAIN[rid] || []).find((x) => x.id === cat); const r = roleOf(rid);
+  if (!c) return <TopBar title="Not found" />;
+  return (
+    <div>
+      <TopBar title={`${c.emoji} ${c.title}`} sub={`${r.label} · ${c.items.length} exercises`} />
+      <Card tone="soft" style={{ fontSize: 13.5, lineHeight: 1.55, marginBottom: 12 }}><b>Why it matters · </b>{c.why}</Card>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {c.items.map((it, k) => { const t = TOOLS[it.tool];
+          return <Card key={k} pad={12} onClick={() => push({ screen: "tool", id: it.tool, props: it.props })} style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{ width: 34, height: 34, borderRadius: 12, background: r.color, color: "#111", display: "grid", placeItems: "center", fontWeight: 900, flexShrink: 0 }}>{k + 1}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 14 }}>{it.t}</div>
+              <div style={{ fontSize: 12, color: T.sub, lineHeight: 1.4, marginTop: 2 }}>{it.d}</div>
+              <div style={{ fontSize: 10.5, color: T.faint, marginTop: 4, fontWeight: 700 }}>~{it.mins} MIN{t && it.tool !== "routine" ? ` · ${t.title.toUpperCase()}` : it.tool === "routine" ? " · GUIDED ROUTINE" : ""}</div>
             </div>
-          </div>
-        ); })}
+            <ChevronRight size={18} color={T.sub} />
+          </Card>; })}
+      </div>
     </div>
   );
 }
@@ -581,7 +647,7 @@ function SessionScreen({ id }) {
   const b = s.blocks[bi]; const T2 = TOOLS[b.tool];
   return (
     <div>
-      <TopBar title={s.title} sub={`${LEVELS[s.level]} · 30-minute guided session`} />
+      <TopBar title={s.title} sub={`${s.day ? s.day + " · " : LEVELS[s.level] + " · "}${sessMins(s)}-minute ${s.pack ? "training package" : "guided session"}`} />
       <Card tone="hero" style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Ring pct={1 - left / (b.mins * 60)} size={86} stroke={9} color={T.graffiti ? "#C6FF3D" : T.accent} track="rgba(255,255,255,0.22)"><span style={{ fontSize: 17 }}>{Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</span></Ring>
@@ -694,11 +760,12 @@ function ProgressScreen() {
 
 /* ================================ CHAT ================================ */
 function ChatScreen() {
-  const { T, user, avatar, chat, setChat, leader, push } = useApp();
+  const { T, user, avatar, chat, setChat, leader, push, tab, markRead, chatReads, unread } = useApp();
   const { groups, songs } = useApp();
+  const [seenMsg, setSeenMsg] = useState(null);
   const [songPick, setSongPick] = useState(false);
   const chans = (groups || []).filter((g) => g.everyone || g.members.includes("@me") || leader);
-  const [ch0, setCh] = useState("all");
+  const [ch0, setCh] = useState(() => window.__bzWantCh || "all");
   const ch = chans.some((c) => c.id === ch0) ? ch0 : "all";
   const cur = chans.find((c) => c.id === ch) || chans[0] || { label: "All team", everyone: true, members: [] };
   const canPost = !cur.announce || leader;
@@ -712,6 +779,13 @@ function ChatScreen() {
   const inRef = useRef(null);
   const fileRef = useRef(null); const listRef = useRef(null);
   useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [chat, ch]);
+  const active = tab === "chat";
+  useEffect(() => { window.__bzChatCh = active ? ch : null; }, [active, ch]);
+  useEffect(() => { const f = (e) => { if (e.detail) setCh(e.detail); }; window.addEventListener("bz-open-chat-ui", f); return () => window.removeEventListener("bz-open-chat-ui", f); }, []);
+  useEffect(() => { if (active && !localStorage.getItem("beza-chat-notif-asked")) { localStorage.setItem("beza-chat-notif-asked", "1"); askChatNotif(); } }, [active]);
+  const lastAt = (chat[ch] || []).reduce((a, m) => Math.max(a, m.at || (typeof m.id === "number" ? m.id : 0)), 0);
+  useEffect(() => { if (!active) return; const go = () => { if (document.visibilityState === "visible") markRead(ch, lastAt); }; go(); document.addEventListener("visibilitychange", go); return () => document.removeEventListener("visibilitychange", go); }, [active, ch, lastAt]); // eslint-disable-line
+  const seenBy = (m) => { const at = m.at || (typeof m.id === "number" ? m.id : 0); return ((chatReads || {})[ch] || []).filter((r) => r.uid !== user.uid && r.at >= at).sort((a, b) => a.at - b.at); };
   const startEdit = (m) => { setEditId(m.id); setTxt(m.text || ""); setReactFor(null); setEmo(false); setTimeout(() => inRef.current && inRef.current.focus(), 30); };
   const cancelEdit = () => { setEditId(null); setTxt(""); };
   const doDelete = (m) => { setChat((c) => ({ ...c, [ch]: (c[ch] || []).filter((x) => x.id !== m.id) })); setDelMsg(null); if (editId === m.id) cancelEdit(); };
@@ -719,7 +793,7 @@ function ChatScreen() {
     if (editId != null && !extra.file) { const t = txt.trim(); const orig = (chat[ch] || []).find((x) => x.id === editId);
       if (t && orig && t !== orig.text) setChat((c) => ({ ...c, [ch]: (c[ch] || []).map((x) => (x.id === editId ? { ...x, text: t, edited: true } : x)) }));
       cancelEdit(); return; }
-    if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...extra }] })); setTxt(""); setEmo(false); };
+    if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), at: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...extra }] })); setTxt(""); setEmo(false); };
   const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const isImg = f.type.startsWith("image/");
     if (CLOUD.on) { e.target.value = ""; const kb = f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB";
       if (!isImg) { send({ file: { name: f.name, size: kb + " · not uploaded (photos only)" } }); return; }
@@ -730,7 +804,7 @@ function ChatScreen() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <TabHeader title="Chat" sub={CLOUD.on ? `● ${1 + TEAM.filter((m) => Date.now() - (m.lastMs || 0) < 10 * 60000).length} online · ${TEAM.length + 1} on the team` : "● 9 online"} right={leader ? <Btn small variant="soft" icon={Users} onClick={() => push({ screen: "groups" })}>Manage</Btn> : null} />
-      <Scroller style={{ marginBottom: 8, flexShrink: 0 }}>{chans.map((c) => <Chip key={c.id} active={ch === c.id} onClick={() => setCh(c.id)}>{c.emoji ? c.emoji + " " : ""}{c.label}{c.leadersOnly ? " 🔒" : ""}</Chip>)}</Scroller>
+      <Scroller style={{ marginBottom: 8, flexShrink: 0 }}>{chans.map((c) => <Chip key={c.id} active={ch === c.id} onClick={() => setCh(c.id)}>{c.emoji ? c.emoji + " " : ""}{c.label}{c.leadersOnly ? " 🔒" : ""}{unread[c.id] && ch !== c.id ? <span style={{ marginLeft: 6, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 99, background: "#FF3B5C", color: "#fff", fontSize: 10.5, fontWeight: 900, display: "inline-grid", placeItems: "center" }}>{unread[c.id]}</span> : null}</Chip>)}</Scroller>
       <div onClick={() => setInfo(true)} className="bz-press" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 12, background: T.card2, fontSize: 11.5, color: T.sub, marginBottom: 6, cursor: "pointer", flexShrink: 0 }}>
         <Users size={14} noBlob /><span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cur.everyone ? `Everyone on the team · ${TEAM.length + 1} members` : `${cur.members.length} members${cur.announce ? " · only leaders can post" : ""}`}{!cur.everyone && !cur.members.includes("@me") ? " · you're viewing as leader" : ""}</span><ChevronRight size={14} noBlob />
       </div>
@@ -772,7 +846,6 @@ function ChatScreen() {
                 {m.file && m.file.audio && <audio controls src={m.file.audio} style={{ width: "100%", height: 34, marginBottom: m.text ? 6 : 0 }} />}
                 {m.song && <ChatSongCard id={m.song} />}
                 {m.text && <div style={{ padding: m.file && m.file.url ? "6px 8px 4px" : 0, whiteSpace: "pre-wrap" }}>{m.text}</div>}
-                {m.text && !m.song && (m.text.split("\n").length >= 3 || m.text.length > 140) && <button onClick={(e) => { e.stopPropagation(); push({ screen: "songedit", lyrics: m.text }); }} style={{ display: "block", marginTop: 8, background: "rgba(0,0,0,0.12)", border: "none", borderRadius: 99, padding: "5px 10px", fontFamily: FONT, fontSize: 11.5, fontWeight: 800, color: "inherit", cursor: "pointer" }}>🎵 Make a chord chart from these lyrics</button>}
               </div>
               {reactFor === m.id && (
                 <div className="bz-up" style={{ position: "absolute", [m.me ? "right" : "left"]: 0, top: -44, zIndex: 5, display: "flex", gap: 2, background: T.graffiti ? "#111" : T.card, border: `1px solid ${T.border}`, borderRadius: 99, padding: "4px 6px", boxShadow: "0 8px 20px rgba(0,0,0,0.35)" }}>
@@ -782,12 +855,13 @@ function ChatScreen() {
               {reactFor === m.id && (m.me || leader) && (
                 <div className="bz-up" style={{ display: "flex", gap: 6, justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 6 }}>
                   {m.me && m.text && !m.song && <button onClick={() => startEdit(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}><Edit size={13} noBlob /> Edit</button>}
+                  {m.me && CLOUD.on && <button onClick={() => { setSeenMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>👁 Seen by {seenBy(m).length}</button>}
                   <button onClick={() => { setDelMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: "#ff5a6e", border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>🗑 Delete</button>
                 </div>
               )}
               <div style={{ display: "flex", gap: 4, justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
                 {m.react && Object.entries(m.react).map(([e, n]) => <span key={e} onClick={() => react(m.id, e)} style={{ fontSize: 11, padding: "1px 7px", borderRadius: 99, background: T.card2, cursor: "pointer" }}>{e} {n}</span>)}
-                <span style={{ fontSize: 10, color: T.faint, margin: "0 4px" }}>{m.edited ? "edited · " : ""}{to12(m.t)}</span>
+                <span style={{ fontSize: 10, color: T.faint, margin: "0 4px" }}>{m.edited ? "edited · " : ""}{to12(m.t)}{m.me && CLOUD.on && (() => { const n = seenBy(m).length; return <span onClick={(e) => { e.stopPropagation(); setSeenMsg(m); }} title={n ? `Seen by ${n}` : "Sent"} style={{ marginLeft: 5, fontWeight: 900, letterSpacing: -2.5, color: n ? "#22E4FF" : T.faint, cursor: "pointer" }}>{n ? "✓✓" : "✓"}{n ? <span style={{ letterSpacing: 0, marginLeft: 4, fontWeight: 700 }}>{n}</span> : null}</span>; })()}</span>
               </div>
             </div>
             {m.me && <Avatar name={user.name} src={avatar} size={30} color={T.pop} />}
@@ -802,6 +876,13 @@ function ChatScreen() {
           </div>
         </Card>
       )}
+      <Sheet open={!!seenMsg} onClose={() => setSeenMsg(null)} title="Seen by">
+        {seenMsg && (() => { const list = seenBy(seenMsg); return <>
+          <div style={{ fontSize: 12.5, color: T.sub, background: T.card2, borderRadius: 12, padding: "8px 12px", marginBottom: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{seenMsg.text || (seenMsg.song ? "🎵 Chord chart" : seenMsg.file ? "📎 " + seenMsg.file.name : "")}</div>
+          {list.length ? <div style={{ maxHeight: 340, overflowY: "auto" }} className="bz-noscroll">{list.map((r) => <div key={r.uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px", borderTop: `1px solid ${T.border}` }}><Avatar name={r.name} size={32} color={colorForUid(r.uid)} /><div style={{ flex: 1, fontWeight: 700, fontSize: 13.5 }}>{r.name}</div><div style={{ fontSize: 11.5, color: T.sub }}>✓✓ {chatTime(r.at)}</div></div>)}</div>
+            : <div style={{ fontSize: 13, color: T.sub, padding: "6px 2px" }}>Nobody has seen it yet. ✓ means sent, ✓✓ means seen.</div>}
+        </>; })()}
+      </Sheet>
       <Sheet open={!!delMsg} onClose={() => setDelMsg(null)} title="Delete this message?">
         {delMsg && <div style={{ fontSize: 13, color: T.sub, background: T.card2, borderRadius: 12, padding: "10px 12px", marginBottom: 12, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "hidden" }}>{delMsg.text || (delMsg.song ? "🎵 Song chart" : delMsg.file ? "📎 " + delMsg.file.name : "")}</div>}
         <div style={{ fontSize: 12.5, color: T.sub, marginBottom: 12 }}>{delMsg && !delMsg.me ? `This removes ${delMsg.from}'s message for everyone in ${cur.label}.` : `This removes it for everyone in ${cur.label}. It can't be undone.`}</div>
@@ -929,6 +1010,7 @@ function SettingsScreen() {
         </div>
         <Row icon={Globe} label="Language" right={<Mini options={[["en", "English"], ["am", "አማርኛ"]]} value={settings.lang} onChange={(v) => set("lang", v)} />} />
         <Row icon={Sparkles} label="Replay intro animation" onClick={replayIntro} />
+        <Row icon={MessageCircle} label="Chat notifications" sub="Who sent it and in which group" right={<Toggle on={settings.chatNotif !== false} onChange={(v) => { set("chatNotif", v); if (v) askChatNotif(); }} />} />
         <Row icon={Volume2} label="Intro sound" right={<Toggle on={settings.introSound !== false} onChange={(v) => set("introSound", v)} />} />
       </Group>
       <Group title="Practice">
@@ -1037,6 +1119,7 @@ function LeadersBoard() {
           {weekly.map((v, i) => <div key={i} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 10, color: T.sub, marginBottom: 4 }}>{v}</div><div style={{ height: (v / mx) * 86, borderRadius: 10, background: T.spray ? T.spray[i % 6] : T.accent }} /><div style={{ fontSize: 10.5, color: T.sub, marginTop: 6, fontWeight: 600 }}>{CLOUD.on ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][(new Date().getDay() + i + 1) % 7] : WEEK[i].d}</div></div>)}
         </div>
       </Card>
+      <QuestionsInbox />
       <FeedbackInbox />
       <SectionTitle>Post to team feed</SectionTitle>
       <Card style={{ display: "flex", gap: 8, alignItems: "center", padding: 10 }}>
@@ -1121,8 +1204,9 @@ function QuickSheet({ open, onClose }) {
 function RouteView({ r }) {
   switch (r.screen) {
     case "lesson": return <LessonScreen id={r.id} role={r.role} />;
-    case "tool": { const t = TOOLS[r.id]; if (!t) return null; const C = t.C; return <C {...(r.props || {})} />; }
+    case "tool": { const t = TOOLS[r.id]; if (!t) return null; const C = t.C; return <><C {...(r.props || {})} /><div style={{ height: 60 }} /><AskLeaderFab compact context={{ id: "tool:" + r.id, title: t.title, kind: "practice" }} /></>; }
     case "session": return <SessionScreen id={r.id} />;
+    case "traincat": return <><TrainCategory rid={r.rid} cat={r.cat} /><div style={{ height: 60 }} /><AskLeaderFab context={{ id: "cat:" + r.rid + ":" + r.cat, title: ((TRAIN[r.rid] || []).find((x) => x.id === r.cat) || {}).title || "Practice", kind: "practice", role: r.rid }} compact /></>;
     case "settings": return <SettingsScreen />;
     case "leaders": return <LeadersBoard />;
     case "schedule": return <ScheduleScreen startDay={r.day} />;
@@ -1131,6 +1215,7 @@ function RouteView({ r }) {
     case "group": return <GroupEdit id={r.id} />;
     case "games": return <GamesHub />;
     case "game": return <GameScreen id={r.id} />;
+    case "tiles": return <TilesGame dept={r.dept} />;
     case "board": return <TeamBoard />;
     case "song": return <SongScreen id={r.id} share={r.share} />;
     case "songedit": return <SongEditScreen id={r.id} lyrics={r.lyrics} />;

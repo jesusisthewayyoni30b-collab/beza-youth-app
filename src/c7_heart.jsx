@@ -85,7 +85,7 @@ L("hw_pray2", {
   body: [
     ["h", "Praying Scripture"],
     ["p", "When you don't know what to pray, pray the Bible. Open a Psalm and turn each verse into a prayer. Psalm 23: 'Lord, You are my Shepherd. Because of You I lack nothing. Lead me beside still waters today…' When we pray Scripture, we know we are praying God's will, and our faith grows because 'faith cometh by hearing, and hearing by the word of God' (Romans 10:17)."],
-    ["ex", "Try it with Psalm 139:23–24", "\"Search me, O God, and know my heart: try me, and know my thoughts: and see if there be any wicked way in me, and lead me in the way everlasting.\" → 'Father, search me today. Show me any wrong motive — even about why I want to sing on Sunday. Lead me in Your way.'"],
+    ["ex", "Try it with Psalm 139:23–24", "\"Search me, O God, and know my heart: try me, and know my thoughts: and see if there be any wicked way in me, and lead me in the way everlasting.\" → 'Father, search me today. Show me any wrong motive — even about why I want to sing on Saturday. Lead me in Your way.'"],
     ["h", "Listening prayer"],
     ["verse", "Be still, and know that I am God.", "Psalm 46:10"],
     ["p", "Prayer is a conversation, not a speech. After you speak, be quiet. Set aside five minutes simply to listen. God speaks primarily through His Word, and also by bringing Scripture to mind, giving peace or conviction, through wise counsel, and sometimes through a gentle impression. Test everything by Scripture — God never contradicts His Word. Write down what you sense and share it with a trusted leader."],
@@ -105,7 +105,7 @@ L("hw_pray2", {
 
 L("hw_prepare", {
   level: 2, title: "Preparing Your Heart for Worship", mins: 22,
-  sum: "What happens before Sunday decides what happens on Sunday.",
+  sum: "What happens before Saturday decides what happens on Saturday.",
   body: [
     ["verse", "Who shall ascend into the hill of the LORD? or who shall stand in his holy place? He that hath clean hands, and a pure heart; who hath not lifted up his soul unto vanity, nor sworn deceitfully.", "Psalm 24:3–4"],
     ["p", "David asked the question every worship leader must ask: who is allowed to stand in God's holy place? The answer is not 'the most talented' but 'clean hands and a pure heart'. Clean hands speak of what we do; a pure heart speaks of why we do it. Preparation is not only learning the songs — it is preparing the singer."],
@@ -113,16 +113,16 @@ L("hw_prepare", {
     ["list", ["Keep your personal devotion alive — you cannot lead people where you have not been", "Read and meditate on the lyrics you will sing: are they true for you? Pray them", "Guard your eyes, ears and words; what fills you will flow out of you", "Make things right with people (see below)", "Rest — tired servants become irritable servants"]],
     ["h", "Reconciliation before offering"],
     ["verse", "Therefore if thou bring thy gift to the altar, and there rememberest that thy brother hath ought against thee; leave there thy gift before the altar, and go thy way; first be reconciled to thy brother, and then come and offer thy gift.", "Matthew 5:23–24"],
-    ["p", "Jesus says something shocking: if a relationship is broken, God would rather you leave the worship service and fix it first. Our offering of song means nothing to God if we are holding bitterness toward a teammate, a parent or a friend. Before Saturday, send the message. Make the apology. Forgive the offence."],
+    ["p", "Jesus says something shocking: if a relationship is broken, God would rather you leave the worship and fix it first. Our offering of song means nothing to God if we are holding bitterness toward a teammate, a parent or a friend. Before Saturday, send the message. Make the apology. Forgive the offence."],
     ["h", "The night before"],
     ["steps", ["Sleep early — your body is part of your offering", "Ask God to search your heart (Psalm 139:23–24) and confess what He shows you", "Pray for the congregation: those who will come hurting, confused, far from God", "Pray for the preacher, the leaders and the sound team by name"]],
-    ["h", "Sunday morning and backstage"],
-    ["steps", ["Wake up and worship privately before you worship publicly", "Arrive early and calm — rushing kills reverence", "Pray together as a team; confess any tension and release it", "Leave your phone and your ego backstage", "As you walk on stage, remind yourself: 'Audience of One'"]],
-    ["h", "During the service"],
-    ["p", "Keep your eyes on Jesus, not on mistakes. If something goes wrong, keep worshipping — the congregation follows your heart more than your notes. After the service, don't rush to ask 'Did I sing well?' Ask 'Did we lead people to Jesus?'"],
+    ["h", "Saturday afternoon and backstage"],
+    ["steps", ["Spend time with God privately in the morning before you worship publicly in the afternoon", "Arrive early and calm — rushing kills reverence", "Pray together as a team; confess any tension and release it", "Leave your phone and your ego backstage", "As you walk on stage, remind yourself: 'Audience of One'"]],
+    ["h", "During the youth program"],
+    ["p", "Keep your eyes on Jesus, not on mistakes. If something goes wrong, keep worshipping — the congregation follows your heart more than your notes. After the program, don't rush to ask 'Did I sing well?' Ask 'Did we lead people to Jesus?'"],
     ["verse", "And whatsoever ye do, do it heartily, as to the Lord, and not unto men.", "Colossians 3:23"],
-    ["reflect", ["Is there a relationship I need to make right before Saturday?", "What usually fills my Friday nights — does it prepare me or drain me?", "Do I worship privately with the same passion I show on stage?"]],
-    ["home", "Write a personal 'Sunday preparation rule' — three things you will do every week before you serve. Share it with one teammate who will hold you accountable."],
+    ["reflect", ["Is there a relationship I need to make right before Saturday?", "What usually fills my Friday nights and Saturday mornings — does it prepare me or drain me?", "Do I worship privately with the same passion I show on stage?"]],
+    ["home", "Write a personal 'Saturday preparation rule' — three things you will do every week before you serve. Share it with one teammate who will hold you accountable."],
   ],
   quiz: [],
 });

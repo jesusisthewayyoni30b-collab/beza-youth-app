@@ -64,7 +64,7 @@ L("sg_health", {
     ["h", "Why warm up?"],
     ["p", "Cold vocal folds are stiff. Warming up increases blood flow, loosens the muscles of the jaw, tongue and neck, connects your breath to your sound, and tunes your ear to pitch. A 10-minute warm-up can make a bigger difference than an hour of cold singing."],
     ["h", "A complete 10-minute warm-up"],
-    ["steps", ["1 min — Body: shoulder rolls, neck stretches, jaw massage, yawn-sigh", "2 min — Breath: 4-in / 8-out hiss, then 'ts-ts-ts' pulses", "2 min — SOVT: lip trills or straw phonation on 5-tone scales", "2 min — Resonance: humming 1-3-5-3-1, 'ng' slides", "2 min — Range & agility: sirens, octave 'nay', 1-2-3-2-1 fast", "1 min — Song phrases from Sunday's set"]],
+    ["steps", ["1 min — Body: shoulder rolls, neck stretches, jaw massage, yawn-sigh", "2 min — Breath: 4-in / 8-out hiss, then 'ts-ts-ts' pulses", "2 min — SOVT: lip trills or straw phonation on 5-tone scales", "2 min — Resonance: humming 1-3-5-3-1, 'ng' slides", "2 min — Range & agility: sirens, octave 'nay', 1-2-3-2-1 fast", "1 min — Song phrases from Saturday's set"]],
     ["w", "tool", { id: "vocalgym", label: "Open the Vocal Gym" }, "Every exercise above is in the Vocal Gym with piano accompaniment."],
     ["h", "Cool-down"],
     ["p", "After a long service, gently bring the voice back down: descending lip trills, soft humming slides from high to low, and a few minutes of silence. It's like stretching after running."],
@@ -270,7 +270,7 @@ L("sg_phrasing", {
     ["p", "When we sing in both languages, give Amharic syllables their natural rhythm — don't force English stress patterns onto them. Practise tricky ejective consonants (ጥ, ጭ, ቅ, ጵ, ፅ) slowly so they're clear but not explosive into the mic."],
     ["terms", [["Diction", "Clarity of words"], ["Phrase", "A musical sentence"], ["Dynamics", "Volume changes"], ["Crescendo", "Getting louder"], ["Cut-off", "Ending together"]]],
     ["mistakes", ["Exploding plosives (p, b) into the mic", "Every word the same volume", "Ending phrases at different times from teammates"]],
-    ["home", "Take one song from this Sunday. Mark breaths ('), peak words (underline) and dynamics (p, mf, f). Sing it twice following your marks."],
+    ["home", "Take one song from this Saturday. Mark breaths ('), peak words (underline) and dynamics (p, mf, f). Sing it twice following your marks."],
   ],
   quiz: [
     ["Which carry meaning most clearly?", ["Vowels", "Consonants", "Vibrato", "Breaths"], 1, "Consonants make words understandable."],

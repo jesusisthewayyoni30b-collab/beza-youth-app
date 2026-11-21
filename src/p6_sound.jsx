@@ -2,7 +2,7 @@
 /* ============================ SOUND ENGINEER TOOLS ============================ */
 const FLOW = [
   { t: "Mic / DI", s: "Source", d: "Dynamic mics (SM58) for vocals & amps, condensers for choir/overheads, DI boxes for keys, bass and acoustic guitar. Good source = good mix." },
-  { t: "Stage box / Snake", s: "Transport", d: "Carries every input from the stage to the console. Label channels and keep the patch list the same every Sunday." },
+  { t: "Stage box / Snake", s: "Transport", d: "Carries every input from the stage to the console. Label channels and keep the patch list the same every Saturday." },
   { t: "Preamp gain", s: "Gain staging", d: "The most important knob. Set it so the loudest singing peaks around −12 to −6 dBFS — healthy level, no clipping." },
   { t: "High-pass filter", s: "Clean up", d: "Remove rumble below the instrument: vocals ~100 Hz, acoustic ~80 Hz, keys ~60 Hz. Not on kick or bass." },
   { t: "Gate", s: "Optional", d: "Closes the channel when quiet. Useful on toms; rarely needed on vocals in church." },

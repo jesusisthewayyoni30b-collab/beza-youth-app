@@ -290,6 +290,19 @@ const GAMES = [
     gen: (L) => { const [t] = TS(L); const p = prog01(L); const gap = Math.max(2, Math.round([[30, 15], [15, 8], [8, 5], [5, 3], [3, 2]][t].reduce((a, b) => a + (b - a) * p))); const bpm = 60 + rand(t >= 2 ? 21 : 13) * 5 + (t >= 3 ? rand(5) : 0);
       const opts = shuffle([...new Set([bpm, bpm + gap, bpm - gap, bpm + 2 * gap, ...(t >= 1 ? [bpm - 2 * gap] : [])])].filter((x) => x > 40)); const bars = t >= 3 ? 1 : 2; const feel = pick(["straight", "half", "four"]);
       return { kind: "choice", sig: String(bpm), prompt: "What tempo is this groove?", options: opts.map((x) => `${x} bpm`), answer: `${bpm} bpm`, play: () => { const b = 60 / bpm; for (let i = 0; i < 8 * bars; i++) AE.hat(i * b / 2, false, i % 2 ? 0.25 : 0.4); for (let i = 0; i < 4 * bars; i++) { if (feel === "four" || i % 2 === 0) AE.kick(i * b); if (feel === "half" ? i % 4 === 2 : i % 2 === 1) AE.snare(i * b, 0.8); } } }; } },
+
+  { id: "fret", title: "Fretboard Finder", desc: "Which note is at this string and fret?", icon: Guitar, color: "#FF8A00", roles: ["acoustic", "lead", "bass"],
+    gen: (L) => { const [t, g5] = TS(L); const bass = false; const STR = [["E (low)", 40], ["A", 45], ["D", 50], ["G", 55], ["B", 59], ["e (high)", 64]];
+      const strings = t === 0 ? STR.slice(0, g5 < 3 ? 2 : 3) : t === 1 ? STR.slice(0, 4) : STR; const maxF = [5, 7, 9, 12, 12][t] + (g5 >= 3 ? 2 : 0);
+      const [sn, open] = pick(strings); const f = t === 0 ? rand(Math.min(maxF, 6)) : rand(maxF + 1); const m = open + f; const pc = ((m % 12) + 12) % 12;
+      const opts = t < 2 ? ["C", "D", "E", "F", "G", "A", "B"].concat(t >= 1 ? [] : []) : NOTE_NAMES.slice(); const ans = NOTE_NAMES[pc];
+      const pool = opts.includes(ans) ? opts : [...opts, ans];
+      return { kind: "choice", sig: sn + f, prompt: `${sn} string, fret ${f} — which note?`, options: pool, answer: ans, play: () => AE.play("acoustic", m, 1.2, 0, 0.8), extra: { label: "Hear it", fn: () => AE.play("acoustic", m, 1.2, 0, 0.8) } }; } },
+
+  { id: "meter", title: "Meter Detective", desc: "4/4, 3/4, 6/8 or 7/8? Feel the groove", icon: Timer, color: "#C6FF3D", roles: ["drums", "bass", "keys", "acoustic", "lead"],
+    gen: (L) => { const [t] = TS(L); const pool = t === 0 ? ["4/4", "3/4"] : t === 1 ? ["4/4", "3/4", "6/8"] : t === 2 ? ["4/4", "3/4", "6/8", "2/4"] : ["4/4", "3/4", "6/8", "5/4", "7/8"];
+      const m = pick(pool); const bpm = 70 + rand(40); const b = 60 / bpm; const [n, d] = m.split("/").map(Number); const unit = d === 8 ? b / 2 : b; const groups = m === "7/8" ? [0, 2, 4] : m === "6/8" ? [0, 3] : m === "5/4" ? [0, 3] : [0];
+      return { kind: "choice", sig: m + bpm, prompt: "Listen to the groove — what is the time signature?", options: pool, answer: m, play: () => { for (let bar = 0; bar < 3; bar++) for (let i = 0; i < n; i++) { const w = (bar * n + i) * unit; AE.hat(w, false, 0.45); if (i === 0) AE.kick(w, 1); else if (groups.includes(i)) AE.kick(w, 0.55); if (d === 4 && n % 2 === 0 && i % 2 === 1) AE.snare(w, 0.6); if (d === 8 && i === 3 && n === 6) AE.snare(w, 0.6); if (n === 3 && d === 4 && i > 0) AE.snare(w, 0.35); } } }; } },
 ];
 try { window.__BEZA_GAMES = () => GAMES; window.__BEZA_EAR = () => EAR_MODULES; } catch (e) { }
 const gamesFor = (roles) => GAMES.filter((g) => g.roles.some((r) => roles.includes(r)));
@@ -299,7 +312,9 @@ const teamScore = (m, gid) => { if (m.games) return gid ? Math.max(0, ...Object.
 
 function GamesHub({ root }) {
   const { T, user, games, push } = useApp();
-  const list = gamesFor(user.roles);
+  const roles = user.roles || [];
+  const [rid0, setRid] = useState(roles[0]); const rid = roles.includes(rid0) ? rid0 : roles[0]; const rr = roleOf(rid);
+  const list = gamesFor([rid]); const tg = TILE_GAMES[rid];
   const myXP = gameXP(games);
   const board = [...TEAM.map((m) => ({ name: m.name, color: m.color, xp: teamScore(m) })), { name: user.name, color: T.pop, xp: myXP, me: true }].sort((a, b) => b.xp - a.xp);
   const myRank = board.findIndex((b) => b.me) + 1;
@@ -317,7 +332,16 @@ function GamesHub({ root }) {
           <Btn small variant="light" onClick={() => push({ screen: "board" })}>Board</Btn>
         </div>
       </Card>
-      <SectionTitle>Your games</SectionTitle>
+      {roles.length > 1 && <Scroller style={{ marginTop: 14 }}>{roles.map((x) => <Chip key={x} active={rid === x} onClick={() => setRid(x)} style={{ borderColor: roleOf(x).color }}>{roleOf(x).label}</Chip>)}</Scroller>}
+      {tg && <>
+        <SectionTitle>Play with your {rid === "singer" ? "voice" : "instrument"}</SectionTitle>
+        <Card onClick={() => push({ screen: "tiles", dept: rid })} style={{ padding: 16, display: "flex", gap: 14, alignItems: "center", borderLeft: `6px solid ${tg.color}`, cursor: "pointer" }}>
+          <div style={{ width: 58, height: 58, borderRadius: 18, background: tg.color, color: "#111", display: "grid", placeItems: "center", fontSize: 28, flexShrink: 0 }}>{rid === "drums" ? "🥁" : rid === "singer" ? "🎤" : rid === "keys" ? "🎹" : "🎸"}</div>
+          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 17 }}>{tg.title}</div><div style={{ fontSize: 12, color: T.sub, lineHeight: 1.4, marginTop: 2 }}>{tg.desc}</div><div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>{tg.inputs.map((x) => <span key={x} style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: T.card2 }}>{INPUT_LABEL[x]}</span>)}</div></div>
+          <ChevronRight size={18} />
+        </Card>
+      </>}
+      <SectionTitle>{rr.label} games</SectionTitle>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {list.map((g) => { const b = games.best[g.id] || {}; const unlocked = Math.min(MAXL, Object.keys(b).filter((k) => b[k].stars > 0).length + 1); const stars = Object.values(b).reduce((s, x) => s + (x.stars || 0), 0);
           return (

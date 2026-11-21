@@ -425,7 +425,7 @@ const EAR_MODULES = [
 
 function EarTrainer({ embedded, tab: t0 }) {
   const { T } = useApp();
-  const startId = t0 === "intervals" ? "int" : "deg";
+  const startId = t0 === "intervals" ? "int" : EAR_MODULES.some((m) => m.id === t0) ? t0 : "deg";
   const [mod, setMod] = useState(t0 ? startId : null);
   const [lv, setLv] = useState(0);
   const [q, setQ] = useState(null);

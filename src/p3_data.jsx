@@ -61,7 +61,7 @@ const SEED_CHAT = {
     { id: 3, from: "Abel Mekonnen", color: "#F5A94C", text: "Click at 72 bpm for the opener 🥁", t: "Yesterday" },
     { id: 4, from: "Yonas Bekele", color: "#5DBB94", text: "Locking with Abel's kick on the opener 🔒", t: "Yesterday" },
   ],
-  sound: [{ id: 1, from: "Eyob Fikru", color: "#5AA9E6", text: "New scene saved on the console: SUNDAY_V3 🎚️", t: "Mon" }],
+  sound: [{ id: 1, from: "Eyob Fikru", color: "#5AA9E6", text: "New scene saved on the console: SATURDAY_V3 🎚️", t: "Mon" }],
   leaders: [{ id: 1, from: "Liya Desta", color: "#EC8FC2", text: "Let's check in on members with low streaks this week.", t: "Mon" }],
 };
 const VERSES = [

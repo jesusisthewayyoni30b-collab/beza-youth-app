@@ -90,7 +90,7 @@ L("th_major", {
   level: 1, title: "The Major Scale & Keys", mins: 18,
   sum: "The 'do-re-mi' that holds almost every worship song together.",
   body: [
-    ["p", "Most songs we sing on Sunday live inside a major key. When you understand the major scale you can find any melody, build any basic chord and transpose a song to suit the singer."],
+    ["p", "Most songs we sing on Saturday live inside a major key. When you understand the major scale you can find any melody, build any basic chord and transpose a song to suit the singer."],
     ["h", "The formula"],
     ["p", "A major scale is 8 notes (the 8th is the octave) built with this pattern of steps: Whole – Whole – Half – Whole – Whole – Whole – Half. Start on any of the 12 notes, follow the formula, and you have that key's major scale."],
     ["w", "scale", { root: 0, scale: "major" }, "C major: C D E F G A B C. All white keys — that's why C is the 'easy' key."],

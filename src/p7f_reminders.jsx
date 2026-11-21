@@ -146,3 +146,24 @@ function FeedbackInbox() {
     </>
   );
 }
+
+/* ============================ CHAT NOTIFICATIONS ============================ */
+/* phone app → Android notification; web / iPhone → system notification while the app is open or in the background */
+let chatNotifSeq = 0;
+async function askChatNotif() {
+  try { const LN = capNotif(); if (LN) { const p = await LN.checkPermissions(); if (p.display !== "granted") await LN.requestPermissions(); return; }
+    if (window.Notification && Notification.permission === "default") await Notification.requestPermission(); } catch (e) { }
+}
+function chatNotify(title, body, gid) {
+  try {
+    const LN = capNotif();
+    if (LN) { LN.schedule({ notifications: [{ id: 5000 + (chatNotifSeq++ % 900), title, body, group: "chat-" + gid, extra: { gid }, schedule: { at: new Date(Date.now() + 300), allowWhileIdle: true } }] }).catch(() => { }); return true; }
+    if (window.Notification && Notification.permission === "granted") {
+      const opts = { body, icon: "assets/icon-192.png", badge: "assets/icon-192.png", tag: "chat-" + gid, renotify: true, data: { gid } };
+      const show = (reg) => { if (reg) reg.showNotification(title, opts); else { const n = new Notification(title, opts); n.onclick = () => { window.focus(); window.dispatchEvent(new CustomEvent("bz-open-chat", { detail: gid })); n.close(); }; } };
+      if (navigator.serviceWorker) navigator.serviceWorker.getRegistration().then(show).catch(() => show(null)); else show(null);
+      return true;
+    }
+  } catch (e) { }
+  return false;
+}

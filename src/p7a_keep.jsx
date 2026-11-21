@@ -24,12 +24,6 @@ function UpdateGate() {
         <div style={{ fontSize: 11, letterSpacing: 3, fontWeight: 800, color: C[0], marginTop: 20 }}>UPDATE REQUIRED</div>
         <div style={{ fontSize: 26, fontWeight: 900, marginTop: 6, lineHeight: 1.15 }}>A new version is ready</div>
         <div style={{ fontSize: 13.5, opacity: 0.75, marginTop: 8, lineHeight: 1.5 }}>Version {v.name || "new"} is out. Update now to keep using the app, so the whole team stays on the same songs, lessons and charts.</div>
-        {Array.isArray(v.notes) && v.notes.length > 0 && (
-          <div style={{ textAlign: "left", marginTop: 18, padding: "14px 16px", borderRadius: 18, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(34,228,255,0.25)" }}>
-            <div style={{ fontSize: 10.5, letterSpacing: 2, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>WHAT'S NEW</div>
-            {v.notes.slice(0, 6).map((n, i) => <div key={i} style={{ display: "flex", gap: 8, fontSize: 13, lineHeight: 1.45, marginTop: i ? 6 : 0 }}><span style={{ color: C[0], fontWeight: 900 }}>›</span><span>{n}</span></div>)}
-          </div>
-        )}
         {update.shellOld && v.apk ? (
           <a href={v.apk} style={{ display: "block", marginTop: 22, padding: "16px 0", borderRadius: 18, background: `linear-gradient(90deg, ${C[0]}, ${C[1]})`, color: "#06121A", fontWeight: 900, fontSize: 16, textDecoration: "none", boxShadow: `0 0 26px ${C[0]}66` }}>Download the new app</a>
         ) : (

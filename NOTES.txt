@@ -1,3 +1,0 @@
-Keys players get a "capo" too: Keyboard transpose (0, ±1 to ±6) in the song Keys view and in Live mode, showing the easy chords to play and what they sound like
-Transpose tool now has 0 (no transpose), and every song shows its transpose number, including 0
-Capo names and shapes match everywhere: song Guitar view, Live mode and the Chord Library

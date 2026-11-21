@@ -79,7 +79,7 @@ const CLOUD_GROUPS = [
 ];
 
 /* Runs inside the app: keeps local state and the cloud in sync */
-function CloudSync({ uid, onTeam }) {
+function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice }) {
   const ctx = useApp();
   const { user, done, logs, voice, voiceRange, settings, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader } = ctx;
   const me = useRef({}); me.current = { uid, user, leader };
@@ -135,18 +135,37 @@ function CloudSync({ uid, onTeam }) {
     Object.keys(gMirror.current).forEach((id) => { if (!ids.has(id) && !CLOUD_GROUPS.some((g) => g._id === id)) { delete gMirror.current[id]; CLOUD.del(`groups/${id}`).catch(() => { }); } });
   }, [groups]); // eslint-disable-line
 
+  /* ---- learning questions: members hear answers, leaders hear new questions ---- */
+  const qSeen = useRef(null);
+  useEffect(() => {
+    const opts = leader ? { order: ["at", "desc"], limit: 40 } : { where: ["uid", "==", uid] };
+    return CLOUD.listen("questions", opts, (list) => {
+      const sig = new Map(list.map((q) => [q._id, (q.answer ? "a" : "q")]));
+      if (qSeen.current) list.forEach((q) => { const before = qSeen.current.get(q._id);
+        if (leader && !before && !q.answer && q.uid !== uid) onNotice && onNotice(`❓ ${q.name} asked a question`, `${q.ctxTitle}: ${q.text}`.slice(0, 140), "leaders");
+        if (!leader && q.uid === uid && before === "q" && q.answer) onNotice && onNotice(`💬 ${q.answeredBy || "A leader"} answered you`, q.answer.slice(0, 140), "answer"); });
+      qSeen.current = sig;
+    }, () => { });
+  }, [uid, leader]); // eslint-disable-line
+
   /* ---- chat messages for the groups I can see ---- */
   const visible = (groups || []).filter((g) => g.everyone || (g.members || []).includes("@me") || leader).filter((g) => !g.leadersOnly || leader).map((g) => g.id);
   const visKey = visible.join(",");
-  const cMirror = useRef({}); const cReady = useRef({}); const cText = useRef({}); const cRemote = useRef({});
+  const cMirror = useRef({}); const cSeen = useRef({}); const cReady = useRef({}); const cText = useRef({}); const cRemote = useRef({});
   useEffect(() => {
     const offs = visible.map((gid) => CLOUD.listen(`groups/${gid}/messages`, { order: ["at", "desc"], limit: 120 }, (list) => {
       const msgs = list.map((m) => ({ id: m._id, uid: m.uid, from: m.from, color: m.color, text: m.text || "", song: m.song || undefined, file: m.file ? { ...m.file, url: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, edited: !!m.edited, me: m.uid === uid, at: toMs(m.at), t: chatTime(toMs(m.at)) })).sort((a, b) => a.at - b.at);
       cMirror.current[gid] = {}; cText.current[gid] = {}; cRemote.current[gid] = new Set(msgs.map((m) => m.id)); msgs.forEach((m) => { cMirror.current[gid][m.id] = stable(m.react); cText.current[gid][m.id] = m.text || ""; });
+      /* new messages from teammates → notification (never on the first load) */
+      const top = msgs.reduce((a, m) => Math.max(a, m.at || 0), 0);
+      if (cSeen.current[gid] == null) cSeen.current[gid] = top;
+      else { const fresh = msgs.filter((m) => !m.me && !m.sys && m.at > cSeen.current[gid] && Date.now() - m.at < 10 * 60000); cSeen.current[gid] = Math.max(cSeen.current[gid], top); if (fresh.length && onIncoming) onIncoming(gid, fresh[fresh.length - 1]); }
       cReady.current[gid] = true;
       setChat((c) => ({ ...c, [gid]: msgs }));
     }));
-    return () => offs.forEach((f) => f && f());
+    /* who has read how far in each chat (for "Seen by") */
+    const roffs = visible.map((gid) => CLOUD.listen(`groups/${gid}/reads`, {}, (list) => { setChatReads && setChatReads((r) => ({ ...r, [gid]: list.map((x) => ({ uid: x.uid || x._id, name: x.name || "Member", at: x.at || 0 })) })); }));
+    return () => { offs.forEach((f) => f && f()); roffs.forEach((f) => f && f()); };
   }, [visKey, uid]); // eslint-disable-line
   useEffect(() => {
     Object.keys(chat || {}).forEach((gid) => {

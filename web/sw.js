@@ -13,3 +13,10 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(fetch(e.request, { cache: "no-cache" }).then((r) => { if (r.ok) caches.open(SHELL).then((c) => c.put(e.request, r.clone())); return r; }).catch(() => caches.match(e.request, { ignoreSearch: true })));
   }
 });
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close(); const gid = e.notification.data && e.notification.data.gid;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    const c = cs[0]; if (c) { c.postMessage({ type: "open-chat", gid }); return c.focus(); }
+    return self.clients.openWindow("./?chat=" + (gid || ""));
+  }));
+});

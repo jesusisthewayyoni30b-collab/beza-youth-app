@@ -1,7 +1,7 @@
 
 /* ============================ DEMO SONGS (real samples, rendered offline) ============================ */
 const DEMO_SONGS = [
-  { id: "opener", name: "Sunday Opener", desc: "4/4 pop worship · G · 84 bpm", key: 7, bpm: 84, feel: "44", prog: [0, 4, 5, 3], drums: "pop", bass: "eighths", keys: "pad", ac: "strum8", pad: false,
+  { id: "opener", name: "Saturday Opener", desc: "4/4 pop worship · G · 84 bpm", key: 7, bpm: 84, feel: "44", prog: [0, 4, 5, 3], drums: "pop", bass: "eighths", keys: "pad", ac: "strum8", pad: false,
     lead: { inst: "electric", base: 67, mel: [[4, 0, 1], [2, 1, 0.5], [0, 1.5, 0.5], [0, 2, 2], [2, 4, 1], [4, 5, 1], [7, 6, 2], [9, 8, 1.5], [7, 9.5, 0.5], [4, 10, 2], [5, 12, 1], [4, 13, 1], [2, 14, 2]] } },
   { id: "ballad", name: "Slow Ballad", desc: "6/8 · D · 60 bpm", key: 2, bpm: 60, feel: "68", prog: [0, 3, 5, 4], drums: "ballad68", bass: "whole", keys: "arp68", ac: null, pad: true,
     lead: { inst: "electric", base: 74, mel: [[4, 0, 3], [2, 3, 3], [0, 6, 6], [7, 12, 3], [4, 15, 3], [2, 18, 6]] } },

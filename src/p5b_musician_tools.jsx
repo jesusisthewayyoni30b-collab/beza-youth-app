@@ -173,6 +173,7 @@ const KD = {
 function KeysDrills({ embedded, drill: d0 }) {
   const { T } = useApp();
   const [id, setId] = useState(d0 && KD[d0] ? d0 : "scales");
+  const [cat, setCat] = useState(() => (KD[d0 && KD[d0] ? d0 : "scales"].cat || "Scales"));
   const [dir, setDir] = useState("both");
   const [P, setP] = useState({ sid: "major", key: 0, oct: 1, all: false });
   const d = KD[id];
@@ -191,7 +192,8 @@ function KeysDrills({ embedded, drill: d0 }) {
   return (
     <div>
       <ToolBar embedded={embedded} title="Keys Drills" sub="Technique, chords & progressions with real piano" />
-      <Scroller>{Object.entries(KD).sort((x, y) => (y[1].own ? 1 : 0) - (x[1].own ? 1 : 0)).map(([k, v]) => <Chip key={k} active={id === k} onClick={() => { setRun(false); setI(-1); setId(k); }}>{v.name.split(" (")[0]}</Chip>)}</Scroller>
+      <Scroller>{(typeof KD_CATS !== "undefined" ? KD_CATS : []).map((c) => <Chip key={c} active={cat === c} onClick={() => setCat(c)}>{c}</Chip>)}</Scroller>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>{Object.entries(KD).filter(([, v]) => (v.cat || "Scales") === cat).map(([k, v]) => <Chip key={k} active={id === k} onClick={() => { setRun(false); setI(-1); setId(k); }} style={{ fontSize: 12 }}>{v.name.split(" (")[0]}</Chip>)}</div>
       <div style={{ marginTop: 10 }}><Seg value={dir} onChange={(v) => { setRun(false); setI(-1); setDir(v); }} options={[{ value: "up", label: "↑ Up" }, { value: "down", label: "↓ Down" }, { value: "both", label: "↑↓ Up & down" }]} /></div>
       {d.own && (
         <Card style={{ marginTop: 10, padding: 12 }}>

@@ -82,8 +82,9 @@ function GraffitiBG() {
   );
 }
 
+const NavBadge = ({ n, style }) => (n > 0 ? <span style={{ position: "absolute", minWidth: 17, height: 17, padding: "0 4px", borderRadius: 99, background: "#FF3B5C", color: "#fff", fontSize: 10, fontWeight: 900, display: "grid", placeItems: "center", boxShadow: "0 0 10px #FF3B5C88", ...style }}>{n > 99 ? "99+" : n}</span> : null);
 function BottomNav({ tab, onTab, labels }) {
-  const { T } = useApp();
+  const { T, unreadTotal } = useApp();
   const items = [["learn", BookOpen, labels.learn], ["practice", Dumbbell, labels.practice], ["songs", Music, labels.songs], ["home", Plus, labels.home], ["games", Trophy, labels.games], ["progress", BarChart, labels.progress], ["chat", MessageCircle, labels.chat]];
   const i = TABS.indexOf(tab); const N = items.length; const ActiveIcon = items[i][1];
   const PAD = 6; const frac = ((i + 0.5) / N).toFixed(4); const ctr = `(${PAD}px + (100% - ${PAD * 2}px) * ${frac})`;
@@ -98,7 +99,7 @@ function BottomNav({ tab, onTab, labels }) {
         {items.map(([id, I, label], k) => { const on = k === i;
           return (
             <button key={id} onClick={() => onTab(id)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: 10, gap: 4, color: on ? T.text : T.navIcon, fontFamily: FONT }}>
-              {!on && <I size={23} noBlob strokeWidth={2.1} />}
+              {!on && <span style={{ position: "relative", display: "inline-flex" }}><I size={23} noBlob strokeWidth={2.1} />{id === "chat" && <NavBadge n={unreadTotal} style={{ top: -6, right: -10 }} />}</span>}
               <span style={{ fontSize: 10, fontWeight: on ? 800 : 600, whiteSpace: "nowrap", letterSpacing: -0.1 }}>{label}</span>
             </button>
           ); })}
@@ -108,14 +109,14 @@ function BottomNav({ tab, onTab, labels }) {
 }
 
 function SideNav({ tab, onTab, labels }) {
-  const { T, user, avatar, push, leader, streak, minutes } = useApp();
+  const { T, user, avatar, push, leader, streak, minutes, unreadTotal } = useApp();
   const items = [["home", Home, labels.home], ["learn", BookOpen, labels.learn], ["practice", Dumbbell, labels.practice], ["songs", Music, labels.songs], ["games", Trophy, labels.games], ["progress", BarChart, labels.progress], ["chat", MessageCircle, labels.chat]];
   return (
     <div data-nav="1" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 248, background: T.nav, display: "flex", flexDirection: "column", padding: "26px 16px 18px", boxSizing: "border-box", zIndex: 40, borderRight: `1px solid ${T.border}` }}>
       <div style={{ padding: "0 8px 22px" }}><LogoLockup width={176} /></div>
       {items.map(([id, I, label]) => { const on = id === tab; return (
         <button key={id} onClick={() => onTab(id)} className="bz-side-item" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginBottom: 4, borderRadius: 16, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 14.5, fontWeight: on ? 800 : 600, textAlign: "left", background: on ? (T.graffiti ? "linear-gradient(135deg,#C6FF3D,#22E4FF)" : T.accent) : "transparent", color: on ? (T.graffiti ? "#111" : T.accentText) : T.navIcon }}>
-          <I size={21} noBlob strokeWidth={2.3} />{label}
+          <I size={21} noBlob strokeWidth={2.3} />{label}{id === "chat" && unreadTotal > 0 && <span style={{ marginLeft: "auto", minWidth: 20, height: 20, padding: "0 6px", borderRadius: 99, background: "#FF3B5C", color: "#fff", fontSize: 11, fontWeight: 900, display: "grid", placeItems: "center" }}>{unreadTotal}</span>}
         </button>
       ); })}
       {leader && <button onClick={() => { onTab("home"); setTimeout(() => push({ screen: "leaders" }), 30); }} className="bz-side-item" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginTop: 6, borderRadius: 16, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 14, fontWeight: 700, background: "transparent", color: T.navIcon }}><Shield size={20} noBlob />Leaders Board</button>}
@@ -190,6 +191,8 @@ export default function BezaYouthWorshipTeam() {
   // draw the intro first; build the rest of the app in small background slices so the intro never stutters
   const [shellReady, setShellReady] = useState(false);
   useEffect(() => { const t = setTimeout(() => React.startTransition(() => setShellReady(true)), 5300); const b = document.getElementById("boot"); if (b) { b.style.opacity = "0"; setTimeout(() => b.remove(), 400); } return () => clearTimeout(t); }, []);
+  const [chatRead, setChatRead] = useState(() => { try { return JSON.parse(localStorage.getItem("beza-chat-read") || "{}"); } catch (e) { return {}; } });
+  const [chatReads, setChatReads] = useState({}); const [chatPing, setChatPing] = useState(null);
   const [chat, setChat] = useState(() => (CLOUD.on ? {} : { ...SEED_CHAT, ...(saved.chat || {}) }));
   const [groups, setGroups] = useState(CLOUD.on ? null : saved.groups || null);
   const [authState, setAuthState] = useState(CLOUD.on ? "loading" : "off");
@@ -243,10 +246,39 @@ export default function BezaYouthWorshipTeam() {
   const push = useCallback((r) => setStacks((s) => ({ ...s, [tabRef.current]: [...s[tabRef.current], { ...r, key: Date.now() + Math.random() }] })), []);
   const pop = useCallback(() => setStacks((s) => ({ ...s, [tabRef.current]: s[tabRef.current].slice(0, -1) })), []);
   const tabRef = useRef(tab); tabRef.current = tab;
+  const userRef = useRef(user); userRef.current = user; const groupsRef = useRef(groups); groupsRef.current = groups; const settingsRef = useRef(settings); settingsRef.current = settings;
   const setTab = useCallback((t) => {
     if (t === tabRef.current) { setStacks((s) => { if (s[t].length) return { ...s, [t]: [] }; if (t === "home") setQuick(true); return s; }); return; }
-    setTabRaw(t);
+    setStacks((s) => (s[t] && s[t].length ? { ...s, [t]: [] } : s)); setTabRaw(t);
   }, []);
+  /* ---- chat: read markers, unread counts, notifications ---- */
+  const markRead = useCallback((gid, ms) => {
+    if (!gid || !ms) return;
+    setChatRead((r) => { if ((r[gid] || 0) >= ms) return r; const n = { ...r, [gid]: ms }; try { localStorage.setItem("beza-chat-read", JSON.stringify(n)); } catch (e) { } return n; });
+    if (CLOUD.on && userRef.current && userRef.current.uid) { const k = gid + ms; if (markRead.last !== k) { markRead.last = k; CLOUD.set(`groups/${gid}/reads/${userRef.current.uid}`, { uid: userRef.current.uid, name: userRef.current.name || "Member", at: ms }).catch(() => { }); } }
+  }, []);
+  const onIncoming = useCallback((gid, m) => {
+    const viewing = tabRef.current === "chat" && window.__bzChatCh === gid && document.visibilityState === "visible";
+    if (viewing) return;
+    const g = (groupsRef.current || []).find((x) => x.id === gid) || { label: "Team chat", emoji: "💬" };
+    const body = m.text ? m.text.slice(0, 140) : m.song ? "🎵 sent a chord chart" : m.file ? (m.file.url ? "📷 sent a photo" : "📎 sent a file") : "new message";
+    const title = `${m.from || "Someone"} · ${g.emoji ? g.emoji + " " : ""}${g.label}`;
+    if (settingsRef.current.chatNotif !== false && document.visibilityState !== "visible") chatNotify(title, body, gid);
+    if (document.visibilityState === "visible") { setChatPing({ gid, title, body, color: m.color, from: m.from, k: Date.now() }); clearTimeout(onIncoming.t); onIncoming.t = setTimeout(() => setChatPing(null), 5000); }
+  }, []);
+  const onNotice = useCallback((title, body, kind) => {
+    if (document.visibilityState !== "visible") chatNotify(title, body, kind);
+    setChatPing({ title, body, kind, from: title.replace(/^\S+\s/, ""), k: Date.now(), go: () => { setChatPing(null); if (kind === "leaders") { setStacks((s) => ({ ...s, home: [] })); setTabRaw("home"); setTimeout(() => setStacks((s) => ({ ...s, home: [{ screen: "leaders", key: Date.now() }] })), 30); } } });
+    clearTimeout(onIncoming.t); onIncoming.t = setTimeout(() => setChatPing(null), 6000);
+  }, []); // eslint-disable-line
+  const openChat = useCallback((gid) => { setChatPing(null); setStacks((s) => ({ ...s, chat: [] })); setTabRaw("chat"); window.__bzWantCh = gid; setTimeout(() => window.dispatchEvent(new CustomEvent("bz-open-chat-ui", { detail: gid })), 40); }, []);
+  useEffect(() => {
+    const ev = (e) => openChat(e.detail); window.addEventListener("bz-open-chat", ev);
+    const sw = (e) => { if (e.data && e.data.type === "open-chat") openChat(e.data.gid); }; try { navigator.serviceWorker && navigator.serviceWorker.addEventListener("message", sw); } catch (e) { }
+    let capOff = null; try { const LN = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications; if (LN) LN.addListener("localNotificationActionPerformed", (a) => { const g = a && a.notification && a.notification.extra && a.notification.extra.gid; if (g) openChat(g); }).then((h) => { capOff = h; }); } catch (e) { }
+    const q = new URLSearchParams(window.location.search).get("chat"); if (q) setTimeout(() => openChat(q), 1500);
+    return () => { window.removeEventListener("bz-open-chat", ev); try { navigator.serviceWorker && navigator.serviceWorker.removeEventListener("message", sw); } catch (e) { } try { capOff && capOff.remove(); } catch (e) { } };
+  }, [openChat]);
   const logPractice = useCallback((m, what = "Practice") => setLogs((l) => [{ at: Date.now(), mins: m, what }, ...l]), []);
   const completeLesson = useCallback((id, mins = 10) => { setDone((d) => new Set([...d, id])); logPractice(mins, (LESSONS[id] && LESSONS[id].title) || "Class"); setAssignments((a) => a.map((x) => (x.ref === id && x.toMe ? { ...x, status: "done" } : x))); toast("Class complete! You're growing 🔥"); }, [toast, logPractice]);
   const checkUpdate = useCallback(async () => {
@@ -288,24 +320,26 @@ export default function BezaYouthWorshipTeam() {
   const roles = (user && user.roles) || [];
   const plan = useMemo(() => {
     if (!roles.length) return [];
-    const r0 = roles[0]; const t0 = toolsFor([r0])[0]; const C = CURRICULUM[r0]; const next = C ? C.all.find((id) => !done.has(id)) || C.all[0] : null; const s = sessionsFor(roles)[0];
+    const r0 = roles[0]; const t0 = toolsFor([r0])[0]; const C = CURRICULUM[r0]; const nx0 = C ? nextLessonFor(r0, done, leader) : null; const next = nx0 && nx0.role === r0 ? nx0.id : null; const s = todaysPack(r0) || sessionsFor(roles)[0];
     const H = CURRICULUM.heart; const hNext = H.all.find((id) => !done.has(id)) || H.all[0];
     const items = [
       { id: "heart", title: LESSONS[hNext].title, sub: "Heart of Worship · start here", mins: LESSONS[hNext].mins, go: { screen: "lesson", id: hNext, role: "heart" } },
       t0 && { id: "warm", title: t0[1].title, sub: t0[1].desc, mins: 10, go: { screen: "tool", id: t0[0] } },
       next && { id: "lesson", title: LESSONS[next].title, sub: `${roleLabel(r0)} · Level ${LESSONS[next].level} class`, mins: LESSONS[next].mins, go: { screen: "lesson", id: next, role: r0 } },
       roles[1] && toolsFor([roles[1]])[0] && { id: "t2", title: toolsFor([roles[1]])[0][1].title, sub: `${roleLabel(roles[1])} practice`, mins: 10, go: { screen: "tool", id: toolsFor([roles[1]])[0][0] } },
-      s && { id: "sess", title: s.title, sub: "30-minute guided session", mins: 30, go: { screen: "session", id: s.id } },
+      s && { id: "sess", title: s.title, sub: s.pack ? `${s.day} · training package` : "Guided session", mins: sessMins(s), go: { screen: "session", id: s.id } },
     ].filter(Boolean);
     return items.map((x) => ({ ...x, done: !!planDone[x.id] }));
-  }, [roles.join(), done, planDone]); // eslint-disable-line
+  }, [roles.join(), done, planDone, leader]); // eslint-disable-line
   const setPlan = (fn) => { const next = fn(plan); const m = {}; next.forEach((x) => (m[x.id] = x.done)); setPlanDone(m); };
   const streak = useMemo(() => { let s = 0; for (let d = 0; d < 60; d++) { const day = new Date(); day.setDate(day.getDate() - d); const has = logs.some((l) => new Date(l.at).toDateString() === day.toDateString()); if (has) s++; else if (d > 0) break; } return s; }, [logs]);
 
+  const unread = useMemo(() => { const u = {}; Object.entries(chat || {}).forEach(([gid, list]) => { const r = chatRead[gid] || 0; const n = (list || []).filter((m) => !m.me && !m.sys && (m.at || 0) > r).length; if (n) u[gid] = n; }); return u; }, [chat, chatRead]);
   const ctx = {
     T, themeId, setThemeId, user, setUser, setRoles, tab, setTab, push, pop, done, completeLesson, logs, logPractice, minutes: logs.reduce((s, l) => s + l.mins, 0), streak,
     voice, setVoice, voiceRange, setVoiceRange, avatar, setAvatar, leader, setLeader, settings, setSettings, update, runUpdate, checkUpdate, toast, chat, setChat, feed, setFeed, plan, setPlan,
     assignments, setAssignments, sessionsDone, setSessionsDone, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
+    chatRead, markRead, chatReads, setChatReads, unread, unreadTotal: Object.values(unread).reduce((a, b) => a + b, 0), openChat,
   };
   const needsOnboarding = user && (!user.roles || !user.roles.length);
   useWebReminder(settings, logs.filter((l) => new Date(l.at).toDateString() === new Date().toDateString()).reduce((s, l) => s + l.mins, 0));
@@ -323,7 +357,7 @@ export default function BezaYouthWorshipTeam() {
 
   return (
     <Ctx.Provider value={ctx}>
-      {CLOUD.on && user && user.uid && user.roles && user.roles.length > 0 && <CloudSync uid={user.uid} onTeam={() => setTeamV((v) => v + 1)} />}
+      {CLOUD.on && user && user.uid && user.roles && user.roles.length > 0 && <CloudSync uid={user.uid} onTeam={() => setTeamV((v) => v + 1)} onIncoming={onIncoming} setChatReads={setChatReads} onNotice={onNotice} />}
       <style>{FONT_FACES + CSS}</style>
       {update.available && <UpdateGate />}
       <div className={`bz-root bz-stage${web || (big && full) ? " bz-web" : ""}${scaled ? " bz-scaled" : ""}`} style={{ background: T.dark ? "#07090b" : "#d9dfe1", fontFamily: FONT, ["--bz-accent"]: T.accent, ["--bz-thumb"]: T.dark ? "#1b2328" : "#fff", ["--ico-blob"]: T.blob }}>
@@ -348,7 +382,7 @@ export default function BezaYouthWorshipTeam() {
                 return (
                   <React.Fragment key={t}>
                     <Layer web={web} visible={activeTab && st.length === 0} fill={t === "chat"}>{rootFor(t)}</Layer>
-                    {st.map((r, k) => <Layer web={web} wide={["tool", "game", "games", "board", "groups", "group", "session"].includes(r.screen)} key={r.key} push visible={activeTab && k === st.length - 1}><RouteView r={r} /></Layer>)}
+                    {st.map((r, k) => <Layer web={web} wide={["tool", "game", "tiles", "games", "board", "groups", "group", "session"].includes(r.screen)} key={r.key} push visible={activeTab && k === st.length - 1}><RouteView r={r} /></Layer>)}
                   </React.Fragment>
                 );
               })}
@@ -358,6 +392,11 @@ export default function BezaYouthWorshipTeam() {
             </>
           )}
           {toastMsg && <div className="bz-toast" style={{ position: "absolute", bottom: web ? 32 : 104, left: "50%", transform: "translateX(-50%)", zIndex: 80, background: T.graffiti ? "#111" : T.hero, color: "#fff", padding: "11px 16px", borderRadius: 99, fontSize: 13, fontWeight: 700, boxShadow: T.graffiti ? "3px 3px 0 #FF3EA5" : "0 10px 24px rgba(0,0,0,.3)", maxWidth: "88%", textAlign: "center", border: T.graffiti ? "1.5px solid #C6FF3D" : "none" }}>{toastMsg}</div>}
+          {chatPing && user && <div className="bz-up" onClick={() => (chatPing.go ? chatPing.go() : openChat(chatPing.gid))} style={{ position: "absolute", top: web ? 18 : 52, left: web ? "auto" : 12, right: 12, width: web ? 380 : "auto", zIndex: 85, display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 18, background: T.dark ? "rgba(20,26,32,0.96)" : "rgba(255,255,255,0.97)", color: T.text, border: `1px solid ${T.border}`, boxShadow: "0 12px 34px rgba(0,0,0,0.35)", cursor: "pointer", backdropFilter: "blur(10px)" }}>
+            <Avatar name={chatPing.from || "?"} size={36} color={chatPing.color || T.pop} />
+            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{chatPing.title}</div><div style={{ fontSize: 12.5, color: T.sub, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{chatPing.body}</div></div>
+            <button onClick={(e) => { e.stopPropagation(); setChatPing(null); }} style={{ background: "none", border: "none", color: T.sub, fontSize: 18, cursor: "pointer" }}>×</button>
+          </div>}
           {intro && <Intro onDone={() => { setShellReady(true); setIntro(false); }} />}
         </div>
       </div>
