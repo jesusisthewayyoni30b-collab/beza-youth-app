@@ -288,7 +288,7 @@ export default function BezaYouthWorshipTeam() {
   }, []);
   const onNotice = useCallback((title, body, kind) => {
     if (document.visibilityState !== "visible") chatNotify(title, body, kind);
-    setChatPing({ title, body, kind, from: title.replace(/^\S+\s/, ""), k: Date.now(), go: () => { setChatPing(null); if (kind === "leaders") { setStacks((s) => ({ ...s, home: [] })); setTabRaw("home"); setTimeout(() => setStacks((s) => ({ ...s, home: [{ screen: "leaders", key: Date.now() }] })), 30); } } });
+    setChatPing({ title, body, kind, from: kind === "event" ? "📅" : title.replace(/^\S+\s/, ""), k: Date.now(), go: () => { setChatPing(null); if (kind === "leaders") { setStacks((s) => ({ ...s, home: [] })); setTabRaw("home"); setTimeout(() => setStacks((s) => ({ ...s, home: [{ screen: "leaders", key: Date.now() }] })), 30); } } });
     clearTimeout(onIncoming.t); onIncoming.t = setTimeout(() => setChatPing(null), 6000);
   }, []); // eslint-disable-line
   const openChat = useCallback((gid) => { setChatPing(null); setStacks((s) => ({ ...s, chat: [] })); setTabRaw("chat"); window.__bzWantCh = gid; setTimeout(() => window.dispatchEvent(new CustomEvent("bz-open-chat-ui", { detail: gid })), 40); }, []);
