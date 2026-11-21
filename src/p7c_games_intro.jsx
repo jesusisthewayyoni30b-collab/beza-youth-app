@@ -125,9 +125,9 @@ const KEYS_ALL = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const KEY_PATH = [0, 7, 5, 2, 10, 9, 3, 4, 8, 11, 1, 6]; // C G F D Bb A Eb E Ab B Db F# — easiest first
 const MINOR_CIRCLE = [9, 4, 2, 11, 7, 6, 0, 1, 5, 8, 10, 3]; // Am Em Dm Bm Gm F#m Cm C#m Fm G#m Bbm Ebm
 const keysUpTo = (n) => KEY_PATH.slice(0, Math.max(1, Math.min(12, n)));
-const PER = 3, MAXL = 15;
-/* 15 levels per game; each level maps onto the full difficulty curve (1..150) the generators were built for */
-const vL = (L) => Math.round(1 + (Math.min(MAXL, Math.max(1, L)) - 1) * 149 / 14);
+const PER = 6, MAXL = 30;
+/* 30 levels per game; each level maps onto the full difficulty curve (1..150) the generators were built for */
+const vL = (L) => Math.round(1 + (Math.min(MAXL, Math.max(1, L)) - 1) * 149 / (MAXL - 1));
 /* special levels: every 5th is a BOSS level; 4, 8, 12 bring a surprise twist */
 const SURPRISES = [["speed", "⚡ Speed round", "Half the time per question — think fast!"], ["streak", "🔥 Streak frenzy", "Streaks count triple — don't break the chain!"], ["sudden", "🎯 Sudden death", "One wrong answer ends the level."], ["mix", "🧩 Mix-up", "Questions from every level you've unlocked."]];
 const levelKind = (L) => (L % 5 === 0 ? { id: "boss", label: "👑 BOSS LEVEL", desc: "15 questions, faster timer, mixed from the last 5 levels — DOUBLE XP." } : L % 4 === 0 ? (([id, label, desc]) => ({ id, label, desc }))(SURPRISES[(L / 4 - 1) % SURPRISES.length]) : null);
@@ -354,7 +354,7 @@ function GamesHub({ root }) {
           return <Card key={v.id} onClick={() => push({ screen: "vgame", id: v.id })} style={{ display: "flex", gap: 12, alignItems: "center", borderLeft: `6px solid ${v.color}`, cursor: "pointer" }}>
             <div style={{ fontSize: 30 }}>{v.emoji}</div>
             <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 15 }}>{v.title}</div><div style={{ fontSize: 12, color: T.sub, lineHeight: 1.4 }}>{v.desc}</div><div style={{ fontSize: 11, color: T.faint, marginTop: 3 }}>Trains: {v.trains}</div></div>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>⭐ {st}/45</div>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>⭐ {st}/90</div>
           </Card>; })}</div>
       </>}
       {list.length > 0 && <SectionTitle>{rr.label} games</SectionTitle>}
@@ -512,7 +512,7 @@ function GameScreen({ id }) {
             </div>
           </div>); })}
       </div>
-      <Card tone="soft" style={{ marginTop: 14, fontSize: 12.5, lineHeight: 1.55 }}>15 levels, each one harder than the last: more keys, more options, trickier sounds and less time. Levels 5, 10 and 15 are 👑 BOSS levels (15 questions, double XP). Levels 4, 8 and 12 hide a surprise twist. Answer fast for bonus points, build streaks for multipliers, and collect up to ⭐⭐⭐ on every level. Never the same question twice in a row.</Card>
+      <Card tone="soft" style={{ marginTop: 14, fontSize: 12.5, lineHeight: 1.55 }}>30 levels, each one harder than the last: more keys, more options, trickier sounds and less time. Every 5th level is a 👑 BOSS level (15 questions, double XP), and every 4th level hides a surprise twist. Answer fast for bonus points, build streaks for multipliers, and collect up to ⭐⭐⭐ on every level. Never the same question twice in a row.</Card>
     </div>
   );
   return (

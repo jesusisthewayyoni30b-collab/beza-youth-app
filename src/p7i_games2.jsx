@@ -85,7 +85,7 @@ function VoiceGame({ id }) {
   const [lvl, setLvl] = useState(0); const [phase, setPhase] = useState("menu");
   const [round, setRound] = useState(0); const [q, setQ] = useState(null); const [step, setStep] = useState(0);
   const [cur, setCur] = useState(null); const [score, setScore] = useState(0); const [hits, setHits] = useState(0); const [left, setLeft] = useState(10); const [err, setErr] = useState("");
-  const D = Math.min(2, Math.floor(lvl / 5)); const boss = lvl % 5 === 4; const ROUNDS = 6 + Math.floor(lvl / 3) + (boss ? 3 : 0); const TOL = Math.max(22, Math.round(45 - lvl * 1.6)); const mid = voiceRange ? Math.round((voiceRange.low + voiceRange.high) / 2) : 62;
+  const D = Math.min(2, Math.floor(lvl / 10)); const boss = lvl % 5 === 4; const ROUNDS = 6 + Math.floor(lvl / 6) + (boss ? 3 : 0); const TOL = Math.max(20, Math.round(45 - lvl * 0.85)); const mid = voiceRange ? Math.round((voiceRange.low + voiceRange.high) / 2) : 62;
   const st = useRef({ tries: 0 }); Object.assign(st.current, { q, step, phase, tol: TOL });
   const newQ = (r) => {
     const key = (mid + 120 - 7 + rand(5)) % 12; const base = mid - ((mid - key) % 12 + 12) % 12; const sc = [0, 2, 4, 5, 7, 9, 11];
@@ -99,7 +99,7 @@ function VoiceGame({ id }) {
     else if (id === "vg_chord") { const d = pick([0, 3, 4, 5]); const r = base + sc[d]; const third = r + (DIATONIC.q[d] === "m" ? 3 : 4); const which = pick(D === 0 ? [["root", r], ["5th", r + 7]] : [["root", r], ["3rd", third], ["5th", r + 7]]); nq = { targets: [which[1]], cue: [], chord: [r - 12, third - 12, r - 5], prompt: `Sing the ${which[0]} of this chord`, hint: which[1] }; }
     else if (id === "vg_hold") { const m = base + pick([0, 2, 4, 7]); nq = { targets: [m], cue: [m], prompt: `Sing and HOLD for ${[3, 5, 8][D]} seconds`, hold: [3, 5, 8][D] * 20 }; }
     else { const d = pick(D === 0 ? [0, 3, 4] : [0, 1, 3, 4, 5]); const mel = base + sc[d]; const har = base + sc[(d + 2) % 7] + (d + 2 >= 7 ? 12 : 0); nq = { targets: [har], cue: [mel], chord: [base + sc[d] - 12, base + sc[(d + 2) % 7] - 12 + (d + 2 >= 7 ? 12 : 0), base + sc[(d + 4) % 7] - 12 + (d + 4 >= 7 ? 12 : 0)], prompt: "Sing the harmony a 3rd ABOVE the melody note", hint: har }; }
-    if (st.current.lastT != null && nq.targets[0] === st.current.lastT && st.current.tries < 6) { st.current.tries++; return newQ(r); } st.current.tries = 0; st.current.lastT = nq.targets[0]; setQ(nq); setStep(0); setLeft((["vg_echo", "vg_scale", "vg_tizita", "vg_minor"].includes(id) ? 22 : id === "vg_hold" ? 16 : 11) - Math.floor(lvl / 5)); setRound(r); setTimeout(() => cue(nq), 350);
+    if (st.current.lastT != null && nq.targets[0] === st.current.lastT && st.current.tries < 6) { st.current.tries++; return newQ(r); } st.current.tries = 0; st.current.lastT = nq.targets[0]; setQ(nq); setStep(0); setLeft((["vg_echo", "vg_scale", "vg_tizita", "vg_minor"].includes(id) ? 22 : id === "vg_hold" ? 16 : 11) - Math.floor(lvl / 10)); setRound(r); setTimeout(() => cue(nq), 350);
   };
   const cue = (nq) => { const x = nq || q; if (!x) return; if (x.chord) AE.chord(x.chord, 1.6, 0, "piano"); x.cue.forEach((m, i) => AE.play("piano", m, 0.9, i * 0.7, 0.85)); };
   const start = () => { setScore(0); setHits(0); setPhase("play"); newQ(0); };
@@ -120,7 +120,7 @@ function VoiceGame({ id }) {
   useEffect(() => { if (phase !== "done") return; const acc = hits / ROUNDS; const stars = acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : acc >= 0.5 ? 1 : 0; const k = "L" + lvl; const prev = best[k] || { score: 0, stars: 0 };
     setGames((Gs) => ({ ...Gs, best: { ...Gs.best, [G.id]: { ...(Gs.best[G.id] || {}), [k]: { score: Math.max(prev.score, score), stars: Math.max(prev.stars, stars) } } } })); logPractice(3, G.title); }, [phase]); // eslint-disable-line
   const LV = ["Easy", "Medium", "Hard"];
-  useEffect(() => { const unl = Math.min(14, Object.keys(best).filter((x) => x[0] === "L" && best[x].stars > 0).length); setLvl(unl); }, []); // eslint-disable-line
+  useEffect(() => { const unl = Math.min(29, Object.keys(best).filter((x) => x[0] === "L" && best[x].stars > 0).length); setLvl(unl); }, []); // eslint-disable-line
   if (phase === "play" && q) return (
     <div>
       <TopBar title={`${G.emoji} ${G.title}`} sub={`${boss ? "👑 BOSS · " : ""}Level ${lvl + 1} · round ${round + 1} of ${ROUNDS}`} right={<Btn small variant="soft" onClick={() => setPhase("menu")}>Quit</Btn>} />
@@ -149,13 +149,13 @@ function VoiceGame({ id }) {
       {phase === "done" && <Card tone="hero" style={{ textAlign: "center", padding: 20, marginBottom: 12 }}>
         <div style={{ fontSize: 34 }}>{"⭐".repeat(hits / ROUNDS >= 0.9 ? 3 : hits / ROUNDS >= 0.7 ? 2 : hits / ROUNDS >= 0.5 ? 1 : 0) || "—"}</div>
         <div style={{ fontSize: 28, fontWeight: 900 }}>{score} pts</div><div style={{ fontSize: 13, opacity: 0.9 }}>{hits}/{ROUNDS} notes sung in tune</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}><Btn full variant="light" icon={Repeat} onClick={start}>Play again</Btn>{hits / ROUNDS >= 0.5 && lvl < 14 && <Btn full variant="accent" icon={ChevronRight} onClick={() => { setLvl(lvl + 1); setTimeout(start, 50); }}>Level {lvl + 2}</Btn>}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}><Btn full variant="light" icon={Repeat} onClick={start}>Play again</Btn>{hits / ROUNDS >= 0.5 && lvl < 29 && <Btn full variant="accent" icon={ChevronRight} onClick={() => { setLvl(lvl + 1); setTimeout(start, 50); }}>Level {lvl + 2}</Btn>}</div>
       </Card>}
       <Card style={{ fontSize: 13.5, lineHeight: 1.55 }}><b>How to play · </b>{G.how}<div style={{ marginTop: 8 }}><b>What it trains · </b>{G.trains}</div></Card>
-      <SectionTitle>Levels · ⭐ {Object.values(best).reduce((x, y) => x + (y.stars || 0), 0)}/45</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>{Array.from({ length: 15 }, (_, k) => { const b = best["L" + k]; const unl = Math.min(14, Object.keys(best).filter((x) => x[0] === "L" && best[x].stars > 0).length); const locked = k > unl; const bs = k % 5 === 4;
+      <SectionTitle>Levels · ⭐ {Object.values(best).reduce((x, y) => x + (y.stars || 0), 0)}/90</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>{Array.from({ length: 30 }, (_, k) => { const b = best["L" + k]; const unl = Math.min(29, Object.keys(best).filter((x) => x[0] === "L" && best[x].stars > 0).length); const locked = k > unl; const bs = k % 5 === 4;
         return <button key={k} disabled={locked} onClick={() => setLvl(k)} className="bz-press" style={{ aspectRatio: "1", borderRadius: 16, border: `2px solid ${lvl === k ? G.color : T.border}`, background: locked ? T.input : bs ? `linear-gradient(135deg, ${G.color}44, ${T.card})` : T.card, color: T.text, fontFamily: FONT, cursor: locked ? "default" : "pointer", opacity: locked ? 0.5 : 1 }}><div style={{ fontWeight: 900, fontSize: 15 }}>{locked ? "🔒" : bs ? "👑" : k + 1}</div><div style={{ fontSize: 8, letterSpacing: -1 }}>{b && b.stars ? "⭐".repeat(b.stars) : ""}</div></button>; })}</div>
-      <Card tone="soft" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5 }}>Level {lvl + 1}: {ROUNDS} rounds · in tune = within ±{TOL} cents{boss ? " · 👑 BOSS: more rounds, tighter tuning" : ""}. Each level gets a little harder; levels 5, 10 and 15 are boss levels.</Card>
+      <Card tone="soft" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5 }}>Level {lvl + 1}: {ROUNDS} rounds · in tune = within ±{TOL} cents{boss ? " · 👑 BOSS: more rounds, tighter tuning" : ""}. Each level gets a little harder; every 5th level is a boss level.</Card>
       <Btn full variant="accent" icon={Mic} style={{ marginTop: 14 }} onClick={start}>Start singing</Btn>
       {voiceRange && <div style={{ fontSize: 11.5, color: T.sub, textAlign: "center", marginTop: 8 }}>Notes are placed in your range ({voiceRange.label}).</div>}
     </div>

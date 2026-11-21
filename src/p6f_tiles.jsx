@@ -42,9 +42,11 @@ const TILE_GAMES = {
 };
 /* 15-level journey: [chart, key, speed, wait] — boss levels 5/10/15 play without waiting */
 const TL_KEYPATH = [0, 7, 5, 2, 10, 9, 3, 4, 8, 11, 1, 6, 0, 7, 5];
-const tileJourney = (drums) => drums
-  ? [["quarters", 0, 0.8, true], ["basic", 0, 0.8, true], ["singles", 0, 0.8, true], ["pop", 0, 0.8, false], ["fill", 0, 0.8, false], ["half", 0, 1, true], ["doubles", 0, 1, true], ["six8", 0, 1, false], ["para", 0, 1, true], ["pop", 0, 1, false], ["basic", 0, 1.25, false], ["fill", 0, 1, true], ["doubles", 0, 1.25, false], ["six8", 0, 1.25, false], ["fill", 0, 1.25, false]]
-  : [["five", 0, 0.6, true], ["scale", 7, 0.6, true], ["arp", 5, 0.6, true], ["five", 2, 0.8, false], ["ode", 0, 0.8, false], ["thirds", 0, 0.8, true], ["tiz", 9, 0.8, true], ["grace", 0, 0.8, false], ["roots", 10, 1, true], ["dox", 0, 1, false], ["scale", 3, 1, false], ["arp", 4, 1, false], ["thirds", 8, 1, false], ["grace", 0, 1, false], ["ode", 0, 1.25, false]];
+const tileJourney = (drums) => {
+  const charts = drums ? ["quarters", "basic", "singles", "pop", "fill", "half", "doubles", "six8", "para", "pop"] : ["five", "scale", "arp", "thirds", "ode", "tiz", "roots", "grace", "scale", "dox"];
+  return Array.from({ length: 30 }, (_, n) => { const boss = n % 5 === 4; const sp = [0.6, 0.75, 0.9, 1, 1.15, 1.3][Math.floor(n / 5)]; const wait = !boss && (n < 10 ? n % 5 !== 3 : n < 20 ? n % 2 === 0 : false);
+    return [charts[n % 10], TL_KEYPATH[n % 15], sp, wait]; });
+};
 const INPUT_LABEL = { touch: "📱 Screen", keys: "⌨️ Keyboard", midi: "🎹 MIDI", mic: "🎤 Real instrument" };
 const TL_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
 
@@ -74,7 +76,7 @@ function TilesGame({ dept }) {
     return { notes: ns.map((e) => ({ ...e, lane: e.m })), lanes, bpm: src.bpm, title: src.title };
   };
   const levelKey = () => (jl != null ? "J" + jl : `${pick}${G.drums || TL_SONGS[pick] ? "" : "-" + key}`);
-  const J = tileJourney(G.drums); const jUnl = Math.min(14, Object.keys(best).filter((x) => x[0] === "J" && best[x].stars > 0).length);
+  const J = tileJourney(G.drums); const jUnl = Math.min(29, Object.keys(best).filter((x) => x[0] === "J" && best[x].stars > 0).length);
   const playLevel = (n) => { const [c, k, sp, w] = J[n]; setJl(n); setPick(c); setKey(k); setSpeed(sp); setWait(w); setTimeout(() => startRef.current(), 30); };
   const startRef = useRef(null);
 
@@ -222,9 +224,9 @@ function TilesGame({ dept }) {
         <div style={{ fontSize: 13, opacity: 0.9 }}>{res.acc}% accuracy · best combo x{res.combo}</div>
         <div style={{ display: "flex", justifyContent: "center", gap: 14, marginTop: 8, fontSize: 12.5 }}><span>✅ {res.perfect} perfect</span><span>👍 {res.good} good</span><span>❌ {res.miss} missed</span>{res.wrong > 0 && <span>⚠ {res.wrong} wrong</span>}</div>
         <div style={{ fontSize: 12.5, marginTop: 8, opacity: 0.9 }}>{res.stars === 3 ? "Excellent! Try it faster or without wait mode." : res.stars === 2 ? "Great work — once more for 3 stars!" : res.stars === 1 ? "Good start. Slow it down and use wait mode." : "Keep going: turn on wait mode and slow speed."}</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}><Btn full variant="light" icon={Repeat} onClick={start}>Play again</Btn>{jl != null && res.stars > 0 && jl < 14 && <Btn full variant="accent" icon={ChevronRight} onClick={() => playLevel(jl + 1)}>Level {jl + 2}</Btn>}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}><Btn full variant="light" icon={Repeat} onClick={start}>Play again</Btn>{jl != null && res.stars > 0 && jl < 29 && <Btn full variant="accent" icon={ChevronRight} onClick={() => playLevel(jl + 1)}>Level {jl + 2}</Btn>}</div>
       </Card>}
-      <SectionTitle>Level journey · ⭐ {J.reduce((a, _, n) => a + ((best["J" + n] || {}).stars || 0), 0)}/45</SectionTitle>
+      <SectionTitle>Level journey · ⭐ {J.reduce((a, _, n) => a + ((best["J" + n] || {}).stars || 0), 0)}/90</SectionTitle>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>{J.map(([c, k, sp, w], n) => { const b = best["J" + n]; const locked = n > jUnl; const bs = n % 5 === 4; const ttl = (G.drums ? TL_DRUMS[c] : TL_SONGS[c] || TL_DRILLS[c]).title;
         return <button key={n} disabled={locked} title={ttl} onClick={() => playLevel(n)} className="bz-press" style={{ aspectRatio: "1", borderRadius: 16, border: `2px solid ${n === jUnl ? G.color : T.border}`, boxShadow: n === jUnl ? `0 0 12px ${G.color}66` : "none", background: locked ? T.input : bs ? `linear-gradient(135deg, ${G.color}44, ${T.card})` : T.card, color: T.text, fontFamily: FONT, cursor: locked ? "default" : "pointer", opacity: locked ? 0.5 : 1 }}><div style={{ fontWeight: 900, fontSize: 15 }}>{locked ? "🔒" : bs ? "👑" : n + 1}</div><div style={{ fontSize: 8, letterSpacing: -1 }}>{b && b.stars ? "⭐".repeat(b.stars) : ""}</div></button>; })}</div>
       <div style={{ fontSize: 11.5, color: T.sub, margin: "8px 2px 0" }}>Next: Level {jUnl + 1} — {(G.drums ? TL_DRUMS[J[jUnl][0]] : TL_SONGS[J[jUnl][0]] || TL_DRILLS[J[jUnl][0]]).title}{J[jUnl][3] ? " · notes wait for you" : " · in time — no waiting!"}. 👑 = boss level. Choose how you play below, then tap a level.</div>
