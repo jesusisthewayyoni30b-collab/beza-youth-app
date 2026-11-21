@@ -1,6 +1,7 @@
 
 /* ============================ MUSIC BASICS (for singers & everyone) + CHORD LIBRARY BY KEY ============================ */
 const KEY_ORDER = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]; // C G D A E B F# Db Ab Eb Bb F
+const ENH = { 6: "F# / Gb", 1: "Db / C#", 8: "Ab / G#", 3: "Eb / D#", 10: "Bb / A#" };
 const keyNm = (pc) => spell(((pc % 12) + 12) % 12, ((pc % 12) + 12) % 12);
 const MAJ_STEPS = [0, 2, 4, 5, 7, 9, 11];
 /* proper note names for a 7-note scale: one letter per degree (G dorian = G A Bb C D E F, never A#) */
@@ -226,19 +227,33 @@ function BasicsMyKey() {
 /* ---------------- CHORD LIBRARY: BY KEY & MODE (piano + guitar + numbers + transpose + capo) ---------------- */
 function ChordsByKey({ inst }) {
   const { T } = useApp();
-  const [key, setKey] = useState(7); const [mode, setMode] = useState("major"); const [sev, setSev] = useState(false);
+  const [key, setKey] = useState(7); const [mode, setMode] = useState("major"); const [sev, setSev] = useState(false); const [all, setAll] = useState(false);
   const M = MODES7.find((m) => m.id === mode); const chords = modeChords(key, M.steps, sev);
   const progs = PROGS[["minor", "dorian", "phryg", "harm", "mel", "locrian"].includes(mode) ? "minor" : "major"];
   const playProg = (idx) => idx.forEach((i, k) => { const c = chords[i]; setTimeout(() => (inst === "guitar" ? strumByName(c) : playChordIv(c.root, c.iv)), k * 900); });
   const strumByName = (c) => { const v = chordVoicings(c.root, c.q)[0]; if (v) strumShape(v.frets, "acoustic", v.capo); else playChordIv(c.root, c.iv); };
   return (
     <>
-      <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, marginBottom: 6 }}>KEY</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{KEY_ORDER.map((k) => <Chip key={k} active={key === k} onClick={() => setKey(k)}>{keyNm(k)}</Chip>)}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, marginBottom: 6 }}>KEY · all 12</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <Chip active={all} onClick={() => setAll((v) => !v)} style={{ fontWeight: 900 }}>🔁 All 12 keys</Chip>
+        {KEY_ORDER.map((k) => <Chip key={k} active={!all && key === k} onClick={() => { setAll(false); setKey(k); }}>{ENH[k] || keyNm(k)}</Chip>)}
+      </div>
       <div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "12px 0 6px" }}>SCALE / MODE</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{MODES7.map((m) => <Chip key={m.id} active={mode === m.id} onClick={() => setMode(m.id)}>{m.name}</Chip>)}</div>
       <div style={{ fontSize: 12, color: T.sub, marginTop: 6 }}>{M.feel} Notes: <b style={{ color: T.text }}>{scaleNames(key, M.steps).join(" ")}</b></div>
       <div style={{ marginTop: 10 }}><Seg value={sev} onChange={setSev} options={[{ value: false, label: "Triads" }, { value: true, label: "7th chords" }]} /></div>
+      {all ? <>
+        <SectionTitle>All 12 keys · {M.name.split(" (")[0]} · {sev ? "7th chords" : "triads"}</SectionTitle>
+        <div style={{ fontSize: 12, color: T.sub, margin: "-4px 2px 8px" }}>Tap a chord to hear it, or a key name to open that key.</div>
+        <div style={{ overflowX: "auto" }} className="bz-noscroll">
+          <table style={{ borderCollapse: "separate", borderSpacing: 4, minWidth: 560 }}>
+            <thead><tr><th />{modeChords(0, M.steps, sev).map((c) => <th key={c.i} style={{ fontSize: 12, fontWeight: 900, padding: "4px 6px", background: T.accent, color: T.accentText, borderRadius: 8 }}>{c.num}</th>)}</tr></thead>
+            <tbody>{KEY_ORDER.map((k) => <tr key={k}><td onClick={() => { setAll(false); setKey(k); }} style={{ fontWeight: 900, fontSize: 13, padding: "6px 8px", cursor: "pointer", whiteSpace: "nowrap", background: T.card2, borderRadius: 8 }}>{scaleNames(k, M.steps)[0]}</td>
+              {modeChords(k, M.steps, sev).map((c) => <td key={c.i} onClick={() => (inst === "guitar" ? strumByName(c) : playChordIv(c.root, c.iv))} style={{ textAlign: "center", fontSize: 13, fontWeight: 700, padding: "6px 6px", cursor: "pointer", background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, whiteSpace: "nowrap" }}>{c.name}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      </> : <>
       <SectionTitle>{scaleNames(key, M.steps)[0]} {M.name.split(" (")[0].toLowerCase()} · the 7 chords and their numbers</SectionTitle>
       {inst === "piano" ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 10 }}>
@@ -257,6 +272,7 @@ function ChordsByKey({ inst }) {
       {progs.map(([lab, idx]) => <Card key={lab} pad={10} style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }} onClick={() => playProg(idx)}>
         <div style={{ flex: 1 }}><div style={{ fontWeight: 900 }}>{idx.map((i) => chords[i].num).join("  ")}</div><div style={{ fontSize: 12.5, color: T.sub }}>{idx.map((i) => chords[i].name).join(" – ")}</div></div><Play size={18} />
       </Card>)}
+      </>}
     </>
   );
 }
