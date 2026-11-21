@@ -772,7 +772,7 @@ function ChatScreen() {
   const [recent, setRecent] = useState(["🙏", "🔥", "❤️", "😂", "🙌", "🎤", "🎹", "🥁"]);
   const [reactFor, setReactFor] = useState(null);
   const [editId, setEditId] = useState(null); const [delMsg, setDelMsg] = useState(null);
-  const inRef = useRef(null); const [replyTo, setReplyTo] = useState(null);
+  const inRef = useRef(null); const [replyTo, setReplyTo] = useState(null); const swipe = useRef(null); const [swipeX, setSwipeX] = useState(null);
   const touchDev = typeof window !== "undefined" && ("ontouchstart" in window) && window.innerWidth < 900;
   useEffect(() => { const el = inRef.current; if (!el) return; el.style.height = "38px"; if (el.scrollHeight > 40) el.style.height = Math.min(el.scrollHeight, 132) + "px"; }, [txt]);
   const startReply = (m) => { setReplyTo({ id: m.id, from: m.from || user.name, text: (m.text || (m.song ? "🎵 Chord chart" : m.file ? (m.file.url ? "📷 Photo" : "📎 " + m.file.name) : "")).slice(0, 140) }); setReactFor(null); if (editId != null) cancelEdit(); setTimeout(() => inRef.current && inRef.current.focus(), 30); };
@@ -827,10 +827,15 @@ function ChatScreen() {
         </div>
         <Btn full variant="soft" icon={Plus} style={{ marginTop: 10 }} onClick={() => { setSongPick(false); push({ screen: "songedit" }); }}>New song</Btn>
       </Sheet>
-      <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0" }} className="bz-noscroll">
+      <div ref={listRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "6px 0" }} className="bz-noscroll">
         {(chat[ch] || []).map((m) => (
           m.sys ? <div key={m.id} style={{ textAlign: "center", fontSize: 11, color: T.faint, margin: "4px 0 12px" }}><span style={{ background: T.card2, padding: "3px 10px", borderRadius: 99 }}>{m.text}</span></div> :
-          <div key={m.id} id={"bzmsg-" + m.id} style={{ display: "flex", gap: 8, justifyContent: m.me ? "flex-end" : "flex-start", marginBottom: 12, borderRadius: 14 }}>
+          <div key={m.id} id={"bzmsg-" + m.id}
+            onTouchStart={(e) => { if (!canPost) return; swipe.current = { id: m.id, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null }; }}
+            onTouchMove={(e) => { const sw = swipe.current; if (!sw || sw.id !== m.id) return; const dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y; if (sw.lock == null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) sw.lock = Math.abs(dx) > Math.abs(dy) ? "x" : "y"; if (sw.lock !== "x") return; sw.dx = Math.max(-80, Math.min(0, dx)); setSwipeX({ id: m.id, dx: sw.dx }); }}
+            onTouchEnd={() => { const sw = swipe.current; if (sw && sw.id === m.id && sw.dx < -55) { if (navigator.vibrate) navigator.vibrate(15); startReply(m); } swipe.current = null; setSwipeX(null); }}
+            style={{ display: "flex", gap: 8, justifyContent: m.me ? "flex-end" : "flex-start", marginBottom: 12, borderRadius: 14, position: "relative", transform: swipeX && swipeX.id === m.id ? `translateX(${swipeX.dx}px)` : "none", transition: swipeX && swipeX.id === m.id ? "none" : "transform .2s" }}>
+            {swipeX && swipeX.id === m.id && <div style={{ position: "absolute", right: -44, top: "50%", transform: `translateY(-50%) scale(${Math.min(1, -swipeX.dx / 55)})`, width: 32, height: 32, borderRadius: 99, background: -swipeX.dx > 55 ? T.accent : T.card2, color: -swipeX.dx > 55 ? T.accentText : T.text, display: "grid", placeItems: "center", fontSize: 16 }}>↩</div>}
             {!m.me && <Avatar name={m.from} size={30} color={m.color || colorOf(m.from)} />}
             <div style={{ maxWidth: "76%", position: "relative" }}>
               {!m.me && <div style={{ fontSize: 11, color: T.sub, fontWeight: 600, margin: "0 0 3px 4px" }}>{m.from}</div>}
@@ -855,7 +860,7 @@ function ChatScreen() {
               )}
               {reactFor === m.id && (
                 <div className="bz-up" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 6 }}>
-                  {canPost && <button onClick={() => startReply(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>↩ Reply</button>}
+                  {canPost && !touchDev && <button onClick={() => startReply(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>↩ Reply</button>}
                   {m.me && m.text && !m.song && <button onClick={() => startEdit(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}><Edit size={13} noBlob /> Edit</button>}
                   {m.me && CLOUD.on && <button onClick={() => { setSeenMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>👁 Seen by {seenBy(m).length}</button>}
                   {(m.me || leader) && <button onClick={() => { setDelMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: "#ff5a6e", border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>🗑 Delete</button>}
@@ -990,7 +995,7 @@ function SettingsScreen() {
       <Group title="Appearance">
         <div style={{ padding: "12px 0" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {["youth", "light", "calm", "dark", "graffiti", "riot"].map((k) => THEMES[k]).map((th) => (
+            {["youth", "light", "calm", "dark", "graffiti", "riot", "drip", "acid"].map((k) => THEMES[k]).map((th) => (
               <button key={th.id} onClick={() => setThemeId(th.id)} style={{ border: themeId === th.id ? `2.5px solid ${T.accent}` : `1.5px solid ${T.border}`, borderRadius: 14, padding: 4, background: "transparent", cursor: "pointer", fontFamily: FONT, color: T.text, minWidth: 0 }}>
                 <div style={{ height: 44, borderRadius: 10, background: th.bg, backgroundImage: th.texture > 0.4 ? NOISE_SVG : "none", position: "relative", overflow: "hidden" }}>
                   <div style={{ position: "absolute", left: 5, right: 5, top: 5, height: 13, borderRadius: 5, background: th.heroBg || th.hero }} />

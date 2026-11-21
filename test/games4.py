@@ -8,7 +8,7 @@ async def main():
         ctx = await b.new_context(viewport={"width":412,"height":880}); await ctx.add_init_script(FAKE)
         errs=[]
         A = await newpage(ctx, errs, "A"); await signup(A, "Hanna Tesfaye", "hanna@x.com", ["Keys","Acoustic guitar","Lead guitar","Bass","Drums","Sound","Singer"])
-        dep = {"Keys":["Chord Builder","Inversion Spotter","Slash Chord Ears","Scale Spotter"],"Acoustic Guitar":["Strum Spotter","Capo Calculator"],"Lead Guitar":["Bend Check"],"Bass":["Root Finder","Lock Check"],"Drums":["Groove Spotter","Fill Counter"],"Sound":["Low-Cut Ears","Delay Timer"]}
+        dep = {"Acoustic Guitar":["Open Chord Ears","Chord Change Ears"],"Bass":["Bass Walk"],"Drums":["Kit Piece ID","Subdivision Spotter","Dynamics Ears"],"Sound":["Sound Tech Quiz"]}
         for d, gs in dep.items():
             for g in gs:
                 await A.get_by_role("button", name="Games", exact=True).last.click(); await A.wait_for_timeout(250)
@@ -17,7 +17,7 @@ async def main():
                 await A.locator(V).locator("button:not([disabled])").filter(has_text="1").first.click(); await A.wait_for_timeout(1200)
                 t = (await A.locator(V).inner_text()).replace("\n"," | ")[:140]
                 print(g, "->", t)
-        for g in ["Scale Climber","Chord Tone Singer","Long Note Hold"]:
+        for g in ["Tizita Singer","Minor Scale Climber"]:
             await A.get_by_role("button", name="Games", exact=True).last.click(); await A.wait_for_timeout(250)
             await A.locator(V).get_by_role("button", name="Singer").first.click(); await A.wait_for_timeout(200)
             await A.locator(V).get_by_text(g).first.click(); await A.wait_for_timeout(300)

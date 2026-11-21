@@ -66,6 +66,50 @@ function Layer({ visible, fill, push: isPush, children, web, wide }) {
   );
 }
 
+function DripBG() {
+  /* neon paint dripping from the top, glowing outline tags, scanlines */
+  const drips = Array.from({ length: 22 }, (_, i) => ({ x: (i * 19 + (i % 3) * 7) % 400, w: 4 + (i * 7) % 9, h: 60 + ((i * 53) % 260), c: ["#FF2BD6", "#00F5FF", "#B6FF00", "#7B2CFF", "#FFB800"][i % 5] }));
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 400 860" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <defs><filter id="ng"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1" fill="rgba(255,255,255,0.035)" /></pattern>
+        <radialGradient id="glo" cx="50%" cy="35%" r="70%"><stop offset="0" stopColor="#3A0F5C" /><stop offset="1" stopColor="#0B0414" /></radialGradient></defs>
+      <rect width="400" height="860" fill="url(#glo)" />
+      <g opacity="0.33">{drips.map((d, i) => <g key={i} fill={d.c}><rect x={d.x} y={-4} width={d.w} height={d.h} rx={d.w / 2} /><circle cx={d.x + d.w / 2} cy={d.h} r={d.w * 0.85} /></g>)}<rect x="0" y="-4" width="400" height="22" fill="#FF2BD6" /><rect x="0" y="14" width="400" height="8" fill="#00F5FF" /></g>
+      <g opacity="0.3" filter="url(#ng)" fill="none" strokeWidth="2.5">
+        <text x="20" y="330" fontFamily="Sedgwick Ave Display, cursive" fontSize="110" stroke="#00F5FF" transform="rotate(-8 20 330)">HOLY</text>
+        <text x="90" y="520" fontFamily="Sedgwick Ave Display, cursive" fontSize="96" stroke="#FF2BD6" transform="rotate(5 90 520)">GHOST</text>
+        <text x="10" y="700" fontFamily="Permanent Marker, cursive" fontSize="70" stroke="#B6FF00" transform="rotate(-4 10 700)">FIRE</text>
+        <path d="M300 620 l30 -50 l10 30 l30 -50" stroke="#FFB800" strokeWidth="5" strokeLinecap="round" />
+        <path d="M60 790 q40 -40 80 0 t80 0 t80 0" stroke="#7B2CFF" strokeWidth="5" />
+        <circle cx="320" cy="250" r="40" stroke="#FF2BD6" strokeWidth="5" /><circle cx="320" cy="250" r="22" stroke="#00F5FF" strokeWidth="4" />
+      </g>
+      <rect width="400" height="860" fill="url(#scan)" />
+    </svg>
+  );
+}
+function AcidBG() {
+  /* concrete wall, halftone dots, wildstyle arrows, torn stickers and stencils */
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 400 860" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <defs><pattern id="ht" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r="2.2" fill="#D7FF00" /></pattern>
+        <pattern id="ht2" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1.6" fill="#FF5A1F" /></pattern>
+        <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" /><feDisplacementMap in="SourceGraphic" scale="3" /></filter></defs>
+      <rect width="400" height="860" fill="#1C1D1A" />
+      <g opacity="0.18"><circle cx="330" cy="120" r="110" fill="url(#ht)" /><circle cx="60" cy="560" r="130" fill="url(#ht2)" /><rect x="220" y="700" width="200" height="160" fill="url(#ht)" /></g>
+      <g opacity="0.26" filter="url(#rough)">
+        <path d="M20 260 L120 220 L110 250 L210 230 L200 270 L320 250 L300 300 L360 290" fill="none" stroke="#D7FF00" strokeWidth="9" strokeLinejoin="bevel" />
+        <path d="M352 284 l18 6 l-14 14" fill="#D7FF00" />
+        <text x="30" y="420" fontFamily="Sedgwick Ave Display, cursive" fontSize="120" fill="#FF5A1F" stroke="#111" strokeWidth="4" transform="rotate(-6 30 420)">BEZA</text>
+        <text x="140" y="480" fontFamily="Permanent Marker, cursive" fontSize="44" fill="#D7FF00" transform="rotate(4 140 480)">worship crew</text>
+        <g transform="rotate(-10 300 640)"><rect x="250" y="600" width="120" height="70" rx="6" fill="#F6F7EE" /><text x="262" y="645" fontFamily="Poppins" fontWeight="900" fontSize="26" fill="#111">JESUS</text></g>
+        <g transform="rotate(8 70 780)"><rect x="20" y="750" width="120" height="56" rx="28" fill="#00E0A4" /><text x="38" y="787" fontFamily="Poppins" fontWeight="900" fontSize="22" fill="#111">PRAISE</text></g>
+        <path d="M300 60 l14 -28 l14 28 l14 -28 l14 28 v16 h-56 z" fill="#FFB300" stroke="#111" strokeWidth="3" />
+        <text x="190" y="170" fontFamily="Poppins" fontWeight="900" fontSize="30" fill="none" stroke="#FF2E63" strokeWidth="2">★ ★ ★</text>
+      </g>
+    </svg>
+  );
+}
 function RiotBG() {
   const tags = [["JESUS", 18, 150, -10, "#FF0A78", 92, "Sedgwick Ave Display"], ["IS KING", 120, 250, 6, "#39FF14", 70, "Permanent Marker"], ["BEZA", -10, 420, -14, "#00F0FF", 130, "Sedgwick Ave Display"], ["YOUTH", 170, 520, 9, "#FFE53D", 88, "Sedgwick Ave Display"], ["PRAISE!", 10, 690, -7, "#FF8A00", 84, "Permanent Marker"], ["ኢየሱስ", 210, 800, -3, "#B026FF", 70, "Poppins"], ["WORSHIP", 60, 350, 3, "#ffffff", 40, "Permanent Marker"]];
   return (
@@ -207,10 +251,11 @@ export default function BezaYouthWorshipTeam() {
   const [sessionsDone, setSessionsDone] = useState(saved.sessionsDone || {});
   const [toastMsg, setToastMsg] = useState("");
   const [quick, setQuick] = useState(false);
-  const [intro, setIntro] = useState(true);
-  // draw the intro first; build the rest of the app in small background slices so the intro never stutters
-  const [shellReady, setShellReady] = useState(false);
-  useEffect(() => { const t = setTimeout(() => React.startTransition(() => setShellReady(true)), 5300); const b = document.getElementById("boot"); if (b) { b.style.opacity = "0"; setTimeout(() => b.remove(), 400); } return () => clearTimeout(t); }, []);
+  // full intro only the very first time — after that the app opens straight away
+  const firstRun = (() => { try { return !localStorage.getItem("beza-intro-seen"); } catch (e) { return false; } })();
+  const [intro, setIntro] = useState(firstRun);
+  const [shellReady, setShellReady] = useState(!firstRun);
+  useEffect(() => { try { localStorage.setItem("beza-intro-seen", "1"); } catch (e) { } const t = firstRun ? setTimeout(() => React.startTransition(() => setShellReady(true)), 5300) : null; const b = document.getElementById("boot"); if (b) { b.style.opacity = "0"; setTimeout(() => b.remove(), 400); } return () => t && clearTimeout(t); }, []); // eslint-disable-line
   const [chatRead, setChatRead] = useState(() => { try { return JSON.parse(localStorage.getItem("beza-chat-read") || "{}"); } catch (e) { return {}; } });
   const [chatReads, setChatReads] = useState({}); const [events, setEvents] = useState(() => (CLOUD.on ? [] : saved.events || [])); const [chatPing, setChatPing] = useState(null);
   const [chat, setChat] = useState(() => (CLOUD.on ? {} : { ...SEED_CHAT, ...(saved.chat || {}) }));
@@ -384,7 +429,7 @@ export default function BezaYouthWorshipTeam() {
       <div className={`bz-root bz-stage${web || (big && full) ? " bz-web" : ""}${scaled ? " bz-scaled" : ""}`} style={{ background: T.dark ? "#07090b" : "#d9dfe1", fontFamily: FONT, ["--bz-accent"]: T.accent, ["--bz-thumb"]: T.dark ? "#1b2328" : "#fff", ["--ico-blob"]: T.blob }}>
         <div className="bz-device" ref={setHost} style={{ background: T.bg, color: T.text, ...(scaled ? { width: VW, height: VH, transform: `scale(${sc})`, transformOrigin: "0 0" } : {}) }}>
           <div style={{ position: "absolute", inset: 0, backgroundImage: `${NOISE_SVG}, ${WEAVE}`, opacity: T.texture, pointerEvents: "none", mixBlendMode: T.dark ? "overlay" : "multiply" }} />
-          {T.crazy ? <RiotBG /> : T.graffiti && <GraffitiBG />}
+          {T.crazy === "drip" ? <DripBG /> : T.crazy === "acid" ? <AcidBG /> : T.crazy ? <RiotBG /> : T.graffiti && <GraffitiBG />}
           <div className="bz-status" style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, alignItems: "center", justifyContent: "space-between", padding: "0 30px", fontSize: 14, fontWeight: 700, zIndex: 30 }}>
             <span>{time}</span><span style={{ width: 110, height: 28, borderRadius: 20, background: "#000", position: "absolute", left: "50%", transform: "translateX(-50%)", top: 8 }} /><span style={{ display: "flex", gap: 5, alignItems: "center" }}><Radio size={14} noBlob /><span style={{ width: 24, height: 12, borderRadius: 4, border: `1.6px solid ${T.text}`, display: "inline-block", position: "relative" }}><span style={{ position: "absolute", inset: 1.5, right: 5, background: T.text, borderRadius: 2 }} /></span></span>
           </div>

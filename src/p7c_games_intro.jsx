@@ -125,15 +125,20 @@ const KEYS_ALL = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const KEY_PATH = [0, 7, 5, 2, 10, 9, 3, 4, 8, 11, 1, 6]; // C G F D Bb A Eb E Ab B Db F# — easiest first
 const MINOR_CIRCLE = [9, 4, 2, 11, 7, 6, 0, 1, 5, 8, 10, 3]; // Am Em Dm Bm Gm F#m Cm C#m Fm G#m Bbm Ebm
 const keysUpTo = (n) => KEY_PATH.slice(0, Math.max(1, Math.min(12, n)));
-const PER = 30, MAXL = 150;
+const PER = 3, MAXL = 15;
+/* 15 levels per game; each level maps onto the full difficulty curve (1..150) the generators were built for */
+const vL = (L) => Math.round(1 + (Math.min(MAXL, Math.max(1, L)) - 1) * 149 / 14);
+/* special levels: every 5th is a BOSS level; 4, 8, 12 bring a surprise twist */
+const SURPRISES = [["speed", "⚡ Speed round", "Half the time per question — think fast!"], ["streak", "🔥 Streak frenzy", "Streaks count triple — don't break the chain!"], ["sudden", "🎯 Sudden death", "One wrong answer ends the level."], ["mix", "🧩 Mix-up", "Questions from every level you've unlocked."]];
+const levelKind = (L) => (L % 5 === 0 ? { id: "boss", label: "👑 BOSS LEVEL", desc: "15 questions, faster timer, mixed from the last 5 levels — DOUBLE XP." } : L % 4 === 0 ? (([id, label, desc]) => ({ id, label, desc }))(SURPRISES[(L / 4 - 1) % SURPRISES.length]) : null);
 const TIERS = [["Beginner", "#7CFFB2"], ["Intermediate", "#22E4FF"], ["Advanced", "#8B5CFF"], ["Pro", "#FF8A00"], ["Legend", "#FF3EA5"]];
 const tierIdx = (L) => Math.min(TIERS.length - 1, Math.floor((L - 1) / PER));
 const tierOf = (L) => TIERS[tierIdx(L)];
 const inTier = (L) => ((L - 1) % PER) + 1;
-const segOf = (L) => Math.floor((inTier(L) - 1) / 5); // 0..5 — something new every 5 levels
+const segOf = (L) => Math.floor((((vL(L) - 1) % 30)) / 5); // 0..5 — something new every level
 const passFor = (L) => [7, 7, 8, 8, 9][tierIdx(L)];
-const prog01 = (L) => (inTier(L) - 1) / 29; // 0..1 inside a tier
-const TS = (L) => [tierIdx(L), segOf(L), inTier(L)];
+const prog01 = (L) => (((vL(L) - 1) % 30)) / 29; // 0..1 inside a tier
+const TS = (L) => [Math.min(4, Math.floor((vL(L) - 1) / 30)), segOf(L), ((vL(L) - 1) % 30) + 1];
 const kName = (k) => NOTE_NAMES[k];
 const DEG_SEMI = { "1": 0, "b2": 1, "2": 2, "b3": 3, "3": 4, "4": 5, "#4": 6, "5": 7, "b6": 8, "6": 9, "b7": 10, "7": 11, "8": 12 };
 const DEG_ORDER = ["1", "b2", "2", "b3", "3", "4", "#4", "5", "b6", "6", "b7", "7", "8"];
@@ -332,6 +337,7 @@ function GamesHub({ root }) {
           <Btn small variant="light" onClick={() => push({ screen: "board" })}>Board</Btn>
         </div>
       </Card>
+      <div style={{ fontSize: 12.5, color: T.sub, margin: "12px 2px 0" }}>{rr.label}: <b style={{ color: T.text }}>{list.length + (tg ? 1 : 0) + (rid === "singer" ? VOICE_GAMES.length : 0)} games</b> made for your team</div>
       {roles.length > 1 && <Scroller style={{ marginTop: 14 }}>{roles.map((x) => <Chip key={x} active={rid === x} onClick={() => setRid(x)} style={{ borderColor: roleOf(x).color }}>{roleOf(x).label}</Chip>)}</Scroller>}
       {tg && <>
         <SectionTitle>Play with your {rid === "singer" ? "voice" : "instrument"}</SectionTitle>
@@ -348,7 +354,7 @@ function GamesHub({ root }) {
           return <Card key={v.id} onClick={() => push({ screen: "vgame", id: v.id })} style={{ display: "flex", gap: 12, alignItems: "center", borderLeft: `6px solid ${v.color}`, cursor: "pointer" }}>
             <div style={{ fontSize: 30 }}>{v.emoji}</div>
             <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 15 }}>{v.title}</div><div style={{ fontSize: 12, color: T.sub, lineHeight: 1.4 }}>{v.desc}</div><div style={{ fontSize: 11, color: T.faint, marginTop: 3 }}>Trains: {v.trains}</div></div>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>⭐ {st}/9</div>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>⭐ {st}/45</div>
           </Card>; })}</div>
       </>}
       {list.length > 0 && <SectionTitle>{rr.label} games</SectionTitle>}
@@ -360,7 +366,7 @@ function GamesHub({ root }) {
               <div style={{ fontWeight: 800, fontSize: 14.5, marginTop: 10, lineHeight: 1.2 }}>{g.title}</div>
               <div style={{ fontSize: 11.5, color: T.sub, marginTop: 3, lineHeight: 1.35 }}>{g.desc}</div>
               {GAME_HOW[g.id] && <div style={{ fontSize: 10.5, color: T.faint, marginTop: 4, lineHeight: 1.35 }}>Trains: {GAME_HOW[g.id][1]}</div>}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, marginTop: 10 }}><span style={{ color: tierOf(unlocked)[1] }}>{tierOf(unlocked)[0]} {inTier(unlocked)}/{PER}</span><span>⭐ {stars}/{MAXL * 3}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, marginTop: 10 }}><span style={{ color: tierOf(unlocked)[1] }}>Level {unlocked}/{MAXL} · {tierOf(unlocked)[0]}</span><span>⭐ {stars}/{MAXL * 3}</span></div>
             </Card>
           ); })}
       </div>
@@ -447,26 +453,28 @@ function GameScreen({ id }) {
   const [sel, setSel] = useState([]);
   const [summary, setSummary] = useState(null);
   const rightRef = useRef(0); const scoreRef = useRef(0);
-  const limit = (l) => (g.time ? g.time(l) : Math.max(4, Math.round(15 - tierIdx(l) * 2 - prog01(l) * 2)));
+  const kind = lv ? levelKind(lv) : null; const qpl = kind && kind.id === "boss" ? 15 : QPL;
+  const limit = (l) => { const base = g.time ? g.time(l) : Math.max(4, Math.round(15 - tierIdx(l) * 2 - prog01(l) * 2)); const k = levelKind(lv || l); return k && k.id === "speed" ? Math.max(3, Math.round(base / 2)) : k && k.id === "boss" ? Math.max(4, Math.round(base * 0.75)) : base; };
   const lastQ = useRef({ sig: null, ans: null });
   const start = (l) => { setTier(tierIdx(l)); rightRef.current = 0; scoreRef.current = 0; setLv(l); setQi(0); setScore(0); setRight(0); setStreak(0); setSummary(null); next(l, 0); };
-  const next = (l, i) => { let nq; for (let k = 0; k < 40; k++) { nq = g.gen(l); const sig = nq.sig || nq.prompt + (nq.answer || ""); if (sig !== lastQ.current.sig && (!nq.answer || nq.answer !== lastQ.current.ans || k > 30)) break; } lastQ.current = { sig: nq.sig || nq.prompt + (nq.answer || ""), ans: nq.answer }; setQ(nq); setFb(null); setSel([]); setLeft(limit(l)); setTimeout(() => nq.play && nq.play(), 250); };
+  const next = (l, i) => { let nq; const k0 = levelKind(l); for (let k = 0; k < 40; k++) { const gl = k0 && k0.id === "boss" ? Math.max(1, l - rand(5)) : k0 && k0.id === "mix" ? 1 + rand(l) : l; nq = g.gen(gl); const sig = nq.sig || nq.prompt + (nq.answer || ""); if (sig !== lastQ.current.sig && (!nq.answer || nq.answer !== lastQ.current.ans || k > 30)) break; } lastQ.current = { sig: nq.sig || nq.prompt + (nq.answer || ""), ans: nq.answer }; setQ(nq); setFb(null); setSel([]); setLeft(limit(l)); setTimeout(() => nq.play && nq.play(), 250); };
   useEffect(() => { if (!q || fb || summary || q.kind === "tap") return; if (left <= 0) { answer(null); return; } const t = setTimeout(() => setLeft((x) => x - 1), 1000); return () => clearTimeout(t); }, [left, q, fb, summary]); // eslint-disable-line
   const answer = (ok, msg) => {
-    if (fb) return; const pts = ok ? Math.round((100 + left * 12) * (1 + Math.min(streak, 10) * 0.1)) : 0;
+    if (fb) return; const kk = levelKind(lv); const pts = ok ? Math.round((100 + left * 12) * (1 + Math.min(streak, 10) * (kk && kk.id === "streak" ? 0.3 : 0.1)) * (kk && kk.id === "boss" ? 2 : 1)) : 0;
     scoreRef.current += pts; setScore(scoreRef.current); if (ok) { rightRef.current += 1; setRight(rightRef.current); setStreak((s) => s + 1); AE.tone(84, 0.12, 0, 0.35); AE.tone(91, 0.2, 0.08, 0.35); } else { setStreak(0); }
     setFb({ ok, pts, msg }); if (q.reveal) setTimeout(q.reveal, 300);
-    setTimeout(() => { if (qi + 1 >= QPL) finish(); else { setQi(qi + 1); next(lv, qi + 1); } }, ok ? 900 : 1700);
+    const sudden = !ok && kk && kk.id === "sudden";
+    setTimeout(() => { if (qi + 1 >= qpl || sudden) finish(); else { setQi(qi + 1); next(lv, qi + 1); } }, ok ? 900 : 1700);
   };
   const finish = () => {
     setQ(null);
     const r = rightRef.current, sc = scoreRef.current;
-    const pass = passFor(lv); const stars = r >= 10 ? 3 : r >= 9 && pass < 9 ? 2 : r >= pass ? 1 : 0;
+    const scale = qpl / 10; const pass = Math.ceil(passFor(lv) * scale); const stars = r >= qpl ? 3 : r >= Math.ceil(9 * scale) && pass < Math.ceil(9 * scale) ? 2 : r >= pass ? 1 : 0;
     const prev = best[lv] || { score: 0, stars: 0 };
     setGames((G) => ({ ...G, best: { ...G.best, [g.id]: { ...(G.best[g.id] || {}), [lv]: { score: Math.max(prev.score, sc), stars: Math.max(prev.stars, stars) } } } }));
     setSummary({ right: r, score: sc, stars, newBest: sc > prev.score });
     logPractice(3, `Game: ${g.title}`);
-    if (stars > 0 && lv < MAXL && !prev.stars) toast(lv % PER === 0 ? `${tierOf(lv + 1)[0]} tier unlocked! 🔥` : `Level ${lv + 1} unlocked! 🔓`);
+    if (stars > 0 && lv < MAXL && !prev.stars) toast(levelKind(lv + 1) ? `${levelKind(lv + 1).label} unlocked! 🔥` : lv % PER === 0 ? `${tierOf(lv + 1)[0]} tier unlocked! 🔥` : `Level ${lv + 1} unlocked! 🔓`);
   };
   const choose = (opt) => answer(opt === q.answer);
   const tapKey = (m) => {
@@ -483,32 +491,34 @@ function GameScreen({ id }) {
           <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, opacity: 0.85 }}>{tierOf(lv)[0].toUpperCase()} · LEVEL {inTier(lv)} {summary.stars ? "CLEARED" : "NOT YET"}</div>
           <div style={{ fontSize: 40, margin: "6px 0" }}>{[0, 1, 2].map((i) => <span key={i} style={{ opacity: i < summary.stars ? 1 : 0.25 }}>⭐</span>)}</div>
           <div style={{ fontSize: 30, fontWeight: 900 }}>{summary.score.toLocaleString()} pts</div>
-          <div style={{ fontSize: 13, opacity: 0.9 }}>{summary.right}/{QPL} correct{summary.newBest && summary.stars ? " · new personal best! 🎉" : ""}</div>
-          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>{summary.stars ? `${passFor(lv)}+ correct passes · 10/10 = ⭐⭐⭐` : `You need ${passFor(lv)}/10 to pass. You've got this — try again!`}</div>
+          <div style={{ fontSize: 13, opacity: 0.9 }}>{summary.right}/{qpl} correct{summary.newBest && summary.stars ? " · new personal best! 🎉" : ""}</div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>{summary.stars ? `${Math.ceil(passFor(lv) * qpl / 10)}+ correct passes · ${qpl}/${qpl} = ⭐⭐⭐` : `You need ${Math.ceil(passFor(lv) * qpl / 10)}/${qpl} to pass. You've got this — try again!`}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
             <Btn full variant="light" icon={Repeat} onClick={() => start(lv)}>Retry</Btn>
-            {summary.stars > 0 && lv < MAXL && <Btn full variant="accent" icon={ChevronRight} onClick={() => start(lv + 1)}>{lv % PER === 0 ? tierOf(lv + 1)[0] : `Level ${inTier(lv + 1)}`}</Btn>}
+            {summary.stars > 0 && lv < MAXL && <Btn full variant="accent" icon={ChevronRight} onClick={() => start(lv + 1)}>{levelKind(lv + 1) ? levelKind(lv + 1).label : `Level ${lv + 1}`}</Btn>}
           </div>
         </Card>
       )}
-      <SectionTitle>Levels</SectionTitle>
-      <Scroller style={{ marginBottom: 12 }}>{TIERS.map(([tn, tc], ti) => { const open = ti * PER + 1 <= unlocked; return <Chip key={tn} active={tier === ti} onClick={() => open && setTier(ti)} style={{ opacity: open ? 1 : 0.5, borderColor: tier === ti ? tc : undefined }}>{open ? "" : "🔒 "}{tn}</Chip>; })}</Scroller>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 2px 10px" }}><span style={{ width: 9, height: 9, borderRadius: 9, background: TIERS[tier][1], boxShadow: `0 0 8px ${TIERS[tier][1]}` }} /><span style={{ fontWeight: 800, fontSize: 14 }}>{TIERS[tier][0]}</span><span style={{ fontSize: 11.5, color: T.sub }}>30 levels · need {passFor(tier * PER + 1)}/10 to pass</span></div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 7 }}>
-        {Array.from({ length: PER }, (_, i) => tier * PER + i + 1).map((l) => { const b = best[l]; const locked = l > unlocked; const tc = TIERS[tier][1];
-          return (
-            <button key={l} disabled={locked} onClick={() => start(l)} className="bz-press" style={{ aspectRatio: "1", borderRadius: 14, border: `1.5px solid ${l === unlocked ? tc : T.border}`, boxShadow: l === unlocked ? `0 0 12px ${tc}55` : "none", background: locked ? T.input : b && b.stars ? T.card2 : T.card, color: T.text, fontFamily: FONT, cursor: locked ? "default" : "pointer", opacity: locked ? 0.45 : 1, display: "grid", placeItems: "center", padding: 1 }}>
-              <div><div style={{ fontWeight: 900, fontSize: 15 }}>{locked ? <Lock size={13} noBlob /> : inTier(l)}</div><div style={{ fontSize: 7.5, minHeight: 9, letterSpacing: -1 }}>{b && b.stars ? "⭐".repeat(b.stars) : ""}</div></div>
-            </button>
-          ); })}
+      <SectionTitle>Level journey · {Object.values(best).filter((x) => x.stars).length}/{MAXL} cleared · ⭐ {Object.values(best).reduce((a, x) => a + (x.stars || 0), 0)}/{MAXL * 3}</SectionTitle>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {Array.from({ length: MAXL }, (_, i) => i + 1).map((l) => { const b = best[l]; const locked = l > unlocked; const tc = tierOf(l)[1]; const k = levelKind(l); const cur = l === unlocked; const side = [0, 1, 2, 1][(l - 1) % 4];
+          return (<div key={l}>
+            {(l - 1) % PER === 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 2px 6px" }}><span style={{ width: 9, height: 9, borderRadius: 9, background: tc, boxShadow: `0 0 8px ${tc}` }} /><b style={{ fontSize: 13 }}>{tierOf(l)[0]}</b><span style={{ fontSize: 11, color: T.sub }}>levels {l}–{l + PER - 1}</span></div>}
+            <div style={{ display: "flex", justifyContent: ["flex-start", "center", "flex-end"][side], padding: "4px 18px" }}>
+              <button disabled={locked} onClick={() => start(l)} className="bz-press" style={{ width: k ? 210 : 180, display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 20, border: `2px solid ${cur ? tc : k && !locked ? tc + "99" : T.border}`, boxShadow: cur ? `0 0 18px ${tc}77` : "none", background: locked ? T.input : k ? `linear-gradient(135deg, ${tc}33, ${T.card})` : T.card, color: T.text, fontFamily: FONT, cursor: locked ? "default" : "pointer", opacity: locked ? 0.55 : 1, textAlign: "left" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 99, background: locked ? T.card2 : tc, color: "#111", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 15, flexShrink: 0 }}>{locked ? <Lock size={14} noBlob /> : k && k.id === "boss" ? "👑" : l}</div>
+                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 13 }}>{k ? k.label : `Level ${l}`}</div><div style={{ fontSize: 11, color: T.sub, lineHeight: 1.3 }}>{k ? k.desc : cur ? "Play next" : b && b.stars ? "Cleared" : ""}</div><div style={{ fontSize: 12, letterSpacing: 1 }}>{[0, 1, 2].map((s2) => <span key={s2} style={{ opacity: b && b.stars > s2 ? 1 : 0.2 }}>⭐</span>)}</div></div>
+              </button>
+            </div>
+          </div>); })}
       </div>
-      <Card tone="soft" style={{ marginTop: 14, fontSize: 12.5, lineHeight: 1.55 }}>Each level has 10 questions. Answer fast for bonus points and build a streak for multipliers. Pass to unlock the next level. 5 tiers — Beginner, Intermediate, Advanced, Pro, Legend — with 30 levels each. Every level is a little harder: faster, more keys, more options and trickier sounds. Higher tiers need more correct answers to pass.</Card>
+      <Card tone="soft" style={{ marginTop: 14, fontSize: 12.5, lineHeight: 1.55 }}>15 levels, each one harder than the last: more keys, more options, trickier sounds and less time. Levels 5, 10 and 15 are 👑 BOSS levels (15 questions, double XP). Levels 4, 8 and 12 hide a surprise twist. Answer fast for bonus points, build streaks for multipliers, and collect up to ⭐⭐⭐ on every level. Never the same question twice in a row.</Card>
     </div>
   );
   return (
     <div>
-      <TopBar title={`${g.title} · Level ${lv}`} sub={`Question ${Math.min(qi + 1, QPL)} of ${QPL}`} right={<div style={{ fontWeight: 900, fontSize: 16 }}>{score.toLocaleString()}</div>} />
-      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>{Array.from({ length: QPL }).map((_, i) => <div key={i} style={{ flex: 1, height: 6, borderRadius: 9, background: i < qi ? g.color : i === qi ? T.text : T.card2 }} />)}</div>
+      <TopBar title={`${g.title} · Level ${lv}`} sub={`${kind ? kind.label + " · " : ""}Question ${Math.min(qi + 1, qpl)} of ${qpl}`} right={<div style={{ fontWeight: 900, fontSize: 16 }}>{score.toLocaleString()}</div>} />
+      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>{Array.from({ length: qpl }).map((_, i) => <div key={i} style={{ flex: 1, height: 6, borderRadius: 9, background: i < qi ? g.color : i === qi ? T.text : T.card2 }} />)}</div>
       {q && (
         <Card tone="hero" style={{ padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontWeight: 800 }}>

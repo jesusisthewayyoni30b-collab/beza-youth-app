@@ -85,24 +85,26 @@ function VoiceGame({ id }) {
   const [lvl, setLvl] = useState(0); const [phase, setPhase] = useState("menu");
   const [round, setRound] = useState(0); const [q, setQ] = useState(null); const [step, setStep] = useState(0);
   const [cur, setCur] = useState(null); const [score, setScore] = useState(0); const [hits, setHits] = useState(0); const [left, setLeft] = useState(10); const [err, setErr] = useState("");
-  const ROUNDS = 8; const mid = voiceRange ? Math.round((voiceRange.low + voiceRange.high) / 2) : 62;
-  const st = useRef({}); st.current = { q, step, phase };
+  const D = Math.min(2, Math.floor(lvl / 5)); const boss = lvl % 5 === 4; const ROUNDS = 6 + Math.floor(lvl / 3) + (boss ? 3 : 0); const TOL = Math.max(22, Math.round(45 - lvl * 1.6)); const mid = voiceRange ? Math.round((voiceRange.low + voiceRange.high) / 2) : 62;
+  const st = useRef({ tries: 0 }); Object.assign(st.current, { q, step, phase, tol: TOL });
   const newQ = (r) => {
     const key = (mid + 120 - 7 + rand(5)) % 12; const base = mid - ((mid - key) % 12 + 12) % 12; const sc = [0, 2, 4, 5, 7, 9, 11];
     let nq;
-    if (id === "vg_match") { const pool = lvl === 0 ? [0, 2, 4, 7] : lvl === 1 ? sc : Array.from({ length: 12 }, (_, i) => i); const m = base + pick(pool) - (lvl === 2 && Math.random() < 0.4 ? 12 : 0); nq = { targets: [m], cue: [m], prompt: "Sing this note" }; }
-    else if (id === "vg_interval") { const pool = lvl === 0 ? VG_IV.slice(1, 2).concat(VG_IV.slice(4, 5), VG_IV.slice(6, 7)) : lvl === 1 ? VG_IV.slice(0, 7) : VG_IV; const [nm, iv] = pick(pool); const r = mid - Math.round(iv / 2); nq = { targets: [r + iv], cue: [r], prompt: `Sing ${nm} the note you hear`, hint: r + iv }; }
-    else if (id === "vg_echo") { const len = [3, 4, 6][lvl]; let d = 0; const ds = [0]; while (ds.length < len) { d = Math.max(0, Math.min(6, d + pick(lvl === 0 ? [-1, 1] : [-2, -1, 1, 2]))); ds.push(d); } const ms = ds.map((x) => base + sc[x]); nq = { targets: ms, cue: ms, prompt: `Sing back the ${len}-note melody` }; }
-    else if (id === "vg_scale") { const ns = (lvl === 0 ? [0, 2, 4, 5, 7] : lvl === 1 ? [0, 2, 4, 5, 7, 9, 11, 12] : [0, 2, 4, 5, 7, 9, 11, 12, 11, 9, 7, 5, 4, 2, 0]).map((x) => base + x); nq = { targets: ns, cue: [base], chord: [base - 12, base - 8, base - 5], prompt: "Sing up the scale: Do-Re-Mi… one note at a time", hint: null }; }
-    else if (id === "vg_chord") { const d = pick([0, 3, 4, 5]); const r = base + sc[d]; const third = r + (DIATONIC.q[d] === "m" ? 3 : 4); const which = pick(lvl === 0 ? [["root", r], ["5th", r + 7]] : [["root", r], ["3rd", third], ["5th", r + 7]]); nq = { targets: [which[1]], cue: [], chord: [r - 12, third - 12, r - 5], prompt: `Sing the ${which[0]} of this chord`, hint: which[1] }; }
-    else if (id === "vg_hold") { const m = base + pick([0, 2, 4, 7]); nq = { targets: [m], cue: [m], prompt: `Sing and HOLD for ${[3, 5, 8][lvl]} seconds`, hold: [3, 5, 8][lvl] * 20 }; }
-    else { const d = pick(lvl === 0 ? [0, 3, 4] : [0, 1, 3, 4, 5]); const mel = base + sc[d]; const har = base + sc[(d + 2) % 7] + (d + 2 >= 7 ? 12 : 0); nq = { targets: [har], cue: [mel], chord: [base + sc[d] - 12, base + sc[(d + 2) % 7] - 12 + (d + 2 >= 7 ? 12 : 0), base + sc[(d + 4) % 7] - 12 + (d + 4 >= 7 ? 12 : 0)], prompt: "Sing the harmony a 3rd ABOVE the melody note", hint: har }; }
-    setQ(nq); setStep(0); setLeft(id === "vg_echo" || id === "vg_scale" ? 20 : id === "vg_hold" ? 16 : 10); setRound(r); setTimeout(() => cue(nq), 350);
+    if (id === "vg_match") { const pool = D === 0 ? [0, 2, 4, 7] : D === 1 ? sc : Array.from({ length: 12 }, (_, i) => i); const m = base + pick(pool) - (D === 2 && Math.random() < 0.4 ? 12 : 0); nq = { targets: [m], cue: [m], prompt: "Sing this note" }; }
+    else if (id === "vg_interval") { const pool = D === 0 ? VG_IV.slice(1, 2).concat(VG_IV.slice(4, 5), VG_IV.slice(6, 7)) : D === 1 ? VG_IV.slice(0, 7) : VG_IV; const [nm, iv] = pick(pool); const r = mid - Math.round(iv / 2); nq = { targets: [r + iv], cue: [r], prompt: `Sing ${nm} the note you hear`, hint: r + iv }; }
+    else if (id === "vg_echo") { const len = [3, 4, 6][D]; let d = 0; const ds = [0]; while (ds.length < len) { d = Math.max(0, Math.min(6, d + pick(D === 0 ? [-1, 1] : [-2, -1, 1, 2]))); ds.push(d); } const ms = ds.map((x) => base + sc[x]); nq = { targets: ms, cue: ms, prompt: `Sing back the ${len}-note melody` }; }
+    else if (id === "vg_scale") { const ns = (D === 0 ? [0, 2, 4, 5, 7] : D === 1 ? [0, 2, 4, 5, 7, 9, 11, 12] : [0, 2, 4, 5, 7, 9, 11, 12, 11, 9, 7, 5, 4, 2, 0]).map((x) => base + x); nq = { targets: ns, cue: [base], chord: [base - 12, base - 8, base - 5], prompt: "Sing up the scale: Do-Re-Mi… one note at a time", hint: null }; }
+    else if (id === "vg_tizita") { const ns = (D === 0 ? [0, 2, 4, 7, 9] : [0, 2, 4, 7, 9, 12, 9, 7, 4, 2, 0]).map((x) => base + x); nq = { targets: ns, cue: [base], chord: [base - 12, base - 8, base - 5], prompt: "Sing the Tizita run (1 2 3 5 6)", hint: null }; }
+    else if (id === "vg_minor") { const mi = [0, 2, 3, 5, 7, 8, 10, 12]; const ns = (D === 0 ? mi.slice(0, 5) : D === 1 ? mi : [...mi, ...mi.slice(0, -1).reverse()]).map((x) => base - 3 + x); nq = { targets: ns, cue: [base - 3], chord: [base - 15, base - 12, base - 8], prompt: "Sing up the MINOR scale, one note at a time", hint: null }; }
+    else if (id === "vg_chord") { const d = pick([0, 3, 4, 5]); const r = base + sc[d]; const third = r + (DIATONIC.q[d] === "m" ? 3 : 4); const which = pick(D === 0 ? [["root", r], ["5th", r + 7]] : [["root", r], ["3rd", third], ["5th", r + 7]]); nq = { targets: [which[1]], cue: [], chord: [r - 12, third - 12, r - 5], prompt: `Sing the ${which[0]} of this chord`, hint: which[1] }; }
+    else if (id === "vg_hold") { const m = base + pick([0, 2, 4, 7]); nq = { targets: [m], cue: [m], prompt: `Sing and HOLD for ${[3, 5, 8][D]} seconds`, hold: [3, 5, 8][D] * 20 }; }
+    else { const d = pick(D === 0 ? [0, 3, 4] : [0, 1, 3, 4, 5]); const mel = base + sc[d]; const har = base + sc[(d + 2) % 7] + (d + 2 >= 7 ? 12 : 0); nq = { targets: [har], cue: [mel], chord: [base + sc[d] - 12, base + sc[(d + 2) % 7] - 12 + (d + 2 >= 7 ? 12 : 0), base + sc[(d + 4) % 7] - 12 + (d + 4 >= 7 ? 12 : 0)], prompt: "Sing the harmony a 3rd ABOVE the melody note", hint: har }; }
+    if (st.current.lastT != null && nq.targets[0] === st.current.lastT && st.current.tries < 6) { st.current.tries++; return newQ(r); } st.current.tries = 0; st.current.lastT = nq.targets[0]; setQ(nq); setStep(0); setLeft((["vg_echo", "vg_scale", "vg_tizita", "vg_minor"].includes(id) ? 22 : id === "vg_hold" ? 16 : 11) - Math.floor(lvl / 5)); setRound(r); setTimeout(() => cue(nq), 350);
   };
   const cue = (nq) => { const x = nq || q; if (!x) return; if (x.chord) AE.chord(x.chord, 1.6, 0, "piano"); x.cue.forEach((m, i) => AE.play("piano", m, 0.9, i * 0.7, 0.85)); };
   const start = () => { setScore(0); setHits(0); setPhase("play"); newQ(0); };
   const next = (ok) => { if (ok) { setHits((h) => h + 1); AE.chord([84, 88, 91], 0.25); } if (round + 1 >= ROUNDS) { setPhase("done"); } else newQ(round + 1); };
-  useEffect(() => { if (phase !== "play") return; const t = setInterval(() => setLeft((l) => { if (l <= 1) { next(false); return 10; } return l - 1; }), 1000); return () => clearInterval(t); }, [phase, round]); // eslint-disable-line
+  useEffect(() => { if (phase !== "play") return; const t = setInterval(() => setLeft((l) => { if (l <= 1) { next(false); return 99; } return l - 1; }), 1000); return () => clearInterval(t); }, [phase, round]); // eslint-disable-line
   useEffect(() => {
     if (phase !== "play") return; let stream = null, raf = 0, stop = false; setErr("");
     (async () => { try {
@@ -110,26 +112,27 @@ function VoiceGame({ id }) {
       const src = c.createMediaStreamSource(stream); const an = c.createAnalyser(); an.fftSize = 4096; src.connect(an); AE.listen(an); const buf = new Float32Array(4096); const sm = makePitchSmoother(5); let fr = 0, hold = 0;
       const loop = () => { raf = requestAnimationFrame(loop); if ((fr++) % 3) return; an.getFloatTimeDomainData(buf); const f = detectPitch(buf, c.sampleRate); const S = st.current; if (!S.q) return;
         if (f > 60 && f < 1400 && detectPitch.conf > 0.8) { const m = sm(ftom(f, AE.settings.a4)); const tgt = S.q.targets[S.step]; let d = (m - tgt) % 12; if (d > 6) d -= 12; if (d < -6) d += 12; const cents = Math.round(d * 100); setCur(cents);
-          if (Math.abs(cents) <= 35) { hold++; if (hold >= (S.q.hold || 8)) { hold = 0; setScore((s) => s + 100 + Math.max(0, 50 - Math.abs(cents))); if (S.step + 1 < S.q.targets.length) { setStep(S.step + 1); AE.play("piano", 96, 0.1, 0, 0.3); } else { st.current.q = null; next(true); } } } else hold = 0;
+          if (Math.abs(cents) <= S.tol) { hold++; if (hold >= (S.q.hold || 8)) { hold = 0; setScore((s) => s + 100 + Math.max(0, 50 - Math.abs(cents))); if (S.step + 1 < S.q.targets.length) { setStep(S.step + 1); AE.play("piano", 96, 0.1, 0, 0.3); } else { st.current.q = null; next(true); } } } else hold = 0;
         } else { sm(null); setCur(null); hold = 0; } };
       loop(); } catch (e) { setErr(AE.micErr(e)); } })();
     return () => { stop = true; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach((t) => t.stop()); };
   }, [phase]); // eslint-disable-line
-  useEffect(() => { if (phase !== "done") return; const acc = hits / ROUNDS; const stars = acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : acc >= 0.5 ? 1 : 0; const k = String(lvl); const prev = best[k] || { score: 0, stars: 0 };
+  useEffect(() => { if (phase !== "done") return; const acc = hits / ROUNDS; const stars = acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : acc >= 0.5 ? 1 : 0; const k = "L" + lvl; const prev = best[k] || { score: 0, stars: 0 };
     setGames((Gs) => ({ ...Gs, best: { ...Gs.best, [G.id]: { ...(Gs.best[G.id] || {}), [k]: { score: Math.max(prev.score, score), stars: Math.max(prev.stars, stars) } } } })); logPractice(3, G.title); }, [phase]); // eslint-disable-line
   const LV = ["Easy", "Medium", "Hard"];
+  useEffect(() => { const unl = Math.min(14, Object.keys(best).filter((x) => x[0] === "L" && best[x].stars > 0).length); setLvl(unl); }, []); // eslint-disable-line
   if (phase === "play" && q) return (
     <div>
-      <TopBar title={`${G.emoji} ${G.title}`} sub={`${LV[lvl]} · round ${round + 1} of ${ROUNDS}`} right={<Btn small variant="soft" onClick={() => setPhase("menu")}>Quit</Btn>} />
+      <TopBar title={`${G.emoji} ${G.title}`} sub={`${boss ? "👑 BOSS · " : ""}Level ${lvl + 1} · round ${round + 1} of ${ROUNDS}`} right={<Btn small variant="soft" onClick={() => setPhase("menu")}>Quit</Btn>} />
       <Card tone="hero" style={{ textAlign: "center", padding: 20 }}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, opacity: 0.85 }}>{score} PTS · {left}s</div>
         <div style={{ fontSize: 20, fontWeight: 900, margin: "8px 0" }}>{q.prompt}</div>
         {q.targets.length > 1 && <div style={{ display: "flex", justifyContent: "center", gap: 6, margin: "8px 0" }}>{q.targets.map((_, k) => <div key={k} style={{ width: 26, height: 26, borderRadius: 99, display: "grid", placeItems: "center", fontWeight: 900, fontSize: 12, background: k < step ? "#C6FF3D" : k === step ? "#fff" : "rgba(255,255,255,0.2)", color: "#111" }}>{k + 1}</div>)}</div>}
         <div style={{ position: "relative", height: 18, borderRadius: 9, background: "rgba(255,255,255,0.18)", margin: "14px 0 6px" }}>
           <div style={{ position: "absolute", left: "33%", width: "34%", top: 0, bottom: 0, background: "rgba(198,255,61,0.35)", borderRadius: 9 }} />
-          {cur != null && <div style={{ position: "absolute", top: -4, width: 8, height: 26, borderRadius: 4, left: `calc(${50 + Math.max(-50, Math.min(50, cur))}% - 4px)`, background: Math.abs(cur) <= 35 ? "#C6FF3D" : "#FF6B6B", transition: "left .08s" }} />}
+          {cur != null && <div style={{ position: "absolute", top: -4, width: 8, height: 26, borderRadius: 4, left: `calc(${50 + Math.max(-50, Math.min(50, cur))}% - 4px)`, background: Math.abs(cur) <= TOL ? "#C6FF3D" : "#FF6B6B", transition: "left .08s" }} />}
         </div>
-        <div style={{ fontSize: 13, fontWeight: 700, minHeight: 20 }}>{cur == null ? "🎤 Listening… sing now" : Math.abs(cur) <= 35 ? "In tune — hold it!" : cur > 0 ? "Too high ↓" : "Too low ↑"}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, minHeight: 20 }}>{cur == null ? "🎤 Listening… sing now" : Math.abs(cur) <= TOL ? "In tune — hold it!" : cur > 0 ? "Too high ↓" : "Too low ↑"}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <Btn full variant="light" icon={Repeat} onClick={() => cue()}>Hear again</Btn>
           {q.hint != null && <Btn variant="light" onClick={() => AE.play("piano", q.hint, 1.2, 0, 0.7)}>Hint</Btn>}
@@ -146,11 +149,13 @@ function VoiceGame({ id }) {
       {phase === "done" && <Card tone="hero" style={{ textAlign: "center", padding: 20, marginBottom: 12 }}>
         <div style={{ fontSize: 34 }}>{"⭐".repeat(hits / ROUNDS >= 0.9 ? 3 : hits / ROUNDS >= 0.7 ? 2 : hits / ROUNDS >= 0.5 ? 1 : 0) || "—"}</div>
         <div style={{ fontSize: 28, fontWeight: 900 }}>{score} pts</div><div style={{ fontSize: 13, opacity: 0.9 }}>{hits}/{ROUNDS} notes sung in tune</div>
-        <Btn full variant="light" icon={Repeat} style={{ marginTop: 12 }} onClick={start}>Play again</Btn>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}><Btn full variant="light" icon={Repeat} onClick={start}>Play again</Btn>{hits / ROUNDS >= 0.5 && lvl < 14 && <Btn full variant="accent" icon={ChevronRight} onClick={() => { setLvl(lvl + 1); setTimeout(start, 50); }}>Level {lvl + 2}</Btn>}</div>
       </Card>}
       <Card style={{ fontSize: 13.5, lineHeight: 1.55 }}><b>How to play · </b>{G.how}<div style={{ marginTop: 8 }}><b>What it trains · </b>{G.trains}</div></Card>
-      <SectionTitle>Level</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>{LV.map((l, k) => <Card key={l} pad={12} onClick={() => setLvl(k)} style={{ textAlign: "center", cursor: "pointer", border: lvl === k ? `2px solid ${G.color}` : undefined }}><div style={{ fontWeight: 900 }}>{l}</div><div style={{ fontSize: 12, marginTop: 2 }}>{best[String(k)] ? "⭐".repeat(best[String(k)].stars) || "·" : "—"}</div></Card>)}</div>
+      <SectionTitle>Levels · ⭐ {Object.values(best).reduce((x, y) => x + (y.stars || 0), 0)}/45</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>{Array.from({ length: 15 }, (_, k) => { const b = best["L" + k]; const unl = Math.min(14, Object.keys(best).filter((x) => x[0] === "L" && best[x].stars > 0).length); const locked = k > unl; const bs = k % 5 === 4;
+        return <button key={k} disabled={locked} onClick={() => setLvl(k)} className="bz-press" style={{ aspectRatio: "1", borderRadius: 16, border: `2px solid ${lvl === k ? G.color : T.border}`, background: locked ? T.input : bs ? `linear-gradient(135deg, ${G.color}44, ${T.card})` : T.card, color: T.text, fontFamily: FONT, cursor: locked ? "default" : "pointer", opacity: locked ? 0.5 : 1 }}><div style={{ fontWeight: 900, fontSize: 15 }}>{locked ? "🔒" : bs ? "👑" : k + 1}</div><div style={{ fontSize: 8, letterSpacing: -1 }}>{b && b.stars ? "⭐".repeat(b.stars) : ""}</div></button>; })}</div>
+      <Card tone="soft" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5 }}>Level {lvl + 1}: {ROUNDS} rounds · in tune = within ±{TOL} cents{boss ? " · 👑 BOSS: more rounds, tighter tuning" : ""}. Each level gets a little harder; levels 5, 10 and 15 are boss levels.</Card>
       <Btn full variant="accent" icon={Mic} style={{ marginTop: 14 }} onClick={start}>Start singing</Btn>
       {voiceRange && <div style={{ fontSize: 11.5, color: T.sub, textAlign: "center", marginTop: 8 }}>Notes are placed in your range ({voiceRange.label}).</div>}
     </div>
@@ -231,4 +236,49 @@ VOICE_GAMES.push(
   { id: "vg_scale", title: "Scale Climber", emoji: "🧗", color: "#FF8A00", desc: "Sing Do-Re-Mi up (and down) the scale.", how: "The key plays. Sing each step of the scale in order — each dot turns green when you hit it.", trains: "Accurate steps and a strong sense of the key." },
   { id: "vg_chord", title: "Chord Tone Singer", emoji: "🎹", color: "#B57BFF", desc: "A chord plays — sing its root, 3rd or 5th.", how: "A chord plays and the game asks for one of its notes (root, 3rd or 5th). Find it and sing it.", trains: "Finding your harmony note inside the chord the band plays." },
   { id: "vg_hold", title: "Long Note Hold", emoji: "⏳", color: "#7CFFB2", desc: "Hold one note in tune for as long as asked.", how: "A note plays. Sing it and HOLD it steady in tune — the bar must stay green for the whole time.", trains: "Breath support and steady pitch on long notes." },
+);
+
+/* ============================ ROUND 3: 10 games for every team ============================ */
+GAMES.push(
+  { id: "ac_open", title: "Open Chord Ears", desc: "Which open chord was strummed?", icon: Guitar, color: "#FF8A00", roles: ["acoustic"],
+    gen: (L) => { const [t] = TS(L); const pool = [["G", "C", "D"], ["G", "C", "D", "Em"], ["G", "C", "D", "Em", "Am"], ["G", "C", "D", "Em", "Am", "A", "E"], ["G", "C", "D", "Em", "Am", "A", "E", "Dm", "Cadd9"]][t]; const nm = pick(pool);
+      const play = () => { const f = OPEN_SHAPES[nm]; if (f) strumShape(f, "acoustic", 0); };
+      return { kind: "choice", sig: nm + rand(5), prompt: "Which open chord is this?", options: pool, answer: nm, play }; } },
+  { id: "ac_change", title: "Chord Change Ears", desc: "From the 1 chord to… which number?", icon: Repeat, color: "#FFE53D", roles: ["acoustic", "bass"],
+    gen: (L) => { const [t] = TS(L); const k = t === 0 ? 7 : g2Key(); const opts = t === 0 ? ["4", "5"] : t === 1 ? ["4", "5", "6m"] : ["2m", "3m", "4", "5", "6m"]; const ans = pick(opts); const d = { "2m": 1, "3m": 2, "4": 3, "5": 4, "6m": 5 }[ans];
+      const ch = (dd) => { const c = g2Tri(k, dd); return c.iv.map((x) => 48 + c.r + x + (c.r < 4 ? 12 : 0)); };
+      return { kind: "choice", sig: k + ans, prompt: `Key of ${NOTE_NAMES[k]}: the 1 chord, then… which chord?`, options: opts, answer: ans, play: () => { AE.strum(ch(0), "down", 0, 0.7); AE.strum(ch(0), "down", 0.7, 0.5); AE.strum(ch(d), "down", 1.5, 0.75); AE.strum(ch(d), "down", 2.2, 0.5); } }; } },
+  { id: "bs_walk", title: "Bass Walk", desc: "Did the bass walk up, walk down or jump?", icon: Activity, color: "#8B5CFF", roles: ["bass"],
+    gen: (L) => { const kinds = [["Walks up", [0, 2, 4, 5]], ["Walks down", [7, 5, 4, 2]], ["Jumps (root–5th–octave)", [0, 7, 12, 7]], ["Stays on the root", [0, 0, 0, 0]]]; const [nm, st] = pick(kinds); const r = 33 + rand(8);
+      return { kind: "choice", sig: nm + r, prompt: "Listen to the bass line. What does it do?", options: kinds.map((x) => x[0]), answer: nm, play: () => st.forEach((x, i) => AE.play("bass", r + x, 0.5, i * 0.55, 0.95)) }; } },
+  { id: "dr_kit", title: "Kit Piece ID", desc: "Which drum was hit?", icon: Drum, color: "#C6FF3D", roles: ["drums"],
+    gen: (L) => { const [t] = TS(L); const pool = t === 0 ? ["Kick", "Snare", "Hi-hat"] : ["Kick", "Snare", "Hi-hat", "Open hi-hat", "High tom", "Floor tom"]; const nm = pick(pool);
+      const hitIt = () => { if (nm === "Kick") AE.kick(0, 1); else if (nm === "Snare") AE.snare(0, 0.9); else if (nm === "Hi-hat") AE.hat(0, false, 0.7); else if (nm === "Open hi-hat") AE.hat(0, true, 0.8); else if (nm === "High tom") AE.tom(0, 1, 0.9); else AE.tom(0, 3, 0.9); };
+      return { kind: "choice", sig: nm + rand(5), prompt: "Which part of the kit was that?", options: pool, answer: nm, play: hitIt }; } },
+  { id: "dr_sub", title: "Subdivision Spotter", desc: "8ths, triplets or 16ths on the hi-hat?", icon: Timer, color: "#22E4FF", roles: ["drums"],
+    gen: (L) => { const [t] = TS(L); const pool = t === 0 ? [["Quarter notes", 1], ["8th notes", 2]] : t === 1 ? [["Quarter notes", 1], ["8th notes", 2], ["16th notes", 4]] : [["Quarter notes", 1], ["8th notes", 2], ["Triplets", 3], ["16th notes", 4]]; const [nm, n] = pick(pool); const bpm = 76 + rand(20);
+      return { kind: "choice", sig: nm + bpm, prompt: "How is the hi-hat dividing each beat?", options: pool.map((x) => x[0]), answer: nm, play: () => { const b = 60 / bpm; for (let i = 0; i < 8; i++) { AE.kick(i * b, i % 2 ? 0 : 1); if (i % 2) AE.snare(i * b, 0.8); for (let s = 0; s < n; s++) AE.hat(i * b + (s * b) / n, false, s === 0 ? 0.5 : 0.32); } } }; } },
+  { id: "dr_dyn", title: "Dynamics Ears", desc: "Getting louder, softer or staying the same?", icon: Volume2, color: "#FF8A00", roles: ["drums"],
+    gen: (L) => { const [t] = TS(L); const kinds = [["Building (louder)", 1], ["Dropping (softer)", -1], ["Staying the same", 0]]; const [nm, dir] = pick(kinds); const amt = [0.7, 0.55, 0.4, 0.3, 0.22][t];
+      return { kind: "choice", sig: nm + rand(9), prompt: "Listen to the groove. What are the dynamics doing?", options: kinds.map((x) => x[0]), answer: nm, play: () => { const b = 60 / 90; for (let i = 0; i < 12; i++) { const v = Math.max(0.12, Math.min(1, 0.6 + dir * amt * (i / 11 - 0.5))); AE.kick(i * b, i % 2 ? 0 : v); if (i % 2) AE.snare(i * b, v * 0.9); AE.hat(i * b, false, v * 0.5); AE.hat(i * b + b / 2, false, v * 0.35); } } }; } },
+  { id: "sd_quiz", title: "Sound Tech Quiz", desc: "Real situations from the sound desk", icon: Sliders, color: "#7CFFB2", roles: ["sound"],
+    gen: (L) => { const Q = [["A vocal mic starts to feed back in the monitor. First move?", ["Pull that monitor send down", "Turn the main speakers up", "Add reverb", "Mute the band"], 0], ["Which needs phantom power (+48V)?", ["Condenser mic", "Dynamic mic like SM58", "Guitar amp", "Keyboard line out"], 0], ["Kick drum sounds boomy and muddy. Where do you cut?", ["Around 250–400 Hz", "Around 8 kHz", "Around 50 Hz boost", "Around 2 kHz boost"], 0], ["A singer's mic sounds rumbly from stage noise. Use…", ["High-pass (low-cut) around 100 Hz", "Low-pass at 5 kHz", "More gain", "A longer reverb"], 0], ["Gain staging: when do you set the preamp gain?", ["During line check with each musician playing loud", "After the service starts", "Only by looking at the fader", "Never — leave it at max"], 0], ["Delay for a 75 bpm song (quarter note)?", ["800 ms", "400 ms", "75 ms", "1500 ms"], 0], ["The band is too loud for the room. Best first step?", ["Ask the stage to turn amps/monitors down", "Push the vocals up to compete", "Add compression on the master", "Turn the subs up"], 0], ["Compressor ratio for a gentle vocal level control?", ["About 3:1", "20:1", "1:1", "∞:1"], 0], ["Which cable is balanced?", ["XLR mic cable", "Mono guitar jack (TS)", "Speaker wire", "Optical cable"], 0], ["You hear a loud hum when plugging in keys. Try…", ["A DI box with ground lift", "More treble", "A longer cable", "Turning phantom power on"], 0], ["Where should the sound person be during the program?", ["At the desk, listening and watching the stage", "On stage tuning guitars", "Outside", "In the green room"], 0], ["Power-up order?", ["Desk first, amps/speakers last", "Speakers first, desk last", "All at once", "It doesn't matter"], 0]];
+      const [q, opts, a] = pick(Q); return { kind: "choice", sig: q, prompt: q, options: shuffle(opts), answer: opts[a], play: null }; } },
+);
+Object.assign(GAME_HOW, {
+  ac_open: ["An open chord is strummed. Which one?", "Recognising the chords you play every week by ear."], ac_change: ["You hear the 1 chord, then another. Which number is it?", "Following chord changes by ear when there's no chart."],
+  bs_walk: ["A short bass line plays. Does it walk up, walk down, jump or stay?", "Hearing and copying bass lines."], dr_kit: ["One drum or cymbal plays. Which one?", "Knowing every sound of the kit by ear."],
+  dr_sub: ["A groove plays. How is the hi-hat dividing each beat?", "Subdivisions — the key to steady time and feel."], dr_dyn: ["A groove plays. Is it building, dropping or staying the same?", "Controlling dynamics to serve the song."],
+  sd_quiz: ["Real sound-desk situations. Pick the best answer.", "Making the right call fast on Saturday."],
+});
+Object.assign(GAME_SETS, {
+  acoustic: [...GAME_SETS.acoustic, "ac_open", "ac_change", "meter"],
+  lead: [...GAME_SETS.lead, "quality", "sd_delay"],
+  bass: [...GAME_SETS.bass, "rhythm", "bs_walk"],
+  drums: [...GAME_SETS.drums, "dr_kit", "dr_sub", "dr_dyn"],
+  sound: [...GAME_SETS.sound, "sd_quiz"],
+});
+VOICE_GAMES.push(
+  { id: "vg_tizita", title: "Tizita Singer", emoji: "🇪🇹", color: "#FFE53D", desc: "Sing the Tizita (1 2 3 5 6) run.", how: "The key plays. Sing the Tizita notes one by one — up and back down. Each dot turns green when you hit it.", trains: "The Ethiopian worship sound and clean runs." },
+  { id: "vg_minor", title: "Minor Scale Climber", emoji: "🌙", color: "#22E4FF", desc: "Sing up the minor scale, note by note.", how: "The minor key plays. Sing each note of the minor scale in order.", trains: "Hearing minor keys — many worship songs live there." },
 );

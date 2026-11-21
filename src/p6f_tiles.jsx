@@ -40,6 +40,11 @@ const TILE_GAMES = {
   singer: { id: "tiles_voice", title: "Pitch Tiles", desc: "Sing the falling notes — the mic checks your pitch. Your voice only.", inst: "piano", color: "#FF3EA5", oct: 0, inputs: ["mic"], voice: true },
   drums: { id: "tiles_drums", title: "Drum Tiles", desc: "Kick, snare, hats & fills — tap pads, PC keys, an e-kit (MIDI) or your real kit (mic)", inst: "drums", color: "#C6FF3D", oct: 0, inputs: ["touch", "keys", "midi", "mic"], drums: true },
 };
+/* 15-level journey: [chart, key, speed, wait] — boss levels 5/10/15 play without waiting */
+const TL_KEYPATH = [0, 7, 5, 2, 10, 9, 3, 4, 8, 11, 1, 6, 0, 7, 5];
+const tileJourney = (drums) => drums
+  ? [["quarters", 0, 0.8, true], ["basic", 0, 0.8, true], ["singles", 0, 0.8, true], ["pop", 0, 0.8, false], ["fill", 0, 0.8, false], ["half", 0, 1, true], ["doubles", 0, 1, true], ["six8", 0, 1, false], ["para", 0, 1, true], ["pop", 0, 1, false], ["basic", 0, 1.25, false], ["fill", 0, 1, true], ["doubles", 0, 1.25, false], ["six8", 0, 1.25, false], ["fill", 0, 1.25, false]]
+  : [["five", 0, 0.6, true], ["scale", 7, 0.6, true], ["arp", 5, 0.6, true], ["five", 2, 0.8, false], ["ode", 0, 0.8, false], ["thirds", 0, 0.8, true], ["tiz", 9, 0.8, true], ["grace", 0, 0.8, false], ["roots", 10, 1, true], ["dox", 0, 1, false], ["scale", 3, 1, false], ["arp", 4, 1, false], ["thirds", 8, 1, false], ["grace", 0, 1, false], ["ode", 0, 1.25, false]];
 const INPUT_LABEL = { touch: "📱 Screen", keys: "⌨️ Keyboard", midi: "🎹 MIDI", mic: "🎤 Real instrument" };
 const TL_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
 
@@ -53,7 +58,7 @@ function TilesGame({ dept }) {
   const [wait, setWait] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [click, setClick] = useState(true);
-  const [res, setRes] = useState(null);
+  const [res, setRes] = useState(null); const [jl, setJl] = useState(null);
   const [micLvl, setMicLvl] = useState(0); const [heard, setHeard] = useState(null); const [micErr, setMicErr] = useState("");
   const cv = useRef(null); const S = useRef(null); const raf = useRef(0);
   const lists = G.drums ? Object.entries(TL_DRUMS) : [...Object.entries(TL_DRILLS), ...Object.entries(TL_SONGS)];
@@ -68,10 +73,13 @@ function TilesGame({ dept }) {
     const lanes = pitches.map((m, i) => ({ id: m, m, name: nn(m), key: TL_KEYS[i] || "", color: [1, 3, 6, 8, 10].includes(m % 12) ? "#8B5CFF" : G.color, black: [1, 3, 6, 8, 10].includes(m % 12) }));
     return { notes: ns.map((e) => ({ ...e, lane: e.m })), lanes, bpm: src.bpm, title: src.title };
   };
-  const levelKey = () => `${pick}${G.drums || TL_SONGS[pick] ? "" : "-" + key}`;
+  const levelKey = () => (jl != null ? "J" + jl : `${pick}${G.drums || TL_SONGS[pick] ? "" : "-" + key}`);
+  const J = tileJourney(G.drums); const jUnl = Math.min(14, Object.keys(best).filter((x) => x[0] === "J" && best[x].stars > 0).length);
+  const playLevel = (n) => { const [c, k, sp, w] = J[n]; setJl(n); setPick(c); setKey(k); setSpeed(sp); setWait(w); setTimeout(() => startRef.current(), 30); };
+  const startRef = useRef(null);
 
   /* ---------- the game loop ---------- */
-  const start = async () => {
+  const start = async () => { startRef.current = start;
     const ch = buildChart(); const c = AE.get(); if (c.state !== "running") await c.resume();
     if (G.drums) AE.loadDrums(); else AE.load(G.inst);
     const bpm = ch.bpm * speed; const st = { ...ch, bpm, notes: ch.notes.map((n, i) => ({ ...n, i, hit: null })), beat: -4, last: performance.now(), score: 0, combo: 0, maxCombo: 0, perfect: 0, good: 0, miss: 0, wrong: 0, flash: {}, msg: null, lastClick: -5, done: false };
@@ -177,6 +185,7 @@ function TilesGame({ dept }) {
     return () => { stop = true; cancelAnimationFrame(rafId); if (stream) stream.getTracks().forEach((t) => t.stop()); };
   }, [phase, input]); // eslint-disable-line
 
+  startRef.current = start;
   const finish = () => {
     const st = S.current; if (!st) return; const total = st.notes.length;
     const acc = total ? (st.perfect + st.good * 0.7) / (total + st.wrong * 0.5) : 0;
@@ -213,22 +222,26 @@ function TilesGame({ dept }) {
         <div style={{ fontSize: 13, opacity: 0.9 }}>{res.acc}% accuracy · best combo x{res.combo}</div>
         <div style={{ display: "flex", justifyContent: "center", gap: 14, marginTop: 8, fontSize: 12.5 }}><span>✅ {res.perfect} perfect</span><span>👍 {res.good} good</span><span>❌ {res.miss} missed</span>{res.wrong > 0 && <span>⚠ {res.wrong} wrong</span>}</div>
         <div style={{ fontSize: 12.5, marginTop: 8, opacity: 0.9 }}>{res.stars === 3 ? "Excellent! Try it faster or without wait mode." : res.stars === 2 ? "Great work — once more for 3 stars!" : res.stars === 1 ? "Good start. Slow it down and use wait mode." : "Keep going: turn on wait mode and slow speed."}</div>
-        <Btn full variant="light" icon={Repeat} style={{ marginTop: 12 }} onClick={start}>Play again</Btn>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}><Btn full variant="light" icon={Repeat} onClick={start}>Play again</Btn>{jl != null && res.stars > 0 && jl < 14 && <Btn full variant="accent" icon={ChevronRight} onClick={() => playLevel(jl + 1)}>Level {jl + 2}</Btn>}</div>
       </Card>}
-      <SectionTitle>1 · Choose {G.drums ? "a groove" : "a song or drill"}</SectionTitle>
+      <SectionTitle>Level journey · ⭐ {J.reduce((a, _, n) => a + ((best["J" + n] || {}).stars || 0), 0)}/45</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>{J.map(([c, k, sp, w], n) => { const b = best["J" + n]; const locked = n > jUnl; const bs = n % 5 === 4; const ttl = (G.drums ? TL_DRUMS[c] : TL_SONGS[c] || TL_DRILLS[c]).title;
+        return <button key={n} disabled={locked} title={ttl} onClick={() => playLevel(n)} className="bz-press" style={{ aspectRatio: "1", borderRadius: 16, border: `2px solid ${n === jUnl ? G.color : T.border}`, boxShadow: n === jUnl ? `0 0 12px ${G.color}66` : "none", background: locked ? T.input : bs ? `linear-gradient(135deg, ${G.color}44, ${T.card})` : T.card, color: T.text, fontFamily: FONT, cursor: locked ? "default" : "pointer", opacity: locked ? 0.5 : 1 }}><div style={{ fontWeight: 900, fontSize: 15 }}>{locked ? "🔒" : bs ? "👑" : n + 1}</div><div style={{ fontSize: 8, letterSpacing: -1 }}>{b && b.stars ? "⭐".repeat(b.stars) : ""}</div></button>; })}</div>
+      <div style={{ fontSize: 11.5, color: T.sub, margin: "8px 2px 0" }}>Next: Level {jUnl + 1} — {(G.drums ? TL_DRUMS[J[jUnl][0]] : TL_SONGS[J[jUnl][0]] || TL_DRILLS[J[jUnl][0]]).title}{J[jUnl][3] ? " · notes wait for you" : " · in time — no waiting!"}. 👑 = boss level. Choose how you play below, then tap a level.</div>
+      <SectionTitle>Free practice · choose {G.drums ? "a groove" : "a song or drill"}</SectionTitle>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        {lists.map(([id, x]) => { const b = best[`${id}${G.drums || TL_SONGS[id] ? "" : "-" + key}`]; return <Card key={id} pad={10} onClick={() => setPick(id)} style={{ cursor: "pointer", border: pick === id ? `2px solid ${G.color}` : undefined }}><div style={{ fontWeight: 800, fontSize: 13, lineHeight: 1.25 }}>{x.title}</div><div style={{ fontSize: 11, color: T.sub, marginTop: 3 }}>{TL_SONGS[id] ? "Song" : G.drums ? `${x.bpm} bpm` : "Drill · your key"}{b ? ` · ${"★".repeat(b.stars)}` : ""}</div></Card>; })}
+        {lists.map(([id, x]) => { const b = best[`${id}${G.drums || TL_SONGS[id] ? "" : "-" + key}`]; return <Card key={id} pad={10} onClick={() => { setJl(null); setPick(id); }} style={{ cursor: "pointer", border: pick === id ? `2px solid ${G.color}` : undefined }}><div style={{ fontWeight: 800, fontSize: 13, lineHeight: 1.25 }}>{x.title}</div><div style={{ fontSize: 11, color: T.sub, marginTop: 3 }}>{TL_SONGS[id] ? "Song" : G.drums ? `${x.bpm} bpm` : "Drill · your key"}{b ? ` · ${"★".repeat(b.stars)}` : ""}</div></Card>; })}
       </div>
       {!G.drums && TL_DRILLS[pick] && <><div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "12px 2px 6px" }}>KEY</div><KeyChips value={key} onChange={setKey} /></>}
-      <SectionTitle>2 · How will you play?</SectionTitle>
+      <SectionTitle>How will you play?</SectionTitle>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>{G.inputs.map((x) => <Card key={x} pad={10} onClick={() => setInput(x)} style={{ cursor: "pointer", border: input === x ? `2px solid ${G.color}` : undefined, fontWeight: 800, fontSize: 13 }}>{G.voice && x === "mic" ? "🎤 Your voice" : INPUT_LABEL[x]}<div style={{ fontSize: 11, color: T.sub, fontWeight: 500, marginTop: 3 }}>{x === "mic" ? (G.drums ? "Your real drums — the mic hears each hit" : G.voice ? "Sing into the phone" : "Your real instrument near the phone") : x === "midi" ? (G.drums ? "Electronic kit via USB" : "USB / Bluetooth MIDI keyboard") : x === "keys" ? "Computer or phone keyboard" : "Tap the buttons"}</div></Card>)}</div>
-      <SectionTitle>3 · Settings</SectionTitle>
+      <SectionTitle>Settings (free practice)</SectionTitle>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         <Chip active={wait} onClick={() => setWait((w) => !w)}>{wait ? "✓ " : ""}Wait for me (learning mode)</Chip>
         <Chip active={click} onClick={() => setClick((w) => !w)}>{click ? "✓ " : ""}Click</Chip>
         {[[0.6, "Slow"], [0.8, "Steady"], [1, "Normal"], [1.25, "Fast"]].map(([v, l]) => <Chip key={v} active={speed === v} onClick={() => setSpeed(v)}>{l}</Chip>)}
       </div>
-      <Btn full variant="accent" icon={Play} style={{ marginTop: 16 }} onClick={start}>Start</Btn>
+      <Btn full variant="accent" icon={Play} style={{ marginTop: 16 }} onClick={() => { setJl(null); start(); }}>Start free practice</Btn>
       <Card tone="soft" style={{ marginTop: 14, fontSize: 12.5, lineHeight: 1.55 }}>
         <b>Why this game?</b> It's real practice: {G.drums ? "you're training time, coordination and reading grooves." : G.voice ? "you're training pitch accuracy and reading notes." : "you're training finger accuracy, reading notes and playing in time."} Start in <b>wait mode</b> (the notes wait for you), then turn it off and play in time. Three stars = ready for rehearsal.
         {input === "mic" && <div style={{ marginTop: 6 }}>🎤 Mic tips: quiet room, phone 30–60 cm from {G.drums ? "the kit" : G.voice ? "your mouth" : "the instrument"}, one note at a time.{G.drums ? " With a real kit, any clean hit counts for the next tile." : ""}</div>}
