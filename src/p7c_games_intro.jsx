@@ -314,7 +314,7 @@ function GamesHub({ root }) {
   const { T, user, games, push } = useApp();
   const roles = user.roles || [];
   const [rid0, setRid] = useState(roles[0]); const rid = roles.includes(rid0) ? rid0 : roles[0]; const rr = roleOf(rid);
-  const list = gamesFor([rid]); const tg = TILE_GAMES[rid];
+  const list = gamesForRole(rid); const tg = TILE_GAMES[rid];
   const myXP = gameXP(games);
   const board = [...TEAM.map((m) => ({ name: m.name, color: m.color, xp: teamScore(m) })), { name: user.name, color: T.pop, xp: myXP, me: true }].sort((a, b) => b.xp - a.xp);
   const myRank = board.findIndex((b) => b.me) + 1;
@@ -337,11 +337,21 @@ function GamesHub({ root }) {
         <SectionTitle>Play with your {rid === "singer" ? "voice" : "instrument"}</SectionTitle>
         <Card onClick={() => push({ screen: "tiles", dept: rid })} style={{ padding: 16, display: "flex", gap: 14, alignItems: "center", borderLeft: `6px solid ${tg.color}`, cursor: "pointer" }}>
           <div style={{ width: 58, height: 58, borderRadius: 18, background: tg.color, color: "#111", display: "grid", placeItems: "center", fontSize: 28, flexShrink: 0 }}>{rid === "drums" ? "🥁" : rid === "singer" ? "🎤" : rid === "keys" ? "🎹" : "🎸"}</div>
-          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 17 }}>{tg.title}</div><div style={{ fontSize: 12, color: T.sub, lineHeight: 1.4, marginTop: 2 }}>{tg.desc}</div><div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>{tg.inputs.map((x) => <span key={x} style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: T.card2 }}>{INPUT_LABEL[x]}</span>)}</div></div>
+          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 17 }}>{tg.title}</div><div style={{ fontSize: 12, color: T.sub, lineHeight: 1.4, marginTop: 2 }}>{tg.desc}</div><div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>{tg.inputs.map((x) => <span key={x} style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: T.card2 }}>{rid === "singer" && x === "mic" ? "🎤 Your voice" : INPUT_LABEL[x]}</span>)}</div></div>
           <ChevronRight size={18} />
         </Card>
       </>}
-      <SectionTitle>{rr.label} games</SectionTitle>
+      {rid === "singer" && <>
+        <SectionTitle>Voice games</SectionTitle>
+        <div style={{ fontSize: 12.5, color: T.sub, margin: "-4px 2px 10px" }}>Every game here is played with your voice — the mic listens and checks your pitch.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{VOICE_GAMES.map((v) => { const b = games.best[v.id] || {}; const st = Object.values(b).reduce((a, x) => a + (x.stars || 0), 0);
+          return <Card key={v.id} onClick={() => push({ screen: "vgame", id: v.id })} style={{ display: "flex", gap: 12, alignItems: "center", borderLeft: `6px solid ${v.color}`, cursor: "pointer" }}>
+            <div style={{ fontSize: 30 }}>{v.emoji}</div>
+            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 15 }}>{v.title}</div><div style={{ fontSize: 12, color: T.sub, lineHeight: 1.4 }}>{v.desc}</div><div style={{ fontSize: 11, color: T.faint, marginTop: 3 }}>Trains: {v.trains}</div></div>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>⭐ {st}/9</div>
+          </Card>; })}</div>
+      </>}
+      {list.length > 0 && <SectionTitle>{rr.label} games</SectionTitle>}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {list.map((g) => { const b = games.best[g.id] || {}; const unlocked = Math.min(MAXL, Object.keys(b).filter((k) => b[k].stars > 0).length + 1); const stars = Object.values(b).reduce((s, x) => s + (x.stars || 0), 0);
           return (
@@ -349,6 +359,7 @@ function GamesHub({ root }) {
               <g.icon size={28} blobColor={g.color} />
               <div style={{ fontWeight: 800, fontSize: 14.5, marginTop: 10, lineHeight: 1.2 }}>{g.title}</div>
               <div style={{ fontSize: 11.5, color: T.sub, marginTop: 3, lineHeight: 1.35 }}>{g.desc}</div>
+              {GAME_HOW[g.id] && <div style={{ fontSize: 10.5, color: T.faint, marginTop: 4, lineHeight: 1.35 }}>Trains: {GAME_HOW[g.id][1]}</div>}
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, marginTop: 10 }}><span style={{ color: tierOf(unlocked)[1] }}>{tierOf(unlocked)[0]} {inTier(unlocked)}/{PER}</span><span>⭐ {stars}/{MAXL * 3}</span></div>
             </Card>
           ); })}
@@ -359,7 +370,7 @@ function GamesHub({ root }) {
 
 function TeamBoard() {
   const { T, user, games } = useApp();
-  const list = gamesFor(user.roles);
+  const list = [...new Set((user.roles || []).flatMap((r) => GAME_SETS[r] || []))].map((id) => GAMES.find((g) => g.id === id)).filter(Boolean);
   const [gid, setGid] = useState("all");
   const myBest = (id) => Math.max(0, ...Object.values(games.best[id] || {}).map((x) => x.score || 0));
   const myVal = gid === "all" ? gameXP(games) : myBest(gid);
@@ -466,6 +477,7 @@ function GameScreen({ id }) {
   if (lv == null || summary) return (
     <div>
       <TopBar title={g.title} sub={g.desc} />
+      {!summary && GAME_HOW[g.id] && <Card style={{ fontSize: 13.5, lineHeight: 1.55, marginBottom: 12 }}><b>How to play · </b>{GAME_HOW[g.id][0]}<div style={{ marginTop: 6 }}><b>What it trains · </b>{GAME_HOW[g.id][1]}</div></Card>}
       {summary && (
         <Card tone="hero" style={{ textAlign: "center", padding: 22, marginBottom: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, opacity: 0.85 }}>{tierOf(lv)[0].toUpperCase()} · LEVEL {inTier(lv)} {summary.stars ? "CLEARED" : "NOT YET"}</div>

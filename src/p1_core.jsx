@@ -146,6 +146,10 @@ const SAMPLE_SETS = {
 const DRUM_FILES = ["kick", "snare", "hihat", "tom1", "tom2", "tom3"];
 const sampleMidi = (n) => { const m = n.match(/^([A-G])(s?)(\d)$/); return (parseInt(m[3]) + 1) * 12 + { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] ? 1 : 0); };
 
+/* every delayed callback remembers when it was scheduled, so AE.stopAll() can silence notes queued before it */
+(() => { try { if (window.__bzSTpatched) return; window.__bzSTpatched = true; const _st = window.setTimeout.bind(window);
+  window.setTimeout = function (fn, ms, ...a) { if (typeof fn !== "function") return _st(fn, ms, ...a); const born = window.__bzCbBorn != null ? window.__bzCbBorn : performance.now(); return _st(function () { const prev = window.__bzCbBorn; window.__bzCbBorn = born; try { return fn.apply(this, a); } finally { window.__bzCbBorn = prev; } }, ms); };
+} catch (e) { } })();
 const AE = (() => {
   let ctx = null, master = null, noiseBuf = null, pinkBuf = null;
   const settings = { a4: 440, click: "click" };
@@ -193,7 +197,16 @@ const AE = (() => {
   const isReady = (inst) => (inst === "drums" ? !!drums.kick : !!banks[inst]);
   const onReady = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
   const track = (src) => { active.add(src); src.onended = () => active.delete(src); };
-  function stopAll() { active.forEach((s) => { try { s.stop(); } catch (e) { } }); active.clear(); }
+  /* stop everything now — with a tiny fade so there's no click — and silence any delayed notes that were queued before */
+  let stopStamp = 0; const noteSubs = new Set();
+  function stopAll() {
+    stopStamp = performance.now(); window.__bzStopStamp = stopStamp;
+    try { if (ctx && master) { const t = ctx.currentTime; master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0.0001, t + 0.05); setTimeout(() => { active.forEach((s) => { try { s.stop(); } catch (e) { } }); active.clear(); try { const t2 = ctx.currentTime; master.gain.cancelScheduledValues(t2); master.gain.setValueAtTime(0.9, t2); } catch (e) { } }, 70); } else { active.forEach((s) => { try { s.stop(); } catch (e) { } }); active.clear(); } } catch (e) { }
+    noteSubs.forEach((f) => { try { f(null); } catch (e) { } });
+  }
+  const stale = () => window.__bzCbBorn != null && window.__bzCbBorn < stopStamp;
+  const onNote = (f) => { noteSubs.add(f); return () => noteSubs.delete(f); };
+  const emitNote = (midi, when, dur) => { if (noteSubs.size) noteSubs.forEach((f) => { try { f({ midi, when, dur }); } catch (e) { } }); };
   function synthTone(midi, dur, t, vel, dest) {
     const c = ctx; const f = mtof(midi, settings.a4); const g = c.createGain();
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vel * 0.32, t + 0.008);
@@ -203,12 +216,14 @@ const AE = (() => {
     o1.connect(lp); lp.connect(g); g.connect(dest || master); o1.start(t); o1.stop(t + dur + 0.4); track(o1);
   }
   function play(inst, midi, dur = 0.8, when = 0, vel = 0.75, dest, pan = 0) {
+    if (stale()) return;
     const c = get(); const t = c.currentTime + when; const bank = banks[inst];
     if (!bank) {
       const asked = c.currentTime; const pr = loading[inst] || load(inst);
-      pr.then(() => { if (banks[inst] && c.currentTime - asked < 4) play(inst, midi, dur, Math.max(0, when - (c.currentTime - asked)), vel, dest, pan); else if (!banks[inst]) synthTone(midi, dur, c.currentTime + 0.01, vel, dest); });
+      pr.then(() => { if (stopStamp > 0 && performance.now() - stopStamp < (c.currentTime - asked) * 1000 + 50) return; if (banks[inst] && c.currentTime - asked < 4) play(inst, midi, dur, Math.max(0, when - (c.currentTime - asked)), vel, dest, pan); else if (!banks[inst]) { if (!dest) emitNote(midi, 0, dur); synthTone(midi, dur, c.currentTime + 0.01, vel, dest); } });
       return;
     }
+    if (!dest) emitNote(midi, when, dur);
     let best = bank[0]; for (const b of bank) if (Math.abs(b[0] - midi) < Math.abs(best[0] - midi)) best = b;
     const src = c.createBufferSource(); src.buffer = best[1];
     src.playbackRate.value = Math.pow(2, (midi - best[0]) / 12) * (settings.a4 / 440);
@@ -279,7 +294,7 @@ const AE = (() => {
   }
   const preloadAll = () => { get(); ["piano", "acoustic", "electric", "bass"].forEach(load); loadDrums(); };
   async function decodeFile(file) { const c = get(); const ab = await file.arrayBuffer(); return await new Promise((res, rej) => c.decodeAudioData(ab, res, rej)); }
-  return { micErr, listen, preloadAll, get, out, noise, pink, play, tone, chord, strum, hit, click, kick, snare, hat, tom, glide, drone, load, loadDrums, isReady, onReady, stopAll, decodeFile, settings, bank: (i) => banks[i], drumBuf: (n) => drums[n] };
+  return { onNote, micErr, listen, preloadAll, get, out, noise, pink, play, tone, chord, strum, hit, click, kick, snare, hat, tom, glide, drone, load, loadDrums, isReady, onReady, stopAll, decodeFile, settings, bank: (i) => banks[i], drumBuf: (n) => drums[n] };
 })();
 function useSamples(inst) {
   const [ready, setReady] = useState(() => AE.isReady(inst));
@@ -340,6 +355,17 @@ const THEMES = {
     nav: "#0F1216", navIcon: "rgba(255,255,255,0.5)", input: "rgba(0,0,0,0.32)", good: "#7CFFB2", bad: "#FF6B6B",
     keyW: "#F4F4F6", keyB: "#0E1014", serif: false, blob: "#FF3EA5", sheet: "#171B21",
     spray: ["#FF3EA5", "#C6FF3D", "#22E4FF", "#FF8A00", "#8B5CFF", "#FFE53D"],
+  },
+  riot: {
+    id: "riot", name: "Street Riot", dark: true, graffiti: true, crazy: true, bg: "#121214", texture: 0.85,
+    card: "rgba(8,8,10,0.80)", card2: "rgba(255,255,255,0.09)", hero: "#0B0B0D", heroText: "#FFFFFF",
+    heroBg: "linear-gradient(125deg,#FF0A78 0%,#7A2BFF 52%,#00A8F0 100%)",
+    text: "#FFFFFF", sub: "rgba(255,255,255,0.74)", faint: "rgba(255,255,255,0.42)",
+    accent: "#39FF14", accentText: "#06140A", pop: "#FF0A78", popText: "#FFFFFF",
+    soft: "rgba(0,240,255,0.14)", softText: "#CFFBFF", border: "rgba(255,255,255,0.16)",
+    nav: "#08080A", navIcon: "rgba(255,255,255,0.55)", input: "rgba(0,0,0,0.45)", good: "#39FF14", bad: "#FF4D4D",
+    keyW: "#F5F5F5", keyB: "#050507", serif: false, blob: "#FF0A78", sheet: "#141417",
+    spray: ["#FF0A78", "#39FF14", "#00F0FF", "#FF8A00", "#B026FF", "#FFE53D"],
   },
   youth: {
     id: "youth", name: "Youth", dark: true, bg: "#4A5866", texture: 0.5,

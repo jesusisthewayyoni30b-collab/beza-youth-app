@@ -66,6 +66,27 @@ function Layer({ visible, fill, push: isPush, children, web, wide }) {
   );
 }
 
+function RiotBG() {
+  const tags = [["JESUS", 18, 150, -10, "#FF0A78", 92, "Sedgwick Ave Display"], ["IS KING", 120, 250, 6, "#39FF14", 70, "Permanent Marker"], ["BEZA", -10, 420, -14, "#00F0FF", 130, "Sedgwick Ave Display"], ["YOUTH", 170, 520, 9, "#FFE53D", 88, "Sedgwick Ave Display"], ["PRAISE!", 10, 690, -7, "#FF8A00", 84, "Permanent Marker"], ["ኢየሱስ", 210, 800, -3, "#B026FF", 70, "Poppins"], ["WORSHIP", 60, 350, 3, "#ffffff", 40, "Permanent Marker"]];
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 400 860" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <defs>
+        <pattern id="brick" width="60" height="30" patternUnits="userSpaceOnUse"><rect width="60" height="30" fill="#151518" /><path d="M0 0H60M0 15H60M30 0V15M0 15V30M60 15V30" stroke="#232328" strokeWidth="2" /></pattern>
+        <filter id="glow"><feGaussianBlur stdDeviation="2.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+      </defs>
+      <rect width="400" height="860" fill="url(#brick)" opacity="0.9" />
+      <g opacity="0.2" filter="url(#glow)">
+        {tags.map(([t, x, y, r, c, fs, ff], i) => <text key={i} x={x} y={y} fontFamily={`${ff}, cursive`} fontWeight={ff === "Poppins" ? 900 : 400} fontSize={fs} fill={i % 2 ? c : "none"} stroke={c} strokeWidth="2.5" transform={`rotate(${r} ${x} ${y})`}>{t}</text>)}
+        {[[40, 150, "#FF0A78"], [150, 250, "#39FF14"], [60, 420, "#00F0FF"], [250, 520, "#FFE53D"], [80, 690, "#FF8A00"]].map(([x, y, c], i) => <g key={i} fill={c}>{Array.from({ length: 5 }).map((_, k) => <rect key={k} x={x + k * 23} y={y + 6} width={3 + (k % 2)} height={14 + ((k * 13) % 40)} rx={2} />)}</g>)}
+        <path d="M320 40 l14 -28 l14 28 l14 -28 l14 28 v16 h-56 z" fill="#FFE53D" />
+        <path d="M24 560 q60 -60 120 0 t120 0" fill="none" stroke="#39FF14" strokeWidth="6" strokeLinecap="round" />
+        <path d="M300 300 l40 0 l-12 -12 M340 300 l-12 12" stroke="#00F0FF" strokeWidth="6" fill="none" strokeLinecap="round" />
+        <circle cx="330" cy="660" r="34" fill="none" stroke="#FF0A78" strokeWidth="6" /><path d="M330 636 v48 M306 660 h48" stroke="#FF0A78" strokeWidth="6" />
+        {Array.from({ length: 60 }).map((_, k) => <circle key={k} cx={(k * 97) % 400} cy={(k * 173) % 860} r={1 + (k % 3)} fill={["#FF0A78", "#39FF14", "#00F0FF", "#FFE53D", "#B026FF"][k % 5]} />)}
+      </g>
+    </svg>
+  );
+}
 function GraffitiBG() {
   return (
     <svg width="100%" height="100%" viewBox="0 0 400 860" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.11 }}>
@@ -243,13 +264,13 @@ export default function BezaYouthWorshipTeam() {
     });
   }, []); // eslint-disable-line
   const toast = useCallback((m) => { setToastMsg(m); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToastMsg(""), 2700); }, []);
-  const push = useCallback((r) => setStacks((s) => ({ ...s, [tabRef.current]: [...s[tabRef.current], { ...r, key: Date.now() + Math.random() }] })), []);
-  const pop = useCallback(() => setStacks((s) => ({ ...s, [tabRef.current]: s[tabRef.current].slice(0, -1) })), []);
+  const push = useCallback((r) => { AE.stopAll(); setStacks((s) => ({ ...s, [tabRef.current]: [...s[tabRef.current], { ...r, key: Date.now() + Math.random() }] })); }, []);
+  const pop = useCallback(() => { AE.stopAll(); setStacks((s) => ({ ...s, [tabRef.current]: s[tabRef.current].slice(0, -1) })); }, []);
   const tabRef = useRef(tab); tabRef.current = tab;
   const userRef = useRef(user); userRef.current = user; const groupsRef = useRef(groups); groupsRef.current = groups; const settingsRef = useRef(settings); settingsRef.current = settings;
   const setTab = useCallback((t) => {
     if (t === tabRef.current) { setStacks((s) => { if (s[t].length) return { ...s, [t]: [] }; if (t === "home") setQuick(true); return s; }); return; }
-    setStacks((s) => (s[t] && s[t].length ? { ...s, [t]: [] } : s)); setTabRaw(t);
+    AE.stopAll(); setStacks((s) => (s[t] && s[t].length ? { ...s, [t]: [] } : s)); setTabRaw(t);
   }, []);
   /* ---- chat: read markers, unread counts, notifications ---- */
   const markRead = useCallback((gid, ms) => {
@@ -363,7 +384,7 @@ export default function BezaYouthWorshipTeam() {
       <div className={`bz-root bz-stage${web || (big && full) ? " bz-web" : ""}${scaled ? " bz-scaled" : ""}`} style={{ background: T.dark ? "#07090b" : "#d9dfe1", fontFamily: FONT, ["--bz-accent"]: T.accent, ["--bz-thumb"]: T.dark ? "#1b2328" : "#fff", ["--ico-blob"]: T.blob }}>
         <div className="bz-device" ref={setHost} style={{ background: T.bg, color: T.text, ...(scaled ? { width: VW, height: VH, transform: `scale(${sc})`, transformOrigin: "0 0" } : {}) }}>
           <div style={{ position: "absolute", inset: 0, backgroundImage: `${NOISE_SVG}, ${WEAVE}`, opacity: T.texture, pointerEvents: "none", mixBlendMode: T.dark ? "overlay" : "multiply" }} />
-          {T.graffiti && <GraffitiBG />}
+          {T.crazy ? <RiotBG /> : T.graffiti && <GraffitiBG />}
           <div className="bz-status" style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, alignItems: "center", justifyContent: "space-between", padding: "0 30px", fontSize: 14, fontWeight: 700, zIndex: 30 }}>
             <span>{time}</span><span style={{ width: 110, height: 28, borderRadius: 20, background: "#000", position: "absolute", left: "50%", transform: "translateX(-50%)", top: 8 }} /><span style={{ display: "flex", gap: 5, alignItems: "center" }}><Radio size={14} noBlob /><span style={{ width: 24, height: 12, borderRadius: 4, border: `1.6px solid ${T.text}`, display: "inline-block", position: "relative" }}><span style={{ position: "absolute", inset: 1.5, right: 5, background: T.text, borderRadius: 2 }} /></span></span>
           </div>

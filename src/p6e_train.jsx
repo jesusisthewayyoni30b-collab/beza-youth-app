@@ -167,6 +167,39 @@ const ROUTINES = {
     ["Compare", 60, "Now listen to your last recording from Saturday. Write 3 things to improve."],
   ] },
 };
+/* steps that are real playing get the real interactive tool right inside the routine */
+const ROUTINE_TOOLS = {
+  sg_body: { 7: ["vocalgym", { ex: "liptrill5" }] },
+  sg_core: { 7: ["vocalgym", { ex: "ts" }], 8: ["vocalgym", { ex: "maj5" }] },
+  sg_breath: { 1: ["breath", { level: 0 }], 2: ["breath", { level: 0 }], 4: ["breath", { level: 1 }], 5: ["breath", { level: 3, tab: "sustain" }] },
+  sg_recover: { 2: ["vocalgym", { ex: "straw" }], 3: ["vocalgym", { ex: "coolhum" }] },
+  ky_hands: { 3: ["keysdrills", { drill: "five" }], 4: ["keysdrills", { drill: "triads" }] },
+  gt_hands: { 3: ["fingers", { inst: "guitar", ex: "spider" }], 4: ["changes", { a: "G", b: "C" }] },
+  gt_rhythm: { 0: ["strum", { pattern: "quarters" }], 1: ["strum", { pattern: "eighths" }], 2: ["strum", { pattern: "chuck" }], 3: ["strum", { pattern: "sixteen" }], 4: ["strum", { pattern: "folk" }] },
+  dr_wrists: { 4: ["rudiments", { r: "singles" }] },
+  dr_pad: { 0: ["rudiments", { r: "singles" }], 1: ["rudiments", { r: "doubles" }], 2: ["rudiments", { r: "paradiddle" }], 3: ["rudiments", { r: "singles" }], 4: ["rudiments", { r: "accent" }], 5: ["rudiments", { r: "trip" }], 6: ["rudiments", { r: "singles" }] },
+  dr_feet: { 0: ["metronome", { bpm: 70 }], 1: ["metronome", { bpm: 80 }], 2: ["metronome", { bpm: 70 }], 3: ["groove", { id: "basic" }], 4: ["groove", { id: "basic" }] },
+  dr_dyn: { 0: ["groove", { id: "basic" }], 3: ["groove", { id: "pop" }], 5: ["groove", { id: "toms" }] },
+  dr_fills: { 0: ["groove", { id: "fill" }], 1: ["groove", { id: "fill" }], 2: ["groove", { id: "ballad" }], 3: ["groove", { id: "basic" }] },
+  sd_line: { 3: ["flow", {}] },
+  sd_listen: { 0: ["eq7", {}] },
+};
+/* a moving picture for body steps so beginners can copy it */
+const cueOf = (name, how) => { const t = (name + " " + how).toLowerCase();
+  if (/breath|hiss|inhale|4-7-8|straw|sss/.test(t)) return ["breath", "🫁"]; if (/fist|warm hands|rub/.test(t)) return ["fist", "✊"]; if (/circle|roll/.test(t)) return ["spin", "🔄"];
+  if (/neck|ear to shoulder/.test(t)) return ["tilt", "🙂"]; if (/jaw|tongue|massage/.test(t)) return ["bob", "😮"]; if (/stretch|spread|side|rag|bend/.test(t)) return ["stretch", "🙆"];
+  if (/plank|bridge|squat|bug|core/.test(t)) return ["hold", "💪"]; if (/water|drink|steam/.test(t)) return ["bob", "💧"]; if (/silence|rest|check/.test(t)) return ["calm", "🤫"]; if (/pray|scripture|lyrics|read/.test(t)) return ["calm", "📖"];
+  return ["bob", "⭐"]; };
+function MoveCue({ kind, emoji, run, secs }) {
+  const { T } = useApp(); const [ph, setPh] = useState(0);
+  useEffect(() => { if (!run || kind !== "breath") return; let k = 0; const t = setInterval(() => { k = (k + 1) % 14; setPh(k); }, 1000); return () => clearInterval(t); }, [run, kind]);
+  const anim = { fist: "bzFist 1s ease-in-out infinite", spin: "bzSpin 2s linear infinite", tilt: "bzTilt 3s ease-in-out infinite", bob: "bzBob 1.2s ease-in-out infinite", stretch: "bzStretch 3s ease-in-out infinite", hold: "bzHold 1.6s ease-in-out infinite", calm: "bzBob 4s ease-in-out infinite" }[kind];
+  if (kind === "breath") { const lab = ph < 4 ? "Breathe in…" : ph < 6 ? "Hold" : "Out slowly…"; const sc = ph < 4 ? 0.6 + ph * 0.12 : ph < 6 ? 1.08 : 1.08 - (ph - 6) * 0.06;
+    return <div style={{ display: "grid", placeItems: "center", height: 130 }}><div style={{ width: 110, height: 110, borderRadius: 99, display: "grid", placeItems: "center", background: "radial-gradient(circle, rgba(34,228,255,0.55), rgba(181,123,255,0.25))", transform: `scale(${run ? sc : 0.8})`, transition: "transform 1s ease-in-out", fontWeight: 900, fontSize: 13, color: "#fff", textAlign: "center" }}>{run ? lab : "🫁"}</div></div>; }
+  return <div style={{ display: "grid", placeItems: "center", height: 110 }}><style>{"@keyframes bzFist{0%,100%{transform:scale(.85)}50%{transform:scale(1.15)}}@keyframes bzSpin{to{transform:rotate(360deg)}}@keyframes bzTilt{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(25deg)}}@keyframes bzBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}@keyframes bzStretch{0%,100%{transform:scaleX(1)}50%{transform:scaleX(1.35)}}@keyframes bzHold{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}"}</style>
+    <div style={{ fontSize: 64, animation: run ? anim : "none", display: "inline-block" }}>{kind === "fist" && run ? <FistSwap /> : emoji}</div></div>;
+}
+function FistSwap() { const [o, setO] = useState(false); useEffect(() => { const t = setInterval(() => setO((v) => !v), 500); return () => clearInterval(t); }, []); return <span>{o ? "🖐️" : "✊"}</span>; }
 const routineMins = (id) => Math.max(1, Math.round(ROUTINES[id].steps.reduce((s, x) => s + x[1], 0) / 60));
 
 function RoutinePlayer({ embedded, id }) {
@@ -175,7 +208,10 @@ function RoutinePlayer({ embedded, id }) {
   const [i, setI] = useState(0); const [left, setLeft] = useState(R.steps[0][1]); const [run, setRun] = useState(false); const [click, setClick] = useState(true); const [beat, setBeat] = useState(0);
   const [doneS, setDoneS] = useState({}); const [peek, setPeek] = useState(null);
   const toggleDone = (k) => setDoneS((d) => ({ ...d, [k]: !d[k] }));
-  const step = R.steps[i]; const bpm = step[3];
+  const step = R.steps[i]; const stTool = (ROUTINE_TOOLS[id] || {})[i]; const bpm = stTool ? null : step[3]; const [cueK, cueE] = cueOf(step[0], step[2]);
+  const [voiceOn, setVoiceOn] = useState(true);
+  useEffect(() => { if (!run || !voiceOn || stTool) return; try { if (window.speechSynthesis) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(step[0]); u.rate = 1; speechSynthesis.speak(u); } } catch (e) { } }, [i, run]); // eslint-disable-line
+  useEffect(() => () => { try { window.speechSynthesis && speechSynthesis.cancel(); } catch (e) { } }, []);
   useEffect(() => { setI(0); setLeft(R.steps[0][1]); setRun(false); }, [id]); // eslint-disable-line
   useEffect(() => { if (!run) return; const t = setInterval(() => setLeft((l) => l - 1), 1000); return () => clearInterval(t); }, [run]);
   useEffect(() => { if (!run || !bpm || !click) return; let k = 0; const t = setInterval(() => { AE.click(k % 4 === 0); setBeat(k % 4); k++; }, 60000 / bpm); return () => clearInterval(t); }, [run, bpm, click, i]);
@@ -198,6 +234,8 @@ function RoutinePlayer({ embedded, id }) {
           </div>
         </div>
         <div style={{ marginTop: 12, padding: "11px 13px", borderRadius: 14, background: "rgba(0,0,0,0.22)", fontSize: 13.5, lineHeight: 1.55 }}>{step[2]}</div>
+        {!stTool && <MoveCue kind={cueK} emoji={cueE} run={run} />}
+        {!stTool && <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}><Chip active={voiceOn} onClick={() => setVoiceOn((v) => !v)} style={{ fontSize: 11 }}>{voiceOn ? "🔊 Coach voice on" : "🔇 Coach voice off"}</Chip></div>}
         {bpm && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>{[0, 1, 2, 3].map((b) => <div key={b} style={{ width: 12, height: 12, borderRadius: 99, background: run && click && b === beat ? (b === 0 ? "#C6FF3D" : "#fff") : "rgba(255,255,255,0.25)" }} />)}<Chip active={click} onClick={() => setClick((c) => !c)} style={{ marginLeft: "auto" }}>{click ? "Click on" : "Click off"}</Chip></div>}
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <Btn variant="light" icon={SkipBack} onClick={() => i > 0 && go(i - 1)} />
@@ -206,6 +244,7 @@ function RoutinePlayer({ embedded, id }) {
         </div>
         <div style={{ marginTop: 12 }}><Bar pct={done / total} color="#fff" track="rgba(255,255,255,0.22)" /></div>
       </Card>
+      {stTool && TOOLS[stTool[0]] && (() => { const TT = TOOLS[stTool[0]]; return <div key={id + i} style={{ marginTop: 12 }}><div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "0 2px 8px" }}>▶ DO IT HERE — {TT.title.toUpperCase()} (watch, play along, and turn on "Listen to me")</div><TT.C embedded {...stTool[1]} /></div>; })()}
       <div style={{ fontSize: 12.5, color: T.sub, margin: "12px 2px" }}>{R.desc}</div>
       <div style={{ fontSize: 11, color: T.faint, margin: "0 2px 8px" }}>Tap a step to read it · tick the box when you've done it</div>
       {R.steps.map((s, k) => { const dn = !!doneS[k]; const open = peek === k;

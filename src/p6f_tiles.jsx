@@ -37,10 +37,10 @@ const TILE_GAMES = {
   acoustic: { id: "tiles_guitar", title: "Guitar Tiles", desc: "Play the falling notes on your real guitar — the mic listens", inst: "acoustic", color: "#FF8A00", oct: -12, inputs: ["mic", "touch", "keys", "midi"] },
   lead: { id: "tiles_lead", title: "Lead Tiles", desc: "Melodies and runs on your guitar — the mic listens", inst: "electric", color: "#FFE53D", oct: 0, inputs: ["mic", "touch", "keys", "midi"] },
   bass: { id: "tiles_bass", title: "Bass Tiles", desc: "Roots and lines on your bass — the mic listens", inst: "bass", color: "#8B5CFF", oct: -24, inputs: ["mic", "touch", "keys", "midi"] },
-  singer: { id: "tiles_voice", title: "Pitch Tiles", desc: "Sing the falling notes — the mic checks your pitch", inst: "piano", color: "#FF3EA5", oct: 0, inputs: ["mic", "touch", "keys"], voice: true },
+  singer: { id: "tiles_voice", title: "Pitch Tiles", desc: "Sing the falling notes — the mic checks your pitch. Your voice only.", inst: "piano", color: "#FF3EA5", oct: 0, inputs: ["mic"], voice: true },
   drums: { id: "tiles_drums", title: "Drum Tiles", desc: "Kick, snare, hats & fills — tap pads, PC keys, an e-kit (MIDI) or your real kit (mic)", inst: "drums", color: "#C6FF3D", oct: 0, inputs: ["touch", "keys", "midi", "mic"], drums: true },
 };
-const INPUT_LABEL = { touch: "📱 Screen", keys: "⌨️ Keyboard", midi: "🎹 MIDI", mic: "🎤 Real instrument / voice" };
+const INPUT_LABEL = { touch: "📱 Screen", keys: "⌨️ Keyboard", midi: "🎹 MIDI", mic: "🎤 Real instrument" };
 const TL_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
 
 function TilesGame({ dept }) {
@@ -192,7 +192,7 @@ function TilesGame({ dept }) {
   const curList = S.current && S.current.lanes;
   if (phase === "play") return (
     <div>
-      <TopBar title={G.title} sub={`${buildChart().title} · ${INPUT_LABEL[input]}${wait ? " · wait mode" : ""}`} right={<Btn small variant="soft" onClick={() => { S.current.done = true; setPhase("menu"); }}>Quit</Btn>} />
+      <TopBar title={G.title} sub={`${buildChart().title} · ${G.voice ? "🎤 Your voice" : INPUT_LABEL[input]}${wait ? " · wait mode" : ""}`} right={<Btn small variant="soft" onClick={() => { S.current.done = true; setPhase("menu"); }}>Quit</Btn>} />
       {micErr && <Card style={{ marginBottom: 8, fontSize: 12.5, borderLeft: `4px solid ${T.bad}` }}>{micErr}</Card>}
       {input === "mic" && <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, fontSize: 12 }}><span>🎤</span><div style={{ flex: 1, height: 8, borderRadius: 9, background: T.card2, overflow: "hidden" }}><div style={{ width: `${micLvl * 100}%`, height: "100%", background: T.good }} /></div>{!G.drums && <b style={{ minWidth: 40 }}>{heard != null ? nn(heard) : "—"}</b>}</div>}
       <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", background: "radial-gradient(120% 90% at 50% 0%, #1a2433, #07090b)", border: `1px solid ${T.border}` }}>
@@ -221,7 +221,7 @@ function TilesGame({ dept }) {
       </div>
       {!G.drums && TL_DRILLS[pick] && <><div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "12px 2px 6px" }}>KEY</div><KeyChips value={key} onChange={setKey} /></>}
       <SectionTitle>2 · How will you play?</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>{G.inputs.map((x) => <Card key={x} pad={10} onClick={() => setInput(x)} style={{ cursor: "pointer", border: input === x ? `2px solid ${G.color}` : undefined, fontWeight: 800, fontSize: 13 }}>{INPUT_LABEL[x]}<div style={{ fontSize: 11, color: T.sub, fontWeight: 500, marginTop: 3 }}>{x === "mic" ? (G.drums ? "Your real drums — the mic hears each hit" : G.voice ? "Sing into the phone" : "Your real instrument near the phone") : x === "midi" ? (G.drums ? "Electronic kit via USB" : "USB / Bluetooth MIDI keyboard") : x === "keys" ? "Computer or phone keyboard" : "Tap the buttons"}</div></Card>)}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>{G.inputs.map((x) => <Card key={x} pad={10} onClick={() => setInput(x)} style={{ cursor: "pointer", border: input === x ? `2px solid ${G.color}` : undefined, fontWeight: 800, fontSize: 13 }}>{G.voice && x === "mic" ? "🎤 Your voice" : INPUT_LABEL[x]}<div style={{ fontSize: 11, color: T.sub, fontWeight: 500, marginTop: 3 }}>{x === "mic" ? (G.drums ? "Your real drums — the mic hears each hit" : G.voice ? "Sing into the phone" : "Your real instrument near the phone") : x === "midi" ? (G.drums ? "Electronic kit via USB" : "USB / Bluetooth MIDI keyboard") : x === "keys" ? "Computer or phone keyboard" : "Tap the buttons"}</div></Card>)}</div>
       <SectionTitle>3 · Settings</SectionTitle>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         <Chip active={wait} onClick={() => setWait((w) => !w)}>{wait ? "✓ " : ""}Wait for me (learning mode)</Chip>

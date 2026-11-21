@@ -96,7 +96,7 @@ function Metronome({ embedded, bpm: bpm0, sig: sig0, mode: mode0 }) {
   return (
     <div>
       {!embedded && <ToolBar title="Metronome" sub="Any tempo · any time signature · trainers" />}
-      <Card tone="hero" style={{ padding: 18, textAlign: "center", position: "relative", overflow: "hidden", background: flash && run && beat >= 0 && acc[beat] === 2 ? undefined : undefined }}>
+      <Card tone="hero" style={{ padding: 18, textAlign: "center", position: "relative", overflow: "hidden" }}>
         {flash && run && beat >= 0 && <div key={bar + "-" + beat} style={{ position: "absolute", inset: 0, background: acc[beat] === 2 ? "rgba(198,255,61,0.28)" : "rgba(255,255,255,0.10)", animation: "bzMetroFlash .18s ease-out forwards", pointerEvents: "none" }} />}
         <style>{"@keyframes bzMetroFlash{from{opacity:1}to{opacity:0}}"}</style>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, opacity: 0.8 }}>{num}/{den}{groups.length > 1 ? `  ·  ${groupStr}` : ""}{mode === "trainer" ? "  ·  SPEED TRAINER" : mode === "gap" ? "  ·  GAP CLICK" : ""}</div>

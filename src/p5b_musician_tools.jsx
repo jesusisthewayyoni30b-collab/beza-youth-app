@@ -74,7 +74,7 @@ function FingerExercises({ embedded, inst: i0, ex: e0 }) {
   const [run, setRun] = useState(false);
   const [i, setI] = useState(-1);
   const [ramp, setRamp] = useState(false);
-  const [click, setClick] = useState(true);
+  const [click, setClick] = useState(true); const [turn, setTurn] = useState(false);
   const sound = kind === "bass" ? "bass" : i0 === "electric" || roles.includes("lead") && !roles.includes("acoustic") ? "electric" : "acoustic";
   useEffect(() => { AE.load(sound); }, [sound]);
   const tuning = kind === "bass" ? BASS_TUNING : GUITAR_TUNING;
@@ -133,10 +133,12 @@ function FingerExercises({ embedded, inst: i0, ex: e0 }) {
             <div>• Tap <b>Play along</b>: the highlighted note shows where you are. Start slow; speed comes later.</div>
           </div>
         </details>
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        {!turn && <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <Btn full variant={run ? "light" : "accent"} icon={run ? Square : Play} onClick={() => { setRun((r) => !r); setI(-1); }}>{run ? "Stop" : "Play along"}</Btn>
-        </div>
+        </div>}
       </Card>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}><Chip active={!turn} onClick={() => { setTurn(false); setI(-1); }} style={{ fontWeight: 800 }}>👀 Watch & play along</Chip><Chip active={turn} onClick={() => { setRun(false); setI(0); setTurn(true); }} style={{ fontWeight: 800 }}>🎯 Your turn (I listen)</Chip></div>
+      {turn && <FollowMe inst={sound} steps={notesX.map((n) => { const ns = Array.isArray(n[0]) ? n : [n]; return { n: ns.map((nt) => tuning[nt[0]] + nt[1] + (nt[2] === "b" ? 2 : 0)), label: ns.map((nt) => `${nn(tuning[nt[0]]).toLowerCase()}-string fret ${nt[1]}`).join(" + ") }; })} onPos={(p) => setI(p)} title="Your turn — play each note on your instrument, I'm listening" />}
       <Card style={{ marginTop: 12 }}>
         <Slider label="Tempo" value={bpm} min={40} max={200} onChange={setBpm} fmt={(v) => `${v} bpm`} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}><span style={{ fontSize: 13, fontWeight: 600 }}>Click</span><Toggle on={click} onChange={setClick} /></div>
@@ -174,6 +176,7 @@ function KeysDrills({ embedded, drill: d0 }) {
   const { T } = useApp();
   const [id, setId] = useState(d0 && KD[d0] ? d0 : "scales");
   const [cat, setCat] = useState(() => (KD[d0 && KD[d0] ? d0 : "scales"].cat || "Scales"));
+  const [turn, setTurn] = useState(false); const [fpos, setFpos] = useState(0); const tapRef = useRef(null);
   const [dir, setDir] = useState("both");
   const [P, setP] = useState({ sid: "major", key: 0, oct: 1, all: false });
   const d = KD[id];
@@ -222,8 +225,10 @@ function KeysDrills({ embedded, drill: d0 }) {
           <Btn full variant={run ? "light" : "accent"} icon={run ? Square : Play} onClick={() => { setRun((r) => !r); setI(-1); }}>{run ? "Stop" : "Play along"}</Btn>
         </div>
       </Card>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}><Chip active={!turn} onClick={() => setTurn(false)} style={{ fontWeight: 800 }}>👀 Watch & play along</Chip><Chip active={turn} onClick={() => { setRun(false); setI(-1); setTurn(true); }} style={{ fontWeight: 800 }}>🎯 Your turn (I listen)</Chip></div>
+      {turn && <FollowMe steps={seq} onPos={setFpos} tapRef={tapRef} title="Your turn — play each step, I'm listening" />}
       <Card style={{ marginTop: 12, padding: 12 }}>
-        <Piano start={start} octaves={pOct} highlight={i >= 0 ? ev.n : []} roots={i >= 0 ? [ev.n[0]] : []} height={104} pcKeys showOctaveCtl />
+        <Piano start={start} octaves={pOct} highlight={turn ? (seq[fpos] || { n: [] }).n : i >= 0 ? ev.n : []} roots={turn ? [] : i >= 0 ? [ev.n[0]] : []} height={104} pcKeys showOctaveCtl onNote={(m) => turn && tapRef.current && tapRef.current(m)} />
         <div style={{ marginTop: 12 }}><Slider label="Tempo" value={bpm} min={40} max={180} onChange={setBpm} fmt={(v) => `${v} bpm`} /></div>
       </Card>
       {!embedded && <MarkComplete id="keysdrills" label="Keys drills" mins={8} />}
@@ -469,10 +474,10 @@ const STRUMS = [
 function StrumLab({ embedded, pattern: p0, locked }) {
   const { T } = useApp();
   useEffect(() => { AE.load("acoustic"); }, []);
-  const [p, setP] = useState(STRUMS.find((x) => x.id === p0) || STRUMS[2]);
+  const [p, setP] = useState(STRUMS.find((x) => x.id === p0) || STRUMS[2]); const [lis, setLis] = useState(false); const [runAt, setRunAt] = useState(0);
   const [key, setKey] = useState(7);
   const [bpm, setBpm] = useState(76);
-  const [run, setRun] = useState(false);
+  const [run, setRun] = useState(false); useEffect(() => { if (run) setRunAt(performance.now()); }, [run]); // eslint-disable-line
   const [i, setI] = useState(-1);
   const [click, setClick] = useState(true);
   const prog = [0, 4, 5, 3];
@@ -516,6 +521,9 @@ function StrumLab({ embedded, pattern: p0, locked }) {
         <KeyChips value={key} onChange={setKey} />
       </Card>
       <Card tone="soft" style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.55 }}>↓ down · ↑ up · ✕ muted chuck · · keep the hand moving but miss the strings. The pendulum never stops.</Card>
+      <div style={{ marginTop: 12 }}><Chip active={lis} onClick={() => setLis((v) => !v)} style={{ fontWeight: 800 }}>{lis ? "👂 Listening to you — ON" : "👂 Listen to me (mic)"}</Chip></div>
+      <TimingCoach on={lis && run} bpm={bpm} sub={p.sub} startAt={runAt} />
+      {lis && !run && <Card tone="soft" style={{ marginTop: 10, fontSize: 12.5 }}>Press play and strum along. I'll check every strum against the beat.</Card>}
       {!embedded && <MarkComplete id="strum" label="Strumming" mins={6} />}
     </div>
   );
@@ -558,14 +566,20 @@ function useChordMic(on, names, onHear) {
 function ChangeTrainer({ embedded, a: a0, b: b0 }) {
   const { T, logPractice } = useApp();
   useEffect(() => { AE.load("acoustic"); }, []);
-  const [a, setA] = useState(a0 || "G");
-  const [b, setB] = useState(b0 || "C");
+  const parse = (n) => { const m = (n || "G").match(/^([A-G][#b]?)(.*)$/); return { root: PC_OF[m[1]], q: m[2] || "", vi: 0 }; };
+  const [A, setAS] = useState(() => parse(a0 || "G")); const [B, setBS] = useState(() => parse(b0 || "C"));
+  const [ck, setCk] = useState(7); const [cMode, setCMode] = useState("major"); const [edit, setEdit] = useState(0);
+  const a = NOTE_NAMES[A.root] + A.q; const b = NOTE_NAMES[B.root] + B.q;
   const [left, setLeft] = useState(60);
   const [run, setRun] = useState(false);
   const [count, setCount] = useState(0);
   const [hist, setHist] = useState({});
   const [bpm, setBpm] = useState(60);
-  const fr = (n) => OPEN_SHAPES[n] || (guitarShape(NOTE_NAMES.indexOf(n.replace(/m$/, "")), n.endsWith("m") ? "m" : "") || {}).frets || [-1, -1, -1, -1, -1, -1];
+  const vsOf = (S) => chordVoicings(S.root, S.q).filter((v) => v.cat !== "Capo");
+  const fr = (S) => { const vs = vsOf(S); return (vs[S.vi % Math.max(1, vs.length)] || {}).frets || [-1, -1, -1, -1, -1, -1]; };
+  const QUALS = [["", "Major"], ["m", "Minor"], ["7", "7"], ["maj7", "maj7"], ["m7", "m7"], ["sus2", "sus2"], ["sus4", "sus4"], ["add9", "add9"], ["dim", "dim"]];
+  const diat = (k, mode) => { const st = mode === "minor" ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11]; const qs = mode === "minor" ? ["m", "dim", "", "m", "m", "", ""] : ["", "m", "m", "", "", "m", "dim"]; return st.map((x, i) => ({ root: (k + x) % 12, q: qs[i], num: String(i + 1) + (qs[i] === "m" ? "m" : qs[i] === "dim" ? "°" : "") })); };
+  const setSide = (k, S) => (k === 0 ? setAS : setBS)(S);
   useEffect(() => { if (!run) return; const iv = setInterval(() => setLeft((l) => l - 1), 1000); return () => clearInterval(iv); }, [run]);
   useEffect(() => { if (!run) return; let k = 0; const iv = setInterval(() => { AE.click(k % 4 === 0); k++; }, 60000 / bpm); return () => clearInterval(iv); }, [run, bpm]);
   const pairKey = `${a}↔${b}`;
@@ -579,13 +593,24 @@ function ChangeTrainer({ embedded, a: a0, b: b0 }) {
     <div>
       <ToolBar embedded={embedded} title="One-Minute Changes" sub="Play — the mic counts every clean change" />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {[[a, setA], [b, setB]].map(([v, set], k) => (
-          <Card key={k} pad={10} tone={run && onChord === v ? "accent" : "card"} style={{ textAlign: "center" }}>
-            <div style={{ display: "grid", placeItems: "center" }}><ChordBox frets={fr(v)} name={v} /></div>
-            <Scroller style={{ marginTop: 6 }}>{CHANGE_CHORDS.map((c) => <Chip key={c} active={v === c} onClick={() => !run && set(c)} style={{ padding: "4px 9px", fontSize: 11 }}>{c}</Chip>)}</Scroller>
-          </Card>
-        ))}
+        {[[a, A], [b, B]].map(([v, S], k) => { const vs = vsOf(S);
+          return (
+          <Card key={k} pad={10} tone={run && onChord === v ? "accent" : "card"} onClick={() => !run && setEdit(k)} style={{ textAlign: "center", cursor: "pointer", border: !run && edit === k ? `2px solid ${T.accent}` : undefined }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: T.sub }}>CHORD {k + 1}{!run && edit === k ? " · editing" : ""}</div>
+            <div style={{ display: "grid", placeItems: "center" }}><ChordBox frets={fr(S)} name={v} /></div>
+            {vs.length > 1 && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11 }}><Chip onClick={(e) => { e.stopPropagation(); setSide(k, { ...S, vi: (S.vi + vs.length - 1) % vs.length }); }} style={{ padding: "2px 8px" }}>‹</Chip><span>{(vs[S.vi % vs.length] || {}).cat}</span><Chip onClick={(e) => { e.stopPropagation(); setSide(k, { ...S, vi: (S.vi + 1) % vs.length }); }} style={{ padding: "2px 8px" }}>›</Chip></div>}
+          </Card>); })}
       </div>
+      {!run && <Card style={{ marginTop: 10, padding: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>Choose chord {edit + 1} — any key, any chord</div>
+        <div style={{ fontSize: 10.5, color: T.faint, fontWeight: 700, margin: "4px 0" }}>QUICK PICK: CHORDS OF A KEY</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}><Seg value={cMode} onChange={setCMode} options={[{ value: "major", label: "Major key" }, { value: "minor", label: "Minor key" }]} /></div>
+        <div style={{ marginTop: 6 }}><KeyChips value={ck} onChange={setCk} /></div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>{diat(ck, cMode).map((c) => <Chip key={c.num} active={(edit ? B : A).root === c.root && (edit ? B : A).q === c.q} onClick={() => setSide(edit, { root: c.root, q: c.q, vi: 0 })} style={{ fontSize: 12 }}><b>{c.num}</b> {NOTE_NAMES[c.root]}{c.q}</Chip>)}</div>
+        <div style={{ fontSize: 10.5, color: T.faint, fontWeight: 700, margin: "10px 0 4px" }}>OR BUILD ANY CHORD</div>
+        <KeyChips value={(edit ? B : A).root} onChange={(r) => setSide(edit, { ...(edit ? B : A), root: r, vi: 0 })} />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>{QUALS.map(([q, l]) => <Chip key={q || "maj"} active={(edit ? B : A).q === q} onClick={() => setSide(edit, { ...(edit ? B : A), q, vi: 0 })} style={{ fontSize: 12 }}>{l}</Chip>)}</div>
+      </Card>}
       <Card tone="hero" style={{ marginTop: 12, textAlign: "center" }}>
         <div style={{ display: "flex", justifyContent: "space-around" }}>
           <div><div style={{ fontSize: 40, fontWeight: 800 }}>{left}s</div><div style={{ fontSize: 11, opacity: 0.75 }}>TIME</div></div>
@@ -686,9 +711,9 @@ const RUDIMENTS = [
 ];
 function RudimentTrainer({ embedded, r: r0 }) {
   const { T } = useApp();
-  const [r, setR] = useState(RUDIMENTS.find((x) => x.id === r0) || RUDIMENTS[0]);
+  const [r, setR] = useState(RUDIMENTS.find((x) => x.id === r0) || RUDIMENTS[0]); const [lis, setLis] = useState(false); const [runAt, setRunAt] = useState(0);
   const [bpm, setBpm] = useState(70);
-  const [run, setRun] = useState(false);
+  const [run, setRun] = useState(false); useEffect(() => { if (run) setRunAt(performance.now()); }, [run]); // eslint-disable-line
   const [i, setI] = useState(-1);
   const [ramp, setRamp] = useState(false);
   const stepMs = (60 / bpm / r.sub) * 1000;
@@ -719,6 +744,9 @@ function RudimentTrainer({ embedded, r: r0 }) {
         <Slider label="Tempo" value={bpm} min={40} max={200} onChange={setBpm} fmt={(v) => `${v} bpm`} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 13, fontWeight: 600 }}>Tempo ramp (+4 every 2 loops)</span><Toggle on={ramp} onChange={setRamp} /></div>
       </Card>
+      <div style={{ marginTop: 12 }}><Chip active={lis} onClick={() => setLis((v) => !v)} style={{ fontWeight: 800 }}>{lis ? "👂 Listening to you — ON" : "👂 Listen to me (mic)"}</Chip></div>
+      <TimingCoach on={lis && run} bpm={bpm} sub={r.sub} startAt={runAt} />
+      {lis && !run && <Card tone="soft" style={{ marginTop: 10, fontSize: 12.5 }}>Press play, then play the sticking on your pad or snare. I'll tell you if each stroke is early, on time or late.</Card>}
       {!embedded && <MarkComplete id="rudiments" label="Rudiments" mins={6} />}
     </div>
   );

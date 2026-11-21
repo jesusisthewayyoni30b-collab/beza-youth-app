@@ -271,6 +271,12 @@ function Piano({ start = 48, octaves = 2, highlight = [], roots = [], labels = t
   const { T, settings } = useApp();
   const [shift, setShift] = useState(0);
   const [pressed, setPressed] = useState(null);
+  const [lit, setLit] = useState(() => new Set());
+  /* light up and press down every key the app plays, so learners SEE the notes too */
+  useEffect(() => { const tms = []; const off = AE.onNote((ev) => { if (!ev) { tms.forEach(clearTimeout); setLit(new Set()); return; } const m = ev.midi;
+    tms.push(setTimeout(() => setLit((s) => { const n = new Set(s); n.add(m); return n; }), Math.max(0, ev.when * 1000)));
+    tms.push(setTimeout(() => setLit((s) => { if (!s.has(m)) return s; const n = new Set(s); n.delete(m); return n; }), Math.max(120, (ev.when + Math.min(ev.dur, 1.2)) * 1000))); });
+    return () => { off(); tms.forEach(clearTimeout); }; }, []);
   const s0 = start + shift * 12;
   const hl = new Set(highlight); const rt = new Set(roots);
   const total = octaves * 12 + 1; const keys = Array.from({ length: total }, (_, i) => s0 + i);
@@ -293,22 +299,22 @@ function Piano({ start = 48, octaves = 2, highlight = [], roots = [], labels = t
       <div style={{ position: "relative", height, borderRadius: 14, overflow: "hidden", background: T.keyB, padding: 3, touchAction: "none" }}>
         <div style={{ position: "relative", height: "100%" }}>
           {whites.map((m, i) => {
-            const on = hl.has(m) || pressed === m; const isRoot = rt.has(m);
+            const down = lit.has(m) || pressed === m; const on = hl.has(m) || down; const isRoot = rt.has(m);
             return (
               <div key={m} onPointerDown={(e) => { e.preventDefault(); play(m); }} style={{
-                position: "absolute", left: `${i * wW}%`, width: `calc(${wW}% - 2px)`, top: 0, bottom: 0, borderRadius: "0 0 8px 8px",
-                background: on ? (isRoot ? T.pop : T.accent) : T.keyW, cursor: "pointer", display: "flex", alignItems: "flex-end", justifyContent: "center",
-                paddingBottom: 6, fontSize: 9.5, fontWeight: 700, color: on ? (isRoot ? T.popText : T.accentText) : "#55626A", transition: "background .12s"
+                position: "absolute", left: `${i * wW}%`, width: `calc(${wW}% - 2px)`, top: down ? 3 : 0, bottom: 0, borderRadius: "0 0 8px 8px", boxShadow: down ? "inset 0 4px 10px rgba(0,0,0,0.35), 0 0 14px rgba(198,255,61,0.6)" : "none", transition: "background .08s, top .06s",
+                background: down ? "#C6FF3D" : on ? (isRoot ? T.pop : T.accent) : T.keyW, cursor: "pointer", display: "flex", alignItems: "flex-end", justifyContent: "center",
+                paddingBottom: 6, fontSize: 9.5, fontWeight: 700, color: on ? (isRoot ? T.popText : T.accentText) : "#55626A"
               }}>{labels && (on || m % 12 === 0) ? nn(m) + (m % 12 === 0 && !on ? Math.floor(m / 12) - 1 : "") : ""}</div>
             );
           })}
           {keys.map((m) => {
             if (![1, 3, 6, 8, 10].includes(m % 12)) return null;
-            const wi = whites.filter((w) => w < m).length; const on = hl.has(m) || pressed === m; const isRoot = rt.has(m);
+            const wi = whites.filter((w) => w < m).length; const down = lit.has(m) || pressed === m; const on = hl.has(m) || down; const isRoot = rt.has(m);
             return (
               <div key={m} onPointerDown={(e) => { e.preventDefault(); play(m); }} style={{
-                position: "absolute", left: `calc(${wi * wW}% - ${wW * 0.32}%)`, width: `${wW * 0.62}%`, top: 0, height: "60%", zIndex: 2,
-                borderRadius: "0 0 6px 6px", background: on ? (isRoot ? T.pop : T.accent) : "#1b2126", border: "1px solid #000", cursor: "pointer",
+                position: "absolute", left: `calc(${wi * wW}% - ${wW * 0.32}%)`, width: `${wW * 0.62}%`, top: down ? 2 : 0, height: "60%", zIndex: 2, boxShadow: down ? "0 0 12px rgba(198,255,61,0.8)" : "none", transition: "background .08s, top .06s",
+                borderRadius: "0 0 6px 6px", background: down ? "#9BE01F" : on ? (isRoot ? T.pop : T.accent) : "#1b2126", border: "1px solid #000", cursor: "pointer",
                 display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 4, fontSize: 8, fontWeight: 700, color: on ? T.accentText : "transparent"
               }}>{labels && on ? nn(m) : ""}</div>
             );

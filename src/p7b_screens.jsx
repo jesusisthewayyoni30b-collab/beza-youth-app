@@ -864,7 +864,7 @@ function ChatScreen() {
                 {m.text && <div style={{ padding: m.file && m.file.url ? "6px 8px 4px" : 0, whiteSpace: "pre-wrap" }}>{m.text}</div>}
               </div>
               {reactFor === m.id && (
-                <div className="bz-up" style={{ position: "absolute", [m.me ? "right" : "left"]: 0, top: -44, zIndex: 5, display: "flex", gap: 2, background: T.graffiti ? "#111" : T.card, border: `1px solid ${T.border}`, borderRadius: 99, padding: "4px 6px", boxShadow: "0 8px 20px rgba(0,0,0,0.35)" }}>
+                <div className="bz-up" style={{ position: "relative", marginTop: 6, marginLeft: m.me ? "auto" : 0, width: "fit-content", maxWidth: "100%", flexWrap: "wrap", zIndex: 5, display: "flex", gap: 2, background: T.graffiti ? "#111" : T.card, border: `1px solid ${T.border}`, borderRadius: 99, padding: "4px 6px", boxShadow: "0 8px 20px rgba(0,0,0,0.35)" }}>
                   {["🙏", "❤️", "🔥", "😂", "🙌", "😮", "👏"].map((e) => <button key={e} onClick={() => react(m.id, e)} style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", padding: "2px 3px" }}>{e}</button>)}
                 </div>
               )}
@@ -1005,7 +1005,7 @@ function SettingsScreen() {
       <Group title="Appearance">
         <div style={{ padding: "12px 0" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {Object.values(THEMES).filter((th) => th.id !== "graffiti").map((th) => (
+            {["youth", "light", "calm", "dark", "graffiti", "riot"].map((k) => THEMES[k]).map((th) => (
               <button key={th.id} onClick={() => setThemeId(th.id)} style={{ border: themeId === th.id ? `2.5px solid ${T.accent}` : `1.5px solid ${T.border}`, borderRadius: 14, padding: 4, background: "transparent", cursor: "pointer", fontFamily: FONT, color: T.text, minWidth: 0 }}>
                 <div style={{ height: 44, borderRadius: 10, background: th.bg, backgroundImage: th.texture > 0.4 ? NOISE_SVG : "none", position: "relative", overflow: "hidden" }}>
                   <div style={{ position: "absolute", left: 5, right: 5, top: 5, height: 13, borderRadius: 5, background: th.heroBg || th.hero }} />
@@ -1234,6 +1234,7 @@ function RouteView({ r }) {
     case "games": return <GamesHub />;
     case "game": return <GameScreen id={r.id} />;
     case "tiles": return <TilesGame dept={r.dept} />;
+    case "vgame": return <VoiceGame id={r.id} />;
     case "board": return <TeamBoard />;
     case "song": return <SongScreen id={r.id} share={r.share} />;
     case "songedit": return <SongEditScreen id={r.id} lyrics={r.lyrics} />;

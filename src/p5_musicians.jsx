@@ -208,7 +208,8 @@ function GrooveLab({ embedded, id: g0, locked }) {
   const [rows, setRows] = useState(() => normRows(first.rows));
   const [bpm, setBpm] = useState(first.bpm);
   const [run, setRun] = useState(false);
-  const [step, setStep] = useState(-1);
+  const [step, setStep] = useState(-1); const [lis, setLis] = useState(false); const [runAt, setRunAt] = useState(0);
+  useEffect(() => { if (run) setRunAt(performance.now()); }, [run]); // eslint-disable-line
   const rowsRef = useRef(rows); rowsRef.current = rows;
   useEffect(() => {
     if (!run) return; let s = 0; AE.get();
@@ -288,6 +289,8 @@ function GrooveLab({ embedded, id: g0, locked }) {
       {!locked && <Card tone="soft" style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>
         <b>Practise like this:</b> play along on your kit or a pad. Mute rows (tap cells off) and play those parts yourself. Raise the tempo 4 bpm only when it feels effortless.
       </Card>}
+      <div style={{ marginTop: 12 }}><Chip active={lis} onClick={() => setLis((v) => !v)} style={{ fontWeight: 800 }}>{lis ? "👂 Listening to you — ON" : "👂 Listen to me (mic)"}</Chip></div>
+      <TimingCoach on={lis && run} bpm={bpm} sub={2} startAt={runAt} />
       {!embedded && <MarkComplete id="groove" label="Groove Lab" mins={8} />}
     </div>
   );

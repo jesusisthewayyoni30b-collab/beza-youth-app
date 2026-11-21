@@ -78,7 +78,7 @@ function VocalGym({ embedded, cat: c0, ex: e0 }) {
   const [bpm, setBpm] = useState(ex.fast ? 90 : 100);
   const [reps, setReps] = useState(6);
   const [dir, setDir] = useState(ex.down ? "down" : "up");
-  const [guide, setGuide] = useState(true);
+  const [guide, setGuide] = useState(true); const [lis, setLis] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState({ rep: -1, step: -1, key: null });
   const timers = useRef([]);
@@ -164,6 +164,8 @@ function VocalGym({ embedded, cat: c0, ex: e0 }) {
           </Card>
         ))}
       </div>
+      <div style={{ marginTop: 12 }}><Chip active={lis} onClick={() => setLis((v) => !v)} style={{ fontWeight: 800 }}>{lis ? "👂 Listening to you — ON" : "👂 Listen to me (mic)"}</Chip></div>
+      <LiveCoach on={lis && playing} target={hl[0] != null ? hl[0] : null} title="Sing along — I'm listening" />
       {!embedded && <MarkComplete id="vocalgym" label="Vocal Gym" mins={10} />}
     </div>
   );
@@ -306,7 +308,7 @@ function ScaleExplorer({ embedded, musician, group: g0, scale: s0, pattern: p0 }
   const [drone, setDrone] = useState(false);
   const [climb, setClimb] = useState(false);
   const [cur, setCur] = useState(-1);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(false); const [lis, setLis] = useState(false); const [mode2, setMode2] = useState("along");
   const timers = useRef([]); const droneOff = useRef(null);
   const vt = VOICE_TYPES.find((v) => v.name === voice);
   const base = (vt && !isMus ? vt.lo + 2 - ((vt.lo + 2 - root) % 12 + 12) % 12 + 12 : 60 + root - (root > 6 ? 12 : 0));
@@ -363,6 +365,9 @@ function ScaleExplorer({ embedded, musician, group: g0, scale: s0, pattern: p0 }
         {view === "guitar" && <Fretboard pcs={scale.steps.map((s) => s + root)} rootPc={root} labelMode="deg" />}
         {view === "bass" && <Fretboard tuning={BASS_TUNING} pcs={scale.steps.map((s) => s + root)} rootPc={root} labelMode="deg" />}
       </Card>
+      <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}><Chip active={lis && mode2 === "along"} onClick={() => { setMode2("along"); setLis((v) => !(v && mode2 === "along")); }} style={{ fontWeight: 800 }}>👂 Sing / play along (I listen)</Chip><Chip active={lis && mode2 === "turn"} onClick={() => { stopAll(); setMode2("turn"); setLis((v) => !(v && mode2 === "turn")); }} style={{ fontWeight: 800 }}>🎯 Your turn, note by note</Chip></div>
+      {lis && mode2 === "along" && <LiveCoach on={playing} target={cur >= 0 ? cur : null} title="Follow the run — I'm listening" />}
+      {lis && mode2 === "turn" && <FollowMe steps={[...notes, ...notes.slice(0, -1).reverse()].map((m) => ({ n: [m], label: nn(m) }))} title="Your turn: the scale up and down — I'm listening" />}
       {!embedded && <MarkComplete id="scales" label="Scale studies" mins={8} />}
     </div>
   );
@@ -526,7 +531,7 @@ function HarmonyDrills({ embedded, drill: d0 }) {
   const [loop, setLoop] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [step, setStep] = useState(-1);
-  const [solo, setSolo] = useState(null);
+  const [solo, setSolo] = useState(null); const [lis, setLis] = useState(false);
   const [dir, setDir] = useState("up");
   const [bScale, setBScale] = useState("major");
   const [bType, setBType] = useState(0);
@@ -614,6 +619,8 @@ function HarmonyDrills({ embedded, drill: d0 }) {
           </Card>
         ))}
       </div>
+      <div style={{ marginTop: 12 }}><Chip active={lis} onClick={() => setLis((v) => !v)} style={{ fontWeight: 800 }}>{lis ? "👂 Listening to you — ON" : "👂 Listen to me (mic)"}</Chip></div>
+      <LiveCoach on={lis && playing} target={step >= 0 && parts[mine] ? midiOf(parts[mine], parts[mine].d[step]) : null} title={`Sing YOUR part (${parts[mine] ? parts[mine].n : ""}) — I'm listening`} />
       {!embedded && <MarkComplete id="harmony" label="Harmony drills" mins={10} />}
     </div>
   );
