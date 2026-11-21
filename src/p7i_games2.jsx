@@ -93,8 +93,11 @@ function VoiceGame({ id }) {
     if (id === "vg_match") { const pool = lvl === 0 ? [0, 2, 4, 7] : lvl === 1 ? sc : Array.from({ length: 12 }, (_, i) => i); const m = base + pick(pool) - (lvl === 2 && Math.random() < 0.4 ? 12 : 0); nq = { targets: [m], cue: [m], prompt: "Sing this note" }; }
     else if (id === "vg_interval") { const pool = lvl === 0 ? VG_IV.slice(1, 2).concat(VG_IV.slice(4, 5), VG_IV.slice(6, 7)) : lvl === 1 ? VG_IV.slice(0, 7) : VG_IV; const [nm, iv] = pick(pool); const r = mid - Math.round(iv / 2); nq = { targets: [r + iv], cue: [r], prompt: `Sing ${nm} the note you hear`, hint: r + iv }; }
     else if (id === "vg_echo") { const len = [3, 4, 6][lvl]; let d = 0; const ds = [0]; while (ds.length < len) { d = Math.max(0, Math.min(6, d + pick(lvl === 0 ? [-1, 1] : [-2, -1, 1, 2]))); ds.push(d); } const ms = ds.map((x) => base + sc[x]); nq = { targets: ms, cue: ms, prompt: `Sing back the ${len}-note melody` }; }
+    else if (id === "vg_scale") { const ns = (lvl === 0 ? [0, 2, 4, 5, 7] : lvl === 1 ? [0, 2, 4, 5, 7, 9, 11, 12] : [0, 2, 4, 5, 7, 9, 11, 12, 11, 9, 7, 5, 4, 2, 0]).map((x) => base + x); nq = { targets: ns, cue: [base], chord: [base - 12, base - 8, base - 5], prompt: "Sing up the scale: Do-Re-Mi… one note at a time", hint: null }; }
+    else if (id === "vg_chord") { const d = pick([0, 3, 4, 5]); const r = base + sc[d]; const third = r + (DIATONIC.q[d] === "m" ? 3 : 4); const which = pick(lvl === 0 ? [["root", r], ["5th", r + 7]] : [["root", r], ["3rd", third], ["5th", r + 7]]); nq = { targets: [which[1]], cue: [], chord: [r - 12, third - 12, r - 5], prompt: `Sing the ${which[0]} of this chord`, hint: which[1] }; }
+    else if (id === "vg_hold") { const m = base + pick([0, 2, 4, 7]); nq = { targets: [m], cue: [m], prompt: `Sing and HOLD for ${[3, 5, 8][lvl]} seconds`, hold: [3, 5, 8][lvl] * 20 }; }
     else { const d = pick(lvl === 0 ? [0, 3, 4] : [0, 1, 3, 4, 5]); const mel = base + sc[d]; const har = base + sc[(d + 2) % 7] + (d + 2 >= 7 ? 12 : 0); nq = { targets: [har], cue: [mel], chord: [base + sc[d] - 12, base + sc[(d + 2) % 7] - 12 + (d + 2 >= 7 ? 12 : 0), base + sc[(d + 4) % 7] - 12 + (d + 4 >= 7 ? 12 : 0)], prompt: "Sing the harmony a 3rd ABOVE the melody note", hint: har }; }
-    setQ(nq); setStep(0); setLeft(id === "vg_echo" ? 14 : 10); setRound(r); setTimeout(() => cue(nq), 350);
+    setQ(nq); setStep(0); setLeft(id === "vg_echo" || id === "vg_scale" ? 20 : id === "vg_hold" ? 16 : 10); setRound(r); setTimeout(() => cue(nq), 350);
   };
   const cue = (nq) => { const x = nq || q; if (!x) return; if (x.chord) AE.chord(x.chord, 1.6, 0, "piano"); x.cue.forEach((m, i) => AE.play("piano", m, 0.9, i * 0.7, 0.85)); };
   const start = () => { setScore(0); setHits(0); setPhase("play"); newQ(0); };
@@ -107,7 +110,7 @@ function VoiceGame({ id }) {
       const src = c.createMediaStreamSource(stream); const an = c.createAnalyser(); an.fftSize = 4096; src.connect(an); AE.listen(an); const buf = new Float32Array(4096); const sm = makePitchSmoother(5); let fr = 0, hold = 0;
       const loop = () => { raf = requestAnimationFrame(loop); if ((fr++) % 3) return; an.getFloatTimeDomainData(buf); const f = detectPitch(buf, c.sampleRate); const S = st.current; if (!S.q) return;
         if (f > 60 && f < 1400 && detectPitch.conf > 0.8) { const m = sm(ftom(f, AE.settings.a4)); const tgt = S.q.targets[S.step]; let d = (m - tgt) % 12; if (d > 6) d -= 12; if (d < -6) d += 12; const cents = Math.round(d * 100); setCur(cents);
-          if (Math.abs(cents) <= 35) { hold++; if (hold >= 8) { hold = 0; setScore((s) => s + 100 + Math.max(0, 50 - Math.abs(cents))); if (S.step + 1 < S.q.targets.length) { setStep(S.step + 1); AE.play("piano", 96, 0.1, 0, 0.3); } else { st.current.q = null; next(true); } } } else hold = 0;
+          if (Math.abs(cents) <= 35) { hold++; if (hold >= (S.q.hold || 8)) { hold = 0; setScore((s) => s + 100 + Math.max(0, 50 - Math.abs(cents))); if (S.step + 1 < S.q.targets.length) { setStep(S.step + 1); AE.play("piano", 96, 0.1, 0, 0.3); } else { st.current.q = null; next(true); } } } else hold = 0;
         } else { sm(null); setCur(null); hold = 0; } };
       loop(); } catch (e) { setErr(AE.micErr(e)); } })();
     return () => { stop = true; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach((t) => t.stop()); };
@@ -153,3 +156,79 @@ function VoiceGame({ id }) {
     </div>
   );
 }
+
+/* ============================ MORE GAMES (round 2) ============================ */
+const g2Key = () => pick([0, 2, 4, 5, 7, 9, 10]);
+const g2Tri = (k, d) => { const r = (k + DIATONIC.degs[d]) % 12; const q = DIATONIC.q[d]; return { r, q, iv: q === "m" ? [0, 3, 7] : q === "dim" ? [0, 3, 6] : [0, 4, 7] }; };
+GAMES.push(
+  /* ---- KEYS ---- */
+  { id: "kb_chord", title: "Chord Builder", desc: "Tap all the notes of the chord", icon: PianoIcon, color: "#22E4FF", roles: ["keys"],
+    gen: (L) => { const [t] = TS(L); const pool = [["", "m"], ["", "m", "dim", "sus4"], ["", "m", "7", "maj7", "m7"], ["", "m", "7", "maj7", "m7", "sus2", "add9", "dim"], CHORD_TYPES.slice(0, 14).map((c) => c.id)][t]; const q = pick(pool); const ct = CHORD_TYPES.find((c) => c.id === q) || CHORD_TYPES[0]; const r = rand(12);
+      return { kind: "set", sig: r + q, prompt: `Build ${NOTE_NAMES[r]}${q} — tap every note, then Submit`, answerSet: [...new Set(ct.iv.map((x) => (r + x) % 12))], play: null, reveal: () => AE.chord(voiceChord(60 + r - (r > 6 ? 12 : 0), ct.iv, 0, "close"), 1.4) }; } },
+  { id: "kb_inv", title: "Inversion Spotter", desc: "Root position, 1st or 2nd inversion?", icon: Layers, color: "#B57BFF", roles: ["keys"],
+    gen: (L) => { const [t] = TS(L); const r = rand(12); const q = t < 2 ? "" : pick(["", "m"]); const ct = CHORD_TYPES.find((c) => c.id === q); const inv = rand(3); const v = voiceChord(55 + r - (r > 6 ? 12 : 0), ct.iv, inv, "close"); const names = ["Root position", "1st inversion", "2nd inversion"];
+      return { kind: "choice", sig: r + "" + inv, prompt: t === 0 ? `${NOTE_NAMES[r]}${q} — which inversion? (listen to the LOWEST note)` : "Which inversion is this chord in?", options: names, answer: names[inv], play: () => { AE.tone(v[0], 1.2, 0, 0.8); AE.chord(v, 1.6); } }; } },
+  { id: "kb_bass", title: "Slash Chord Ears", desc: "Is the bass note the root, the 3rd or the 5th?", icon: Music, color: "#C6FF3D", roles: ["keys", "bass"],
+    gen: (L) => { const r = rand(12); const which = pick([["Root (normal)", 0], ["3rd in the bass (1/3)", 4], ["5th in the bass (1/5)", 7]]); const b = 36 + ((r + which[1]) % 12);
+      return { kind: "choice", sig: r + which[0], prompt: `The chord is ${NOTE_NAMES[r]}. What's in the bass?`, options: ["Root (normal)", "3rd in the bass (1/3)", "5th in the bass (1/5)"], answer: which[0], play: () => { AE.tone(b, 1.6, 0, 0.9); AE.chord([60 + r, 64 + r, 67 + r].map((m) => m - (r > 6 ? 12 : 0)), 1.6); } }; } },
+  /* ---- ACOUSTIC ---- */
+  { id: "ac_strum", title: "Strum Spotter", desc: "Which strumming pattern is this?", icon: Activity, color: "#FF8A00", roles: ["acoustic"],
+    gen: (L) => { const [t] = TS(L); const P = [["All downs (D D D D)", "D.D.D.D."], ["Down-up 8ths (DUDUDUDU)", "DUDUDUDU"], ["Folk (D DU UDU)", "D.DU.UDU"], ["Push (D DU UD U)", "D.DU.UD."]].slice(0, t === 0 ? 2 : t === 1 ? 3 : 4); const [nm, pat] = pick(P);
+      return { kind: "choice", sig: nm, prompt: "Listen — which pattern is being strummed?", options: P.map((x) => x[0]), answer: nm, play: () => { const b = 60 / 84 / 2; const ch = [43, 47, 50, 55, 59, 67]; for (let bar = 0; bar < 2; bar++) [...pat].forEach((c, i) => { if (c === ".") return; const w = (bar * 8 + i) * b; AE.strum(c === "D" ? ch : ch.slice(2), c === "D" ? "down" : "up", w, c === "D" ? 0.75 : 0.5); }); } }; } },
+  { id: "ac_capo", title: "Capo Calculator", desc: "Which capo and shapes for the singer's key?", icon: Guitar, color: "#FFE53D", roles: ["acoustic", "lead"],
+    gen: (L) => { const shapes = [["C", 0], ["G", 7], ["D", 2], ["A", 9], ["E", 4]]; const [sn, sk] = pick(shapes); const capo = 1 + rand(5); const key = (sk + capo) % 12; const ans = `Capo ${capo}, ${sn} shapes`;
+      const wrong = new Set([ans]); while (wrong.size < 4) { const [s2, k2] = pick(shapes); const c2 = 1 + rand(6); if ((k2 + c2) % 12 !== key) wrong.add(`Capo ${c2}, ${s2} shapes`); }
+      return { kind: "choice", sig: ans, prompt: `The song is in ${NOTE_NAMES[key]}. Which capo + shapes give you ${NOTE_NAMES[key]}?`, options: shuffle([...wrong]), answer: ans, play: null }; } },
+  /* ---- LEAD ---- */
+  { id: "ld_scale", title: "Scale Spotter", desc: "Major, minor, pentatonic or blues?", icon: Ladder, color: "#FFE53D", roles: ["lead", "keys"],
+    gen: (L) => { const [t] = TS(L); const S = [["Major", [0, 2, 4, 5, 7, 9, 11, 12]], ["Natural minor", [0, 2, 3, 5, 7, 8, 10, 12]], ["Major pentatonic", [0, 2, 4, 7, 9, 12]], ["Minor pentatonic", [0, 3, 5, 7, 10, 12]], ["Blues", [0, 3, 5, 6, 7, 10, 12]]].slice(0, 2 + Math.min(3, t + 1)); const [nm, st] = pick(S); const r = 57 + rand(8);
+      return { kind: "choice", sig: nm + r, prompt: "Which scale is this run?", options: S.map((x) => x[0]), answer: nm, play: () => st.forEach((x, i) => AE.play("electric", r + x, 0.3, i * 0.24, 0.75)) }; } },
+  { id: "ld_bend", title: "Bend Check", desc: "Was the bend in tune, flat or sharp?", icon: Zap, color: "#FF3EA5", roles: ["lead"],
+    gen: (L) => { const [t] = TS(L); const err = [40, 30, 22, 15, 10][t]; const kind = pick(["In tune", "Flat (not enough)", "Sharp (too far)"]); const off = kind === "In tune" ? 0 : kind.startsWith("Flat") ? -err : err; const tgt = 64 + rand(6);
+      return { kind: "choice", sig: kind + tgt, prompt: "First the target note, then the bend. How was the bend?", options: ["In tune", "Flat (not enough)", "Sharp (too far)"], answer: kind, play: () => { AE.play("electric", tgt, 0.9, 0, 0.8); AE.play("electric", tgt + off / 100, 1.1, 1.1, 0.8); } }; } },
+  /* ---- BASS ---- */
+  { id: "bs_root", title: "Root Finder", desc: "Hear the chord, name its root", icon: Activity, color: "#8B5CFF", roles: ["bass"],
+    gen: (L) => { const [t] = TS(L); const k = t === 0 ? 0 : g2Key(); const d = pick([0, 3, 4, 5, ...(t >= 2 ? [1, 2] : [])]); const c = g2Tri(k, d); const opts = [0, 1, 2, 3, 4, 5].map((x) => NOTE_NAMES[(k + DIATONIC.degs[x]) % 12]);
+      return { kind: "choice", sig: k + "" + d, prompt: `Key of ${NOTE_NAMES[k]}: what's the ROOT of this chord?`, options: opts, answer: NOTE_NAMES[c.r], play: () => { AE.chord([60 + k, 64 + k, 67 + k].map((m) => m - (k > 6 ? 12 : 0)), 0.9); setTimeout(() => AE.chord(c.iv.map((x) => 60 + c.r + x - (c.r > 6 ? 12 : 0)), 1.4), 1000); } }; } },
+  { id: "bs_lock", title: "Lock Check", desc: "Is the bass locked with the kick?", icon: Drum, color: "#C6FF3D", roles: ["bass", "drums"],
+    gen: (L) => { const [t] = TS(L); const off = [0.09, 0.07, 0.05, 0.04, 0.03][t]; const kind = pick(["Locked together", "Locked together", "Bass is late", "Bass is early"]); const d = kind === "Bass is late" ? off : kind === "Bass is early" ? -off : 0;
+      return { kind: "choice", sig: kind + rand(9), prompt: "Listen to kick + bass. Are they locked together?", options: ["Locked together", "Bass is late", "Bass is early"], answer: kind, play: () => { const b = 60 / 90; [0, 1.5, 2, 4, 5.5, 6].forEach((x) => { AE.kick(0.1 + x * b, 1); AE.play("bass", 36, 0.3, Math.max(0, 0.1 + x * b + d), 0.9); }); for (let i = 0; i < 16; i++) AE.hat(0.1 + i * b / 2, false, 0.35); } }; } },
+  /* ---- DRUMS ---- */
+  { id: "dr_groove", title: "Groove Spotter", desc: "Which groove is the band playing?", icon: Drum, color: "#C6FF3D", roles: ["drums"],
+    gen: (L) => { const G = [["Basic rock / worship", { k: [0, 4], s: [2, 6], h: [0, 1, 2, 3, 4, 5, 6, 7] }], ["Four on the floor", { k: [0, 2, 4, 6], s: [2, 6], h: [1, 3, 5, 7] }], ["Half-time", { k: [0], s: [4], h: [0, 2, 4, 6] }], ["Worship pop (kick on 2&)", { k: [0, 3, 4], s: [2, 6], h: [0, 1, 2, 3, 4, 5, 6, 7] }]]; const [nm, g] = pick(G);
+      return { kind: "choice", sig: nm, prompt: "Which groove is this?", options: G.map((x) => x[0]), answer: nm, play: () => { const e = 60 / 96 / 2; for (let bar = 0; bar < 2; bar++) { g.k.forEach((x) => AE.kick((bar * 8 + x) * e, 1)); g.s.forEach((x) => AE.snare((bar * 8 + x) * e, 0.85)); g.h.forEach((x) => AE.hat((bar * 8 + x) * e, false, 0.4)); } } }; } },
+  { id: "dr_fill", title: "Fill Counter", desc: "How many beats long was the fill?", icon: Timer, color: "#FF8A00", roles: ["drums"],
+    gen: (L) => { const n = pick([1, 2, 3, 4]);
+      return { kind: "choice", sig: String(n) + rand(9), prompt: "Groove, then a fill into the crash. How many beats was the fill?", options: ["1 beat", "2 beats", "3 beats", "4 beats (whole bar)"], answer: n === 4 ? "4 beats (whole bar)" : `${n} beat${n > 1 ? "s" : ""}`, play: () => { const b = 60 / 92; for (let i = 0; i < 4 + (4 - n); i++) { const w = i * b; AE.hat(w, false, 0.4); AE.hat(w + b / 2, false, 0.3); if (i % 2 === 0) AE.kick(w, 1); else AE.snare(w, 0.85); } const st = (8 - n) * b; for (let i = 0; i < n * 4; i++) { const w = st + i * b / 4; const which = i / (n * 4); if (which < 0.34) AE.snare(w, 0.7); else if (which < 0.67) AE.tom(w, 1, 0.8); else AE.tom(w, 3, 0.85); } AE.kick(8 * b, 1); AE.hat(8 * b, true, 0.9); } }; } },
+  /* ---- SOUND ---- */
+  { id: "sd_hpf", title: "Low-Cut Ears", desc: "Is the high-pass (low-cut) on?", icon: Sliders, color: "#7CFFB2", roles: ["sound"],
+    gen: (L) => { const [t] = TS(L); const f = [200, 150, 120, 100, 80][t]; const on = Math.random() < 0.5;
+      return { kind: "choice", sig: String(on) + rand(9), prompt: "First the raw sound, then the same with or without a low-cut. Is the low-cut ON?", options: ["Yes — low-cut on", "No — the same"], answer: on ? "Yes — low-cut on" : "No — the same", play: () => { const c = AE.get(); const a = c.createGain(); a.connect(AE.out()); [36, 43, 48].forEach((m, i) => AE.play("bass", m, 0.6, i * 0.6, 0.9, a)); const g = c.createGain(); if (on) { const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = f; hp.Q.value = 0.9; g.connect(hp); hp.connect(AE.out()); } else g.connect(AE.out()); [36, 43, 48].forEach((m, i) => AE.play("bass", m, 0.6, 2.2 + i * 0.6, 0.9, g)); } }; } },
+  { id: "sd_delay", title: "Delay Timer", desc: "Which delay time fits the song tempo?", icon: Waves, color: "#22E4FF", roles: ["sound"],
+    gen: (L) => { const bpm = pick([60, 70, 72, 75, 80, 90, 100, 120]); const q = Math.round(60000 / bpm); const kind = pick([["quarter note", 1], ["dotted 8th", 0.75], ["8th note", 0.5]]); const ans = Math.round(q * kind[1]);
+      const opts = shuffle([...new Set([ans, Math.round(q), Math.round(q * 0.75), Math.round(q * 0.5), Math.round(q * 1.5)])]).slice(0, 4); if (!opts.includes(ans)) opts[0] = ans;
+      return { kind: "choice", sig: bpm + kind[0], prompt: `The song is ${bpm} bpm. What's the ${kind[0]} delay time?`, options: shuffle(opts).map((x) => `${x} ms`), answer: `${ans} ms`, play: null }; } },
+);
+Object.assign(GAME_HOW, {
+  kb_chord: ["The game names a chord. Tap all its notes on the piano, then Submit.", "Knowing every chord's notes in every key."], kb_inv: ["A chord plays. Listen to the lowest note: root, 3rd (1st inversion) or 5th (2nd inversion)?", "Smooth voicings and hearing what other keys players do."],
+  kb_bass: ["A chord plays with a bass note. Is the bass the root, the 3rd or the 5th?", "Hearing slash chords like 1/3 and 1/5."], ac_strum: ["Listen to the strumming and pick the pattern.", "Copying strumming patterns by ear."],
+  ac_capo: ["The singer's key is shown. Pick the capo + chord shapes that sound in that key.", "Playing in any key with easy shapes."], ld_scale: ["A run plays. Which scale was it?", "Choosing the right scale for solos and fills."],
+  ld_bend: ["Hear the target, then the bend. Was it in tune, flat or sharp?", "Bending strings in tune."], bs_root: ["The key plays, then a chord. Which note is its root?", "Finding the root fast — the bass player's #1 job."],
+  bs_lock: ["Kick and bass play together. Are they locked, or is the bass early/late?", "Locking with the drummer."], dr_groove: ["A groove plays. Which one is it?", "Recognising and choosing the right groove."],
+  dr_fill: ["Groove, then a fill into the crash. How long was the fill?", "Knowing exactly where fills start so you land on the 1."], sd_hpf: ["Raw, then processed. Is the low-cut filter on?", "Cleaning rumble from vocals and guitars."],
+  sd_delay: ["The tempo is given. Pick the right delay time (quarter = 60000 ÷ bpm).", "Setting delays in time with the song."],
+});
+Object.assign(GAME_SETS, {
+  keys: [...GAME_SETS.keys, "kb_chord", "kb_inv", "kb_bass", "ld_scale"],
+  acoustic: [...GAME_SETS.acoustic, "ac_strum", "ac_capo"],
+  lead: [...GAME_SETS.lead, "ld_scale", "ld_bend", "ac_capo"],
+  bass: [...GAME_SETS.bass, "bs_root", "bs_lock", "kb_bass"],
+  drums: [...GAME_SETS.drums, "dr_groove", "dr_fill", "bs_lock"],
+  sound: [...GAME_SETS.sound, "sd_hpf", "sd_delay"],
+});
+/* ---- SINGERS: more voice games ---- */
+VOICE_GAMES.push(
+  { id: "vg_scale", title: "Scale Climber", emoji: "🧗", color: "#FF8A00", desc: "Sing Do-Re-Mi up (and down) the scale.", how: "The key plays. Sing each step of the scale in order — each dot turns green when you hit it.", trains: "Accurate steps and a strong sense of the key." },
+  { id: "vg_chord", title: "Chord Tone Singer", emoji: "🎹", color: "#B57BFF", desc: "A chord plays — sing its root, 3rd or 5th.", how: "A chord plays and the game asks for one of its notes (root, 3rd or 5th). Find it and sing it.", trains: "Finding your harmony note inside the chord the band plays." },
+  { id: "vg_hold", title: "Long Note Hold", emoji: "⏳", color: "#7CFFB2", desc: "Hold one note in tune for as long as asked.", how: "A note plays. Sing it and HOLD it steady in tune — the bar must stay green for the whole time.", trains: "Breath support and steady pitch on long notes." },
+);
