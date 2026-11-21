@@ -47,6 +47,12 @@ service cloud.firestore {
       allow delete: if isLeader() || (signedIn() && resource.data.uid == me());
     }
 
+    // team calendar: everyone sees, leaders post
+    match /events/{eid} {
+      allow read: if signedIn();
+      allow write: if isLeader();
+    }
+
     // team feed: leaders post
     match /feed/{fid} {
       allow read: if signedIn();

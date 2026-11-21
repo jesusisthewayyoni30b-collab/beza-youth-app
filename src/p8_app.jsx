@@ -153,10 +153,9 @@ function SideNav({ tab, onTab, labels }) {
 
 function SidePanel() {
   const { T, user, games, push, setTab } = useApp();
-  const v = VERSES[new Date().getDate() % VERSES.length];
+  const v = useDailyVerse(); const { events, groups } = useApp(); const nx = upcoming(events, user, groups, 14)[0];
   const board = [...TEAM.map((m) => ({ name: m.name, color: m.color, xp: teamScore(m) })), { name: user.name, color: T.pop, xp: gameXP(games), me: true }].sort((a, b) => b.xp - a.xp);
-  const day = new Date().getDate(); const nextDay = Object.keys(EVENTS).map(Number).filter((d) => d >= day && EVENTS[d].length).sort((a, b) => a - b)[0]; const ev = nextDay ? EVENTS[nextDay][0] : null;
-  const wk = WEEK.find((w) => w.n === nextDay);
+
   return (
     <div className="bz-noscroll" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 320, overflowY: "auto", padding: "28px 22px", boxSizing: "border-box", borderLeft: `1px solid ${T.border}`, zIndex: 20 }}>
       <Card tone="hero" style={{ padding: 18, marginBottom: 14 }}>
@@ -164,11 +163,11 @@ function SidePanel() {
         <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.5, margin: "8px 0 6px" }}>"{v.txt}"</div>
         <div style={{ fontSize: 12, opacity: 0.85, fontWeight: 700 }}>{v.ref}</div>
       </Card>
-      {ev && (
-        <Card style={{ marginBottom: 14 }} onClick={() => { setTab("home"); setTimeout(() => push({ screen: "schedule", day: nextDay }), 30); }}>
-          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: T.sub }}>NEXT UP · {wk ? wk.d.toUpperCase() : ""} {nextDay}</div>
-          <div style={{ fontWeight: 800, fontSize: 15, marginTop: 6 }}>{ev.title}</div>
-          <div style={{ fontSize: 12, color: T.sub, marginTop: 2 }}>{to12(ev.t)} – {to12(ev.end)} · {ev.sub}</div>
+      {nx && (
+        <Card style={{ marginBottom: 14, borderLeft: `5px solid ${evKind(nx.e.kind)[2]}` }} onClick={() => { setTab("home"); setTimeout(() => push({ screen: "schedule", day: ymd(nx.d) }), 30); }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: T.sub }}>NEXT UP · {fmtDay(nx.d).toUpperCase()}</div>
+          <div style={{ fontWeight: 800, fontSize: 15, marginTop: 6 }}>{nx.e.title}</div>
+          <div style={{ fontSize: 12, color: T.sub, marginTop: 2 }}>{to12(nx.e.start)}{nx.e.end ? ` – ${to12(nx.e.end)}` : ""}{nx.e.place ? ` · ${nx.e.place}` : ""}</div>
         </Card>
       )}
       <Card>
@@ -213,7 +212,7 @@ export default function BezaYouthWorshipTeam() {
   const [shellReady, setShellReady] = useState(false);
   useEffect(() => { const t = setTimeout(() => React.startTransition(() => setShellReady(true)), 5300); const b = document.getElementById("boot"); if (b) { b.style.opacity = "0"; setTimeout(() => b.remove(), 400); } return () => clearTimeout(t); }, []);
   const [chatRead, setChatRead] = useState(() => { try { return JSON.parse(localStorage.getItem("beza-chat-read") || "{}"); } catch (e) { return {}; } });
-  const [chatReads, setChatReads] = useState({}); const [chatPing, setChatPing] = useState(null);
+  const [chatReads, setChatReads] = useState({}); const [events, setEvents] = useState(() => (CLOUD.on ? [] : saved.events || [])); const [chatPing, setChatPing] = useState(null);
   const [chat, setChat] = useState(() => (CLOUD.on ? {} : { ...SEED_CHAT, ...(saved.chat || {}) }));
   const [groups, setGroups] = useState(CLOUD.on ? null : saved.groups || null);
   const [authState, setAuthState] = useState(CLOUD.on ? "loading" : "off");
@@ -228,7 +227,7 @@ export default function BezaYouthWorshipTeam() {
   const [host, setHost] = useState(null);
   const toastTimer = useRef(null);
 
-  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ themeV: 2, themeId, user, done: [...done], logs: logs.slice(0, 400), voice, voiceRange, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat: Object.fromEntries(Object.entries(chat).map(([k, v]) => [k, v.slice(-60).map((m) => (m.file && (m.file.url || m.file.audio) ? { ...m, file: { ...m.file, url: null, audio: null } } : m))])) })); } catch (e) { } }, [themeId, user, done, logs, voice, voiceRange, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat]);
+  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ themeV: 2, themeId, events: CLOUD.on ? [] : events, user, done: [...done], logs: logs.slice(0, 400), voice, voiceRange, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat: Object.fromEntries(Object.entries(chat).map(([k, v]) => [k, v.slice(-60).map((m) => (m.file && (m.file.url || m.file.audio) ? { ...m, file: { ...m.file, url: null, audio: null } } : m))])) })); } catch (e) { } }, [themeId, user, done, logs, voice, voiceRange, avatar, leader, settings, assignments, sessionsDone, groups, games, songs, chat, events]);
   useEffect(() => { if (!CLOUD.on && !groups && user && user.roles && user.roles.length) setGroups(defaultGroups(user, leader)); }, [user, groups]); // eslint-disable-line
   useEffect(() => { if (!CLOUD.on && leader && groups) { const l = groups.find((g) => g.id === "leaders"); if (l && !l.members.includes("@me")) setGroups((gs) => gs.map((g) => (g.id === "leaders" ? { ...g, members: [...g.members, "@me"] } : g))); } }, [leader]); // eslint-disable-line
   useEffect(() => { AE.settings.a4 = settings.a4; AE.settings.click = settings.click; }, [settings]);
@@ -360,9 +359,10 @@ export default function BezaYouthWorshipTeam() {
     T, themeId, setThemeId, user, setUser, setRoles, tab, setTab, push, pop, done, completeLesson, logs, logPractice, minutes: logs.reduce((s, l) => s + l.mins, 0), streak,
     voice, setVoice, voiceRange, setVoiceRange, avatar, setAvatar, leader, setLeader, settings, setSettings, update, runUpdate, checkUpdate, toast, chat, setChat, feed, setFeed, plan, setPlan,
     assignments, setAssignments, sessionsDone, setSessionsDone, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
-    chatRead, markRead, chatReads, setChatReads, unread, unreadTotal: Object.values(unread).reduce((a, b) => a + b, 0), openChat,
+    events, setEvents, chatRead, markRead, chatReads, setChatReads, unread, unreadTotal: Object.values(unread).reduce((a, b) => a + b, 0), openChat,
   };
   const needsOnboarding = user && (!user.roles || !user.roles.length);
+  useEventReminders(events, user, groups, settings, onNotice);
   useWebReminder(settings, logs.filter((l) => new Date(l.at).toDateString() === new Date().toDateString()).reduce((s, l) => s + l.mins, 0));
   const L = STR[settings.lang];
   const win = useWinSize();
@@ -378,7 +378,7 @@ export default function BezaYouthWorshipTeam() {
 
   return (
     <Ctx.Provider value={ctx}>
-      {CLOUD.on && user && user.uid && user.roles && user.roles.length > 0 && <CloudSync uid={user.uid} onTeam={() => setTeamV((v) => v + 1)} onIncoming={onIncoming} setChatReads={setChatReads} onNotice={onNotice} />}
+      {CLOUD.on && user && user.uid && user.roles && user.roles.length > 0 && <CloudSync uid={user.uid} onTeam={() => setTeamV((v) => v + 1)} onIncoming={onIncoming} setChatReads={setChatReads} onNotice={onNotice} setEvents={setEvents} />}
       <style>{FONT_FACES + CSS}</style>
       {update.available && <UpdateGate />}
       <div className={`bz-root bz-stage${web || (big && full) ? " bz-web" : ""}${scaled ? " bz-scaled" : ""}`} style={{ background: T.dark ? "#07090b" : "#d9dfe1", fontFamily: FONT, ["--bz-accent"]: T.accent, ["--bz-thumb"]: T.dark ? "#1b2328" : "#fff", ["--ico-blob"]: T.blob }}>

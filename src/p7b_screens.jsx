@@ -146,7 +146,7 @@ function HomeScreen() {
   const [day, setDay] = useState(new Date().getDate());
   const mine = assignments.filter((a) => a.toMe && a.status !== "done");
   const sess = sessionsFor(user.roles)[0];
-  const verse = VERSES[new Date().getDate() % VERSES.length];
+  const verse = useDailyVerse();
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
@@ -228,22 +228,7 @@ function HomeScreen() {
         </Card>
       )}
 
-      <SectionTitle action="Schedule" onAction={() => push({ screen: "schedule" })}>This week</SectionTitle>
-      <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
-        {WEEK.map((w) => { const on = w.n === day; const has = (EVENTS[w.n] || []).length > 0;
-          return (
-            <button key={w.n} onClick={() => setDay(w.n)} style={{ flex: 1, border: on ? "none" : `1.5px solid ${T.border}`, background: on ? T.accent : T.card, color: on ? T.accentText : T.text, borderRadius: 16, padding: "9px 0 8px", fontFamily: FONT, cursor: "pointer", transform: on && T.graffiti ? "rotate(-3deg)" : "none", boxShadow: on && T.graffiti ? "3px 3px 0 #0B0D10" : "none" }}>
-              <div style={{ fontSize: 10.5, opacity: 0.75, fontWeight: 500 }}>{w.d}</div>
-              <div style={{ fontSize: 16, fontWeight: 800 }}>{String(w.n).padStart(2, "0")}</div>
-              <div style={{ width: 5, height: 5, borderRadius: 9, background: has ? (on ? T.accentText : T.pop) : "transparent", margin: "3px auto 0" }} />
-            </button>
-          ); })}
-      </div>
-      {(EVENTS[day] || []).map((e) => (
-        <Card key={e.title} pad={12} style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }} onClick={() => push({ screen: "schedule", day })}>
-          <IconBubble icon={Calendar} size={36} /><div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 13.5 }}>{e.title}</div><div style={{ fontSize: 11.5, color: T.sub }}>{to12(e.t)} – {to12(e.end)} · {e.sub}</div></div><ChevronRight size={16} />
-        </Card>
-      ))}
+      <WeekGlance />
 
       <SectionTitle>{L.plan}</SectionTitle>
       <Card>

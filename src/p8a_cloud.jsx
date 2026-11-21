@@ -79,7 +79,7 @@ const CLOUD_GROUPS = [
 ];
 
 /* Runs inside the app: keeps local state and the cloud in sync */
-function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice }) {
+function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents }) {
   const ctx = useApp();
   const { user, done, logs, voice, voiceRange, settings, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader } = ctx;
   const me = useRef({}); me.current = { uid, user, leader };
@@ -134,6 +134,14 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice }) {
     });
     Object.keys(gMirror.current).forEach((id) => { if (!ids.has(id) && !CLOUD_GROUPS.some((g) => g._id === id)) { delete gMirror.current[id]; CLOUD.del(`groups/${id}`).catch(() => { }); } });
   }, [groups]); // eslint-disable-line
+
+  /* ---- team calendar ---- */
+  const evSeen = useRef(null);
+  useEffect(() => CLOUD.listen("events", {}, (list) => {
+    const evs = list.map((e) => ({ ...e, id: e._id }));
+    if (evSeen.current) evs.forEach((e) => { if (!evSeen.current.has(e.id) && e.byUid !== uid) { const d = parseYmd(e.date); onNotice && onNotice(`📅 New: ${e.title}`, `${fmtDay(d)} · ${to12(e.start)}${e.place ? " · " + e.place : ""}${e.repeat === "weekly" ? " · every week" : ""}`, "event"); } });
+    evSeen.current = new Set(evs.map((e) => e.id)); setEvents && setEvents(evs);
+  }, () => { }), [uid]); // eslint-disable-line
 
   /* ---- learning questions: members hear answers, leaders hear new questions ---- */
   const qSeen = useRef(null);
