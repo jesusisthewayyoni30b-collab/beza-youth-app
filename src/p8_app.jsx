@@ -304,6 +304,9 @@ export default function BezaYouthWorshipTeam() {
       } else if (legacy) {
         setUserRaw({ uid: u.uid, name: window.__bezaPendingName || u.name || legacy.user.name, email: u.email, roles: legacy.user.roles || [], levels: legacy.user.levels || {} }); setLeader(false);
       } else {
+        /* brand-new account: stop it if this person already has one */
+        if (ok) { const nm = window.__bezaPendingName || u.name || ""; const dup = await findDuplicateMember(nm, u.uid);
+          if (dup) { window.__bezaAuthMsg = `${dup.name} already has an account on the team. Please sign in with that account instead of making a new one. Forgot the password? Type the email and tap "Forgot password".`; try { await CLOUD.deleteMe(); } catch (e) { } try { await CLOUD.signOut(); } catch (e) { } setUserRaw(null); setAuthState("out"); window.dispatchEvent(new CustomEvent("bz-auth-msg", { detail: window.__bezaAuthMsg })); return; } }
         setUserRaw({ uid: u.uid, name: window.__bezaPendingName || u.name || (u.email || "Member").split("@")[0], email: u.email, roles: [], levels: {} });
         setDone(new Set()); setLogs([]); setVoice(null); setAvatar(u.photo || null); setGames({ best: {} }); setSessionsDone({}); setLeader(false); setAssignments([]);
       }

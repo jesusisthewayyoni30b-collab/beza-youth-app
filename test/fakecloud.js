@@ -22,6 +22,10 @@
     google: async () => { throw err("auth/popup-blocked"); },
     reset: async () => { },
     signOut: async function () { this._set(null); },
+    getAll: async (p) => { S = load(); const n = p.split("/").length; return Object.entries(S.docs).filter(([k]) => k.startsWith(p + "/") && k.split("/").length === n + 1).map(([k, v]) => ({ _id: k.split("/").pop(), ...v })); },
+    deleteMe: async function () { S = load(); const email = cur && cur.email; if (email) delete S.auth[email]; save(); },
+    providers: () => ["password"],
+    changePw: async (o, n) => { S = load(); const a = S.auth[cur.email]; if (!a || a.pw !== o) { const e = new Error("bad"); e.code = "auth/wrong-password"; throw e; } a.pw = n; save(); },
     get: async (p) => { S = load(); return S.docs[p] ? JSON.parse(JSON.stringify(S.docs[p])) : null; },
     set: async (p, d, merge = true) => {
       S = load();

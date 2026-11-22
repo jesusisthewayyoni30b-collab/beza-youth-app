@@ -818,7 +818,7 @@ function ChatScreen() {
       </div>
       <Sheet open={info} onClose={() => setInfo(false)} title={`${cur.emoji || ""} ${cur.label}`}>
         <div style={{ maxHeight: 380, overflowY: "auto" }} className="bz-noscroll">
-          {(cur.everyone ? [...TEAM.map((m) => m.name), "@me"] : cur.members).slice().sort((x, y) => { const on = (n) => n === "@me" || isOnline(TEAM.find((t) => t.name === n)); return (on(y) ? 1 : 0) - (on(x) ? 1 : 0); }).map((n) => { const me = n === "@me"; const m = TEAM.find((x) => x.name === n); const onl = me || isOnline(m); return (
+          {[...new Set(cur.everyone ? [...TEAM.map((m) => m.name), "@me"] : cur.members)].sort((x, y) => { const on = (n) => n === "@me" || isOnline(TEAM.find((t) => t.name === n)); return (on(y) ? 1 : 0) - (on(x) ? 1 : 0); }).map((n) => { const me = n === "@me"; const m = TEAM.find((x) => x.name === n); const onl = me || isOnline(m); return (
             <div key={n} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px", borderTop: `1px solid ${T.border}` }}>
               <Avatar name={me ? user.name : n} src={me ? avatar : null} size={34} color={me ? T.pop : m ? m.color : colorOf(n)} />
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 13.5 }}>{me ? `${user.name} (you)` : n}</div><div style={{ fontSize: 11, color: T.sub }}>{(me ? user.roles : m ? m.roles : []).map(roleLabel).join(" · ")}</div></div>
@@ -1049,6 +1049,7 @@ function SettingsScreen() {
       <OwnerInbox />
       <Group title="Account">
         <Row icon={User} label={user.name} value={user.roles.map(roleLabel).join(" · ")} />
+        <AccountSecurity Row={Row} />
         <div onClick={() => setUser(null)} style={{ minHeight: 50, display: "flex", alignItems: "center", justifyContent: "center", color: T.bad, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Log out</div>
       </Group>
       <div style={{ display: "grid", placeItems: "center", padding: "10px 0 6px", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}

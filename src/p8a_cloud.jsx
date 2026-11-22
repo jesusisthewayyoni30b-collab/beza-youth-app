@@ -1,8 +1,8 @@
 
 /* ============================ CLOUD (Firebase: accounts + shared team data) ============================ */
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendPasswordResetEmail, signOut as fbSignOut, updateProfile } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc as fsDoc, setDoc, getDoc, deleteDoc, updateDoc, collection, onSnapshot, query, orderBy, limit as fsLimit, where, serverTimestamp, Bytes } from "firebase/firestore";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendPasswordResetEmail, signOut as fbSignOut, updateProfile, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser } from "firebase/auth";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc as fsDoc, setDoc, getDoc, deleteDoc, updateDoc, collection, onSnapshot, query, orderBy, limit as fsLimit, where, serverTimestamp, Bytes, getDocs } from "firebase/firestore";
 
 const FB_CONFIG = {
   apiKey: "AIzaSyDdULD6MFvt8ghq_uL1OUk-cH7YA4HT7RM",
@@ -41,6 +41,10 @@ function makeFirebaseCloud() {
     },
     now: () => serverTimestamp(),
     bytes: (u8) => Bytes.fromUint8Array(u8),
+    getAll: async (p) => (await getDocs(col(p))).docs.map((d) => ({ _id: d.id, ...d.data() })),
+    deleteMe: async () => { if (auth.currentUser) await deleteUser(auth.currentUser); },
+    providers: () => ((auth.currentUser && auth.currentUser.providerData) || []).map((x) => x.providerId),
+    changePw: async (oldPw, newPw) => { const u = auth.currentUser; const cred = EmailAuthProvider.credential(u.email, oldPw); await reauthenticateWithCredential(u, cred); await updatePassword(u, newPw); },
   };
 }
 const CLOUD = (() => {
@@ -72,7 +76,7 @@ function memberStats(u) {
   const prog = ids.length ? ids.filter((i) => done.has(i)).length / ids.length : 0;
   const logs = u.logs || []; const mins = logs.reduce((s, l) => s + (l.mins || 0), 0);
   let streak = 0; for (let d = 0; d < 60; d++) { const day = new Date(); day.setDate(day.getDate() - d); const has = logs.some((l) => new Date(l.at).toDateString() === day.toDateString()); if (has) streak++; else if (d > 0) break; }
-  const lastMs = toMs(u.lastActive);
+  const lastMs = u.lastActive ? toMs(u.lastActive) : 0;
   const week = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return logs.filter((l) => new Date(l.at).toDateString() === d.toDateString()).reduce((s, l) => s + (l.mins || 0), 0); });
   return { prog, mins, streak, lastMs, last: u.lastActive ? relTime(lastMs) : "—", week, classes: done.size, activeToday: u.lastActive ? new Date(lastMs).toDateString() === new Date().toDateString() : false };
 }
@@ -137,7 +141,10 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
     }
     if (mine && mine.theme && mine.theme !== themeSent.current && THEMES[mine.theme]) { themeSent.current = mine.theme; setThemeId && setThemeId(mine.theme); }
     const others = list.filter((u) => u._id !== uid && u.roles && u.roles.length).map((u) => ({ id: u._id, uid: u._id, name: u.name || "Member", roles: u.roles || [], voice: u.voice || null, voiceRange: u.voiceRange || null, color: u.color || colorForUid(u._id), leader: !!u.leader, avatar: u.avatar || null, games: u.games || { best: {} }, away: !!u.away, ...memberStats(u) }));
-    TEAM.length = 0; others.sort((a, b) => a.name.localeCompare(b.name)).forEach((m) => TEAM.push(m));
+    /* one person = one row: if someone made several accounts with the same name, show only the one they used most recently */
+    const myName = ((me.current.user && me.current.user.name) || "").trim().toLowerCase();
+    const byName = new Map(); others.forEach((m) => { const k = m.name.trim().toLowerCase(); if (k === myName) return; const o = byName.get(k); if (!o || (m.lastMs || 0) > (o.lastMs || 0)) byName.set(k, m); });
+    TEAM.length = 0; [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)).forEach((m) => TEAM.push(m));
     setPeopleV((v) => v + 1); onTeam && onTeam();
   }), [uid]); // eslint-disable-line
 
@@ -290,7 +297,8 @@ function CloudLogin({ desktop }) {
   const { T, toast } = useApp();
   const [mode, setMode] = useState("up");
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [pw, setPw] = useState("");
-  const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState(() => { const m = window.__bezaAuthMsg; window.__bezaAuthMsg = null; return m || ""; });
+  useEffect(() => { if (err && /already has an account/.test(err)) setMode("in"); const h = (e) => { setBusy(false); setErr(e.detail); setMode("in"); setPw(""); window.__bezaAuthMsg = null; }; window.addEventListener("bz-auth-msg", h); return () => window.removeEventListener("bz-auth-msg", h); }, []); // eslint-disable-line
   const shell = shellVersion() > 0;
   const input = { width: "100%", boxSizing: "border-box", border: `1.5px solid ${T.border}`, background: T.input, color: T.text, borderRadius: 16, padding: "13px 14px", fontFamily: FONT, fontSize: 14, outline: "none" };
   const fail = (e) => { setBusy(false); setErr(AUTH_ERR[e && e.code] || (e && e.message) || "Something went wrong. Try again."); };
@@ -301,7 +309,7 @@ function CloudLogin({ desktop }) {
     try { if (mode === "up") { window.__bezaPendingName = name.trim(); await CLOUD.signUp(name.trim(), email.trim(), pw); } else await CLOUD.signIn(email.trim(), pw); }
     catch (e) { fail(e); }
   };
-  const forgot = async () => { if (!email.trim()) return setErr("Type your email above first, then tap \"Forgot password\"."); try { await CLOUD.reset(email.trim()); toast("Password reset email sent 📩"); setErr(""); } catch (e) { fail(e); } };
+  const forgot = async () => { if (!email.trim()) return setErr("Type your email above first, then tap \"Forgot password\"."); try { await CLOUD.reset(email.trim()); toast("Password reset email sent 📩"); setErr(`We sent a reset link to ${email.trim()}. Open it (check Spam too), choose a new password, then sign in here.`); } catch (e) { fail(e); } };
   return (
     <div style={{ padding: desktop ? 0 : "18px 22px 30px", minHeight: desktop ? undefined : "100%", display: "flex", flexDirection: "column", maxWidth: desktop ? undefined : 480, margin: desktop ? undefined : "0 auto", boxSizing: "border-box" }}>
       {desktop ? <div style={{ marginBottom: 18 }}><div style={{ fontSize: 30, fontWeight: 900, letterSpacing: -0.5 }}>Welcome 👋</div><div style={{ fontSize: 14.5, color: T.sub, marginTop: 4 }}>Create your account or sign in to continue.</div></div>
@@ -323,7 +331,7 @@ function CloudLogin({ desktop }) {
           </button>
         </>}
         <div style={{ fontSize: 11.5, color: T.sub, textAlign: "center", marginTop: 12 }}>
-          {mode === "up" ? "Next: tell us how you serve." : <span onClick={forgot} style={{ textDecoration: "underline", cursor: "pointer" }}>Forgot password?</span>}
+          {mode === "up" ? <>Next: tell us how you serve. Already joined? <span onClick={() => { setMode("in"); setErr(""); }} style={{ textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}>Sign in</span> — please don't make a second account.</> : <span onClick={forgot} style={{ textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}>Forgot password? Get a reset email</span>}
         </div>
       </Card>
       <div style={{ textAlign: "center", fontSize: 11, color: T.faint, marginTop: 14 }}>Your account keeps your progress safe on any phone.</div>
@@ -363,5 +371,36 @@ function AuthDesktop({ children }) {
         <div style={{ width: "100%", maxWidth: 440 }}>{children}</div>
       </div>
     </div>
+  );
+}
+
+/* one person = one account: a new account with the same name as an existing member is stopped */
+const normName = (n) => (n || "").toLowerCase().replace(/[^a-z0-9\u1200-\u137f]+/g, " ").trim();
+async function findDuplicateMember(name, uid) {
+  if (!CLOUD.getAll) return null; const k = normName(name); if (!k) return null;
+  try { const all = await CLOUD.getAll("users"); return all.find((u) => u._id !== uid && normName(u.name) === k && (u.roles || []).length) || null; } catch (e) { return null; }
+}
+function AccountSecurity({ Row }) {
+  const { T, user, toast } = useApp(); const [open, setOpen] = useState(false); const [o, setO] = useState(""); const [n1, setN1] = useState(""); const [n2, setN2] = useState(""); const [msg, setMsg] = useState(""); const [busy, setBusy] = useState(false);
+  if (!CLOUD.on || !CLOUD.providers) return null;
+  const prov = CLOUD.providers(); const google = prov.includes("google.com") && !prov.includes("password");
+  const input = { width: "100%", boxSizing: "border-box", border: `1.5px solid ${T.border}`, background: T.input, color: T.text, borderRadius: 14, padding: "12px 13px", fontFamily: FONT, fontSize: 14, outline: "none", marginBottom: 8 };
+  const save = async () => {
+    setMsg(""); if (n1.length < 6) return setMsg("The new password needs at least 6 characters."); if (n1 !== n2) return setMsg("The two new passwords don't match.");
+    setBusy(true); try { await CLOUD.changePw(o, n1); toast("Password changed ✓"); setOpen(false); setO(""); setN1(""); setN2(""); } catch (e) { setMsg(/wrong-password|invalid-credential/.test((e && e.code) || "") ? "Your current password isn't right. Forgot it? Use \"Send me a reset email\"." : (AUTH_ERR[e && e.code] || "Couldn't change it. Try again.")); } setBusy(false);
+  };
+  return (
+    <>
+      <div style={{ height: 1, background: T.border, marginLeft: 52 }} />
+      <Row icon={Lock} label="Password" value={google ? "Google sign-in" : "Change"} onClick={google ? undefined : () => setOpen(true)} right={google ? <span /> : undefined} />
+      <Sheet open={open} onClose={() => setOpen(false)} title="Change password">
+        <input style={input} type="password" placeholder="Current password" value={o} onChange={(e) => setO(e.target.value)} autoComplete="current-password" />
+        <input style={input} type="password" placeholder="New password (6+ characters)" value={n1} onChange={(e) => setN1(e.target.value)} autoComplete="new-password" />
+        <input style={input} type="password" placeholder="Type the new password again" value={n2} onChange={(e) => setN2(e.target.value)} autoComplete="new-password" />
+        {msg && <div style={{ fontSize: 12.5, color: "#FF6B6B", fontWeight: 700, marginBottom: 8 }}>{msg}</div>}
+        <Btn full onClick={save} disabled={busy}>{busy ? "Saving…" : "Change password"}</Btn>
+        <div onClick={async () => { try { await CLOUD.reset(user.email); toast(`Reset email sent to ${user.email} 📩`); } catch (e) { toast("Couldn't send it — try again"); } }} style={{ textAlign: "center", fontSize: 12.5, marginTop: 12, textDecoration: "underline", cursor: "pointer", color: T.sub }}>Forgot your current password? Send me a reset email</div>
+      </Sheet>
+    </>
   );
 }
