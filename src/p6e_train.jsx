@@ -244,6 +244,7 @@ function RoutinePlayer({ embedded, id }) {
         </div>
         <div style={{ marginTop: 12 }}><Bar pct={done / total} color="#fff" track="rgba(255,255,255,0.22)" /></div>
       </Card>
+      {R.who === "singer" && howFor(step[0]) && <HowTo k={step[0]} title={step[0]} />}
       {stTool && TOOLS[stTool[0]] && (() => { const TT = TOOLS[stTool[0]]; return <div key={id + i} style={{ marginTop: 12 }}><div style={{ fontSize: 11.5, fontWeight: 800, color: T.sub, margin: "0 2px 8px" }}>▶ DO IT HERE — {TT.title.toUpperCase()} (watch, play along, and turn on "Listen to me")</div><TT.C embedded {...stTool[1]} /></div>; })()}
       <div style={{ fontSize: 12.5, color: T.sub, margin: "12px 2px" }}>{R.desc}</div>
       <div style={{ fontSize: 11, color: T.faint, margin: "0 2px 8px" }}>Tap a step to read it · tick the box when you've done it</div>

@@ -371,7 +371,7 @@ export default function BezaYouthWorshipTeam() {
   }, [checkUpdate]);
   const runUpdate = useCallback(async () => {
     setUpdate((u) => ({ ...u, progress: 0 }));
-    try { if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.filter((k) => !/samples|media/.test(k)).map((k) => caches.delete(k))); } } catch (e) { }
+    try { if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.filter((k) => !/samples|media|beza-ml/.test(k)).map((k) => caches.delete(k))); } } catch (e) { }
     try { if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map((r) => r.update().catch(() => { }))); } } catch (e) { }
     setUpdate((u) => ({ ...u, progress: 100 }));
     const url = new URL(window.location.href); url.searchParams.set("v", (update.remote && update.remote.build) || Date.now()); window.location.replace(url.toString());

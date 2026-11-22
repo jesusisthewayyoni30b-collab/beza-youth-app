@@ -138,6 +138,7 @@ function VocalGym({ embedded, cat: c0, ex: e0 }) {
           {playing ? <Btn full variant="light" icon={Square} onClick={stop}>Stop</Btn> : <Btn full variant="accent" icon={Play} onClick={play}>Start · {keysFor().length} reps from {nnOct(base)}</Btn>}
         </div>
       </Card>
+      <HowTo k={ex.id} title={ex.name || ex.title} />
       <Card style={{ marginTop: 12 }}>
         <Slider label="Start note" value={base} min={36} max={76} onChange={(v) => { stop(); setBase(v); }} fmt={nnOct} />
         <Slider label="Tempo" value={bpm} min={50} max={180} onChange={setBpm} fmt={(v) => `${v} bpm`} />
@@ -234,6 +235,7 @@ function BreathLab({ embedded, level: l0, tab: t0 }) {
   return (
     <div>
       <ToolBar embedded={embedded} title="Breath Lab" sub="Beginner → Expert · grow your capacity" />
+      <HowTo k="breath" title="low breathing" />
       <Seg value={tab} onChange={setTab} options={[{ value: "guided", label: "Guided patterns" }, { value: "sustain", label: "Sustain challenge" }]} />
       <Scroller style={{ marginTop: 10 }}>{BREATH_LEVELS.map((L, i) => <Chip key={L.name} active={lvl === i} onClick={() => { setLvl(i); setRunning(false); setPat(L.items[0]); reset(L.items[0], total); }}>{L.name}</Chip>)}</Scroller>
       {tab === "guided" ? (

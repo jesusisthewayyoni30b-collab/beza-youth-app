@@ -155,7 +155,14 @@ self.onmessage = async (e) => {
 };`;
 
 const MODEL_MIN = 100e6; // a complete model is ~136 MB; anything smaller is a broken download
-async function fetchModel(onProg) {
+/* one download at a time, shared by everyone waiting for it (background preload + the Split button) */
+let __modelP = null; const __modelL = new Set();
+function fetchModel(onProg) {
+  __modelL.add(onProg);
+  if (!__modelP) { __modelP = fetchModelOnce((p, c) => __modelL.forEach((f) => { try { f(p, c); } catch (e) { } })).finally(() => { __modelP = null; }); }
+  return __modelP.finally(() => __modelL.delete(onProg));
+}
+async function fetchModelOnce(onProg) {
   const url = ML_BASE + MODEL_FILE;
   let cache = null; try { cache = await caches.open("beza-ml-v1"); const hit = await cache.match(url); if (hit) { const len = +(hit.headers.get("content-length") || 0); const b = len ? null : await hit.clone().blob(); if ((len || (b && b.size) || 0) > MODEL_MIN) { onProg(1, true); return null; } await cache.delete(url); } } catch (e) { cache = null; }
   const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error("Couldn't download the splitter (" + r.status + "). Check the internet and try again.");
@@ -163,6 +170,7 @@ async function fetchModel(onProg) {
   for (; ;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; onProg(Math.min(0.99, got / total)); }
   if (got < MODEL_MIN && !/localhost/.test(url)) throw new Error("The splitter download was cut off. Check the internet and try again.");
   const blob = new Blob(parts); parts.length = 0;
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { } /* ask the browser to keep it */
   if (cache) { try { await cache.put(url, new Response(blob, { headers: { "content-length": String(blob.size) } })); onProg(1); return null; } catch (e) { } }
   onProg(1); return await blob.arrayBuffer(); // no cache available: hand the bytes over directly
 }
@@ -480,8 +488,11 @@ function SongRow({ s }) {
 }
 
 /* ============================ REHEARSAL ROOM ============================ */
+let __preload = null;
 function RehearsalRoom() {
   const { T, push } = useApp(); const lib = useStemLibrary(); const [q, setQ] = useState(""); const pc = isPC();
+  /* on a computer, quietly get the splitter ready in the background so Split is instant */
+  useEffect(() => { if (pc && !__preload) { __preload = new Promise((r) => setTimeout(r, 2500)).then(() => fetchModel(() => { })).catch(() => { __preload = null; }); } }, []); // eslint-disable-line
   const list = (lib || []).filter((m) => !q || (m.title + " " + (m.file || "")).toLowerCase().includes(q.toLowerCase()));
   const fileIn = useRef(null);
   return (
@@ -627,7 +638,7 @@ function SplitterScreen() {
               <Btn full icon={Layers} style={{ marginTop: 12 }} onClick={run}>Split it</Btn>
             </>
           )}
-          {phase === "model" && <div style={{ marginTop: 12 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{prog.model >= 1 ? "Starting the splitter…" : "First time on this computer: downloading the splitter (~140 MB, only once)…"}</div><PBar p={prog.model} /></div>}
+          {phase === "model" && <div style={{ marginTop: 12 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{prog.model >= 1 ? "Starting the splitter…" : "Downloading the splitter (~140 MB). This happens only once per computer — after this it's ready instantly, even after app updates."}</div><PBar p={prog.model} /></div>}
           {phase === "split" && <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 700 }}>Splitting… {Math.round((prog.p || 0) * 100)}%{prog.left != null && prog.p > 0.02 ? ` · about ${Math.max(1, Math.round(prog.left / 60))} min left` : ""}</div><PBar p={prog.p} />
             <div style={{ fontSize: 11.5, color: T.sub, marginTop: 6 }}>{prog.ep === "webgpu" ? "Using this computer's graphics chip ⚡" : "Using this computer's processor — older laptops take longer."} Keep this tab open.</div>
