@@ -8,13 +8,13 @@ async def main():
         errs=[]
         A = await newpage(ctx, errs, "A"); await signup(A, "Hanna T", "hanna@x.com", ["Keys"])
         await A.get_by_role("button", name="Chat", exact=True).last.click(); await A.wait_for_timeout(800)
-        open("/tmp/guide.docx","wb").write(b"PK"+b"x"*30000)
         await A.locator("div[style*='display: block'] input[type=file]").last.set_input_files("/tmp/guide.docx"); await A.wait_for_timeout(2500)
         await A.screenshot(path="test/cf.png")
+        await A.get_by_text("guide.docx").last.click(); await A.wait_for_timeout(3500)
+        await A.screenshot(path="test/cf_view.png")
         async with A.expect_download() as dl:
-            await A.get_by_text("guide.docx").last.click()
-        d = await dl.value; print("downloaded:", d.suggested_filename); await d.save_as("/tmp/g2.docx")
-        import os; print("size", os.path.getsize("/tmp/g2.docx"))
+            await A.get_by_role("button", name="Save").click()
+        d = await dl.value; print("downloaded:", d.suggested_filename)
         print("\n".join(e for e in errs if "AudioContext" not in e and "bible" not in e)[:800])
         await b.close()
 asyncio.run(main())

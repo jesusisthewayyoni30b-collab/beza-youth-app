@@ -426,7 +426,7 @@ export default function BezaYouthWorshipTeam() {
   const rootFor = (t) => (t === "home" ? <HomeScreen /> : t === "learn" ? <LearnScreen /> : t === "practice" ? <PracticeScreen /> : t === "progress" ? <ProgressScreen /> : t === "songs" ? <SongsScreen /> : t === "games" ? <GamesHub root /> : <ChatScreen />);
 
   return (
-    <Ctx.Provider value={ctx}>
+    <Ctx.Provider value={ctx}><FileViewerHost />
       {CLOUD.on && user && user.uid && user.roles && user.roles.length > 0 && <CloudSync uid={user.uid} onTeam={() => setTeamV((v) => v + 1)} onIncoming={onIncoming} setChatReads={setChatReads} onNotice={onNotice} setEvents={setEvents} />}
       <style>{FONT_FACES + CSS}</style>
       {update.available && <UpdateGate />}

@@ -71,7 +71,31 @@ async function encodeMp3(chs, sr, kbps, onProg) {
   onProg && onProg(1);
   return new Blob(out, { type: "audio/mpeg" });
 }
-function downloadBlob(blob, name) {
+const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const capFS = () => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) || null;
+const capShare = () => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) || null;
+const canSaveFiles = () => !isNative() || !!capFS();
+const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(blob); });
+/* phone app: save into Documents/Beza Youth (falls back to the share sheet) */
+async function nativeSave(blob, name, toast) {
+  const FS = capFS(); if (!FS) { toast && toast("Update the app to save files: download the newest version from beza-youth.web.app/download"); return false; }
+  const data = await blobB64(blob); const path = `Beza Youth/${safeFile(name)}`;
+  try { await FS.writeFile({ path, data, directory: "DOCUMENTS", recursive: true }); toast && toast(`Saved to Documents › Beza Youth › ${name}`); return true; }
+  catch (e) { return nativeShare(blob, name, toast); }
+}
+async function nativeShare(blob, name, toast) {
+  const FS = capFS(), SH = capShare(); if (!FS || !SH) { toast && toast("Update the app to share files: download the newest version from beza-youth.web.app/download"); return false; }
+  const data = await blobB64(blob); const w = await FS.writeFile({ path: safeFile(name), data, directory: "CACHE" });
+  await SH.share({ title: name, files: [w.uri] }); return true;
+}
+async function shareBlob(blob, name, toast) {
+  if (isNative()) return nativeShare(blob, name, toast);
+  const file = new File([blob], name, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: name }); return true; } catch (e) { return false; } }
+  downloadBlob(blob, name); return true;
+}
+function downloadBlob(blob, name, toast) {
+  if (isNative()) { nativeSave(blob, name, toast || window.__bzToast).catch(() => { (toast || window.__bzToast) && (toast || window.__bzToast)("Couldn't save the file"); }); return; }
   const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
@@ -669,7 +693,7 @@ function StemFolderScreen({ id }) {
   const canDel = leader || owner;
   const dlPart = async (p) => { downloadBlob(p.blob, fname(p.label)); };
   const dlAll = async () => { downloadBlob(await makeZip(parts.map((p) => ({ name: fname(p.label), blob: p.blob }))), safeFile(`${meta.title} – parts.zip`)); };
-  const native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+  const native = isNative() && !capFS();
   return (
     <div>
       <TopBar title={`📁 ${meta.title}`} sub={`${meta.stems.length} parts · shared by ${meta.byName || "someone"} · ${relTime(toMs(meta.at))}`} />
@@ -741,16 +765,66 @@ function OwnerInbox() {
 }
 
 /* chat attachments (documents, audio…) live in the same free database store as the song parts */
-async function openChatFile(f, toast) {
-  try {
-    toast && toast(`Opening ${f.name}…`);
-    const raw = await fetchPart(f.fid, "f", f.chunks); const blob = new Blob([raw], { type: f.mime || "application/octet-stream" });
-    const native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
-    if (native) {
-      if (navigator.canShare && navigator.canShare({ files: [new File([blob], f.name, { type: blob.type })] })) { await navigator.share({ files: [new File([blob], f.name, { type: blob.type })] }); return; }
-      if (/^audio\//.test(blob.type)) { const a = new Audio(URL.createObjectURL(blob)); a.play(); toast && toast(`Playing ${f.name}`); return; }
-      toast && toast("To save files on the phone, open beza-youth.web.app in Chrome and tap the file there."); return;
-    }
-    downloadBlob(blob, f.name);
-  } catch (e) { toast && toast("Couldn't open the file: " + (e.message || "error")); }
+let __openFile = null;
+async function openChatFile(f, toast) { __openFile && __openFile(f); }
+const loadScript = (src) => new Promise((res, rej) => { if (document.querySelector(`script[data-src="${src}"]`)) return res(); const s = document.createElement("script"); s.src = src; s.dataset.src = src; s.onload = res; s.onerror = () => rej(new Error("Couldn't load the viewer")); document.head.appendChild(s); });
+const dynImport = new Function("u", "return import(u)");
+const fileKind = (name, mime) => { const n = (name || "").toLowerCase(); const m = mime || "";
+  if (/\.docx$/.test(n) || /wordprocessingml/.test(m)) return "docx"; if (/\.pdf$/.test(n) || m === "application/pdf") return "pdf";
+  if (/^image\//.test(m) || /\.(png|jpe?g|gif|webp)$/.test(n)) return "image"; if (/^audio\//.test(m) || /\.(mp3|m4a|wav|ogg|aac|flac)$/.test(n)) return "audio";
+  if (/^video\//.test(m) || /\.(mp4|mov|webm)$/.test(n)) return "video"; if (/^text\//.test(m) || /\.(txt|csv|md|json)$/.test(n)) return "text"; return "other"; };
+function FileViewerHost() {
+  const { toast } = useApp(); const [f, setF] = useState(null);
+  useEffect(() => { __openFile = setF; window.__bzToast = toast; return () => { __openFile = null; }; }, [toast]);
+  if (!f) return null;
+  return createPortal(<FileViewer f={f} onClose={() => setF(null)} toast={toast} />, document.body);
+}
+function FileViewer({ f, onClose, toast }) {
+  const [blob, setBlob] = useState(null); const [err, setErr] = useState(""); const [busy, setBusy] = useState(""); const box = useRef(null); const [txt, setTxt] = useState("");
+  const kind = fileKind(f.name, f.mime);
+  useEffect(() => { let off = false; (async () => { try { const raw = await fetchPart(f.fid, "f", f.chunks); if (!off) setBlob(new Blob([raw], { type: f.mime || "application/octet-stream" })); } catch (e) { if (!off) setErr(e.message || "Couldn't open the file"); } })(); return () => { off = true; }; }, [f]);
+  useEffect(() => { const h = (e) => e.key === "Escape" && onClose(); window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, []); // eslint-disable-line
+  useEffect(() => {
+    if (!blob || !box.current) return; const el = box.current; el.innerHTML = "";
+    (async () => {
+      try {
+        if (kind === "docx") {
+          setBusy("Opening the document…"); await loadScript("lib/jszip.min.js"); await loadScript("lib/docx-preview.min.js");
+          const inner = document.createElement("div"); el.appendChild(inner);
+          await window.docx.renderAsync(blob, inner, null, { inWrapper: true, breakPages: true, ignoreLastRenderedPageBreak: true });
+          const fit = () => { const page = inner.querySelector("section.docx"); if (!page) return; const sc = Math.min(1, (el.clientWidth - 16) / page.offsetWidth); inner.style.zoom = sc; };
+          fit(); setTimeout(fit, 300); window.addEventListener("resize", fit);
+        } else if (kind === "pdf") {
+          setBusy("Opening the PDF…"); const lib = await dynImport(new URL("lib/pdf.min.mjs", location.href).href);
+          lib.GlobalWorkerOptions.workerSrc = new URL("lib/pdf.worker.min.mjs", location.href).href;
+          const pdf = await lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+          for (let i = 1; i <= pdf.numPages; i++) { const pg = await pdf.getPage(i); const v1 = pg.getViewport({ scale: 1 }); const w = Math.min(el.clientWidth - 16, 900); const dpr = window.devicePixelRatio || 1; const vp = pg.getViewport({ scale: (w / v1.width) * dpr }); const c = document.createElement("canvas"); c.width = vp.width; c.height = vp.height; c.style.cssText = `width:${w}px;display:block;margin:0 auto 10px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.4)`; el.appendChild(c); await pg.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise; }
+        } else if (kind === "text") setTxt(await blob.text());
+        setBusy("");
+      } catch (e) { setBusy(""); setErr("Couldn't show a preview of this file — you can still download it."); }
+    })();
+  }, [blob]); // eslint-disable-line
+  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
+  const hb = { height: 38, padding: "0 14px", borderRadius: 10, border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", fontFamily: FONT, fontWeight: 700, fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" };
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9500, background: "#15171B", color: "#fff", display: "flex", flexDirection: "column", fontFamily: FONT }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "calc(env(safe-area-inset-top) + 8px) 10px 8px", background: "#202329" }}>
+        <button aria-label="Close" onClick={onClose} style={hb}><X size={18} noBlob /></button>
+        <div style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</div>
+        <button disabled={!blob} onClick={() => blob && downloadBlob(blob, f.name, toast)} style={{ ...hb, background: "#C6FF3D", color: "#111", opacity: blob ? 1 : 0.5 }}><Download size={16} noBlob />Save</button>
+        <button disabled={!blob} aria-label="Share" onClick={() => blob && shareBlob(blob, f.name, toast).catch(() => { })} style={{ ...hb, opacity: blob ? 1 : 0.5 }}><Send size={15} noBlob /></button>
+      </div>
+      <div style={{ flex: 1, overflow: "auto", padding: 8, background: kind === "docx" || kind === "pdf" ? "#3A3D44" : "#15171B" }}>
+        {!blob && !err && <div style={{ padding: 30, textAlign: "center", opacity: 0.8 }}>Loading…</div>}
+        {busy && <div style={{ padding: 20, textAlign: "center", opacity: 0.8 }}>{busy}</div>}
+        {err && <div style={{ padding: 30, textAlign: "center" }}>{err}</div>}
+        <div ref={box} />
+        {blob && kind === "image" && <img alt={f.name} src={url} style={{ maxWidth: "100%", display: "block", margin: "0 auto" }} />}
+        {blob && kind === "audio" && <div style={{ padding: 30 }}><div style={{ fontSize: 50, textAlign: "center" }}>🎵</div><audio controls autoPlay src={url} style={{ width: "100%" }} /></div>}
+        {blob && kind === "video" && <video controls src={url} style={{ width: "100%", maxHeight: "80vh" }} />}
+        {blob && kind === "text" && <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, background: "#fff", color: "#111", padding: 16, borderRadius: 8 }}>{txt}</pre>}
+        {blob && kind === "other" && <div style={{ padding: 30, textAlign: "center", lineHeight: 1.6 }}><div style={{ fontSize: 50 }}>📄</div>No preview for this kind of file.<br />Tap <b>Save</b> to keep it, or the share button to open it in another app.</div>}
+      </div>
+    </div>
+  );
 }

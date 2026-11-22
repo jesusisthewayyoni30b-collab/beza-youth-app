@@ -645,7 +645,7 @@ function StudioSettings({ S, proj, commit, eng, micInfo, setMicInfo, ensureMic, 
 function ExportSheet({ S, proj, eng, onClose }) {
   const { user, toast } = useApp(); const lib = useStemLibrary();
   const [name, setName] = useState(proj.name || "Mix"); const [st, setSt] = useState(null); const [folder, setFolder] = useState(proj.folder || "");
-  const native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+  const native = isNative() && !capFS();
   const render = async () => {
     const len = projEnd(proj); if (len < 0.2) { toast("Nothing to export yet — record or import something first"); return null; }
     setSt({ msg: "Mixing…", p: 0.1 }); const sr = 44100; const total = len + 1.5;

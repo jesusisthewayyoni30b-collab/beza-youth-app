@@ -11,6 +11,7 @@ createRoot(document.getElementById("root")).render(<App />);
 X
 npx esbuild build/entry.jsx --bundle --minify --define:process.env.NODE_ENV='"production"' --define:__BEZA_BUILD__="\"$BUILD\"" --define:__BEZA_BUILD_NAME__="\"$VER\"" --jsx=automatic --outfile=dist/app.js --log-level=warning --loader:.json=json
 cp -r public/. dist/
+mkdir -p dist/lib && cp node_modules/jszip/dist/jszip.min.js node_modules/docx-preview/dist/docx-preview.min.js node_modules/pdfjs-dist/legacy/build/pdf.min.mjs node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs dist/lib/
 cp web/sw.js web/manifest.webmanifest dist/
 node scripts/stamp.js "$BUILD" "$VER"
 touch dist/.nojekyll
