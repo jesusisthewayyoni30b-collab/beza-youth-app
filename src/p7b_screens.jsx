@@ -1036,6 +1036,7 @@ function SettingsScreen() {
         <Row icon={Info} label="Help & feedback" onClick={() => setHelpOpen(true)} />
       </Group>
       <TeamStorageGroup />
+      <OwnerInbox />
       <Group title="Account">
         <Row icon={User} label={user.name} value={user.roles.map(roleLabel).join(" · ")} />
         <div onClick={() => setUser(null)} style={{ minHeight: 50, display: "flex", alignItems: "center", justifyContent: "center", color: T.bad, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Log out</div>

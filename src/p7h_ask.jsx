@@ -59,7 +59,7 @@ function AskLeaderFab({ context, compact }) {
 }
 
 /* leaders: questions inbox with answers */
-function QuestionsInbox() {
+function QuestionsInbox({ readOnly }) {
   const { T, user, toast } = useApp();
   const [list, setList] = useState(null); const [draft, setDraft] = useState({});
   useEffect(() => { if (!CLOUD.on) { setList([]); return; } return CLOUD.listen("questions", { order: ["at", "desc"], limit: 80 }, (d) => setList(d), () => setList([])); }, []);
@@ -74,7 +74,7 @@ function QuestionsInbox() {
           <Card key={q._id} pad={12} style={{ marginBottom: 8, opacity: q.answer ? 0.7 : 1, borderLeft: q.answer ? undefined : "4px solid #22E4FF" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12, color: T.sub }}><span><b style={{ color: T.text }}>{q.name}</b> · {q.ctxTitle}</span><span>{relTime(toMs(q.at))}</span></div>
             <div style={{ fontSize: 13.5, marginTop: 6, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{q.text}</div>
-            {q.answer ? <div style={{ marginTop: 8, fontSize: 13, background: T.card2, borderRadius: 12, padding: "8px 10px", whiteSpace: "pre-wrap" }}><b>{q.answeredBy}:</b> {q.answer}</div> :
+            {readOnly ? (q.answer ? <div style={{ marginTop: 8, fontSize: 13, background: T.card2, borderRadius: 12, padding: "8px 10px", whiteSpace: "pre-wrap" }}><b>{q.answeredBy}:</b> {q.answer}</div> : <div style={{ marginTop: 6, fontSize: 11.5, color: T.sub }}>Waiting for a leader</div>) : q.answer ? <div style={{ marginTop: 8, fontSize: 13, background: T.card2, borderRadius: 12, padding: "8px 10px", whiteSpace: "pre-wrap" }}><b>{q.answeredBy}:</b> {q.answer}</div> :
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <input value={draft[q._id] || ""} onChange={(e) => setDraft((d) => ({ ...d, [q._id]: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && answer(q)} placeholder="Write the answer…" style={{ flex: 1, minWidth: 0, border: `1.5px solid ${T.border}`, background: T.input, color: T.text, borderRadius: 12, padding: "9px 11px", fontFamily: FONT, fontSize: 13.5, outline: "none" }} />
                 <Btn small icon={Send} onClick={() => answer(q)}>Answer</Btn>

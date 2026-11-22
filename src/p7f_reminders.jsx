@@ -122,7 +122,7 @@ function HelpFeedback({ onClose }) {
   );
 }
 /* leaders: feedback inbox */
-function FeedbackInbox() {
+function FeedbackInbox({ readOnly }) {
   const { T } = useApp();
   const [list, setList] = useState(null);
   useEffect(() => { if (!CLOUD.on) { setList([]); return; } return CLOUD.listen("feedback", { order: ["at", "desc"], limit: 60 }, (d) => setList(d), () => setList([])); }, []);
@@ -139,7 +139,7 @@ function FeedbackInbox() {
             <div style={{ fontSize: 13.5, marginTop: 6, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{f.text}</div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
               <span style={{ fontSize: 11, color: T.faint }}>{f.device} · v{f.version}</span>
-              {f.status !== "done" ? <Btn small variant="soft" icon={Check} onClick={() => mark(f, "done")}>Done</Btn> : <Btn small variant="ghost" onClick={() => mark(f, "new")}>Reopen</Btn>}
+              {readOnly ? <span style={{ fontSize: 11, color: T.sub }}>{f.status === "done" ? "Handled" : "New"}</span> : f.status !== "done" ? <Btn small variant="soft" icon={Check} onClick={() => mark(f, "done")}>Done</Btn> : <Btn small variant="ghost" onClick={() => mark(f, "new")}>Reopen</Btn>}
             </div>
           </Card>
         ))}

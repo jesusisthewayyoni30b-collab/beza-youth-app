@@ -83,7 +83,8 @@ const CLOUD_GROUPS = [
 /* Runs inside the app: keeps local state and the cloud in sync */
 function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents }) {
   const ctx = useApp();
-  const { user, done, logs, voice, voiceRange, settings, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader } = ctx;
+  const { user, done, logs, voice, voiceRange, settings, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader, themeId, setThemeId } = ctx;
+  const owner = useOwner(); const themeSent = useRef(themeId);
   const me = useRef({}); me.current = { uid, user, leader };
   const people = useRef([]); // all users incl. me: {uid, name, roles, leader}
   const [peopleV, setPeopleV] = useState(0);
@@ -92,10 +93,11 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
   useEffect(() => {
     if (!user || !user.roles) return;
     const t = setTimeout(() => {
-      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, voiceRange: voiceRange || null, prefs: { notif: !!settings.notif, reminder: settings.reminder || "18:00", days: settings.days || [0, 1, 2, 3, 4, 5, 6], goal: settings.goal || 20 }, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
+      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, voiceRange: voiceRange || null, prefs: { notif: !!settings.notif, reminder: settings.reminder || "18:00", days: settings.days || [0, 1, 2, 3, 4, 5, 6], goal: settings.goal || 20 }, theme: themeId, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
+      themeSent.current = themeId;
     }, 1500);
     return () => clearTimeout(t);
-  }, [uid, user, done, logs, voice, voiceRange, settings.notif, settings.reminder, (settings.days || []).join(","), settings.goal, avatar, games, sessionsDone, leader]);
+  }, [uid, user, done, logs, voice, voiceRange, settings.notif, settings.reminder, (settings.days || []).join(","), settings.goal, avatar, games, sessionsDone, leader, themeId]);
 
   /* ---- presence: "online" heartbeat while the app is open ---- */
   useEffect(() => {
@@ -108,6 +110,8 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
   /* ---- team members ---- */
   useEffect(() => CLOUD.listen("users", {}, (list) => {
     people.current = list.map((u) => ({ uid: u._id, name: u.name || "Member", roles: u.roles || [], leader: !!u.leader }));
+    /* same theme on every device: a theme picked on another phone/computer comes here too */
+    const mine = list.find((u) => u._id === uid); if (mine && mine.theme && mine.theme !== themeSent.current && THEMES[mine.theme]) { themeSent.current = mine.theme; setThemeId && setThemeId(mine.theme); }
     const others = list.filter((u) => u._id !== uid && u.roles && u.roles.length).map((u) => ({ id: u._id, uid: u._id, name: u.name || "Member", roles: u.roles || [], voice: u.voice || null, voiceRange: u.voiceRange || null, color: u.color || colorForUid(u._id), leader: !!u.leader, avatar: u.avatar || null, games: u.games || { best: {} }, away: !!u.away, ...memberStats(u) }));
     TEAM.length = 0; others.sort((a, b) => a.name.localeCompare(b.name)).forEach((m) => TEAM.push(m));
     setPeopleV((v) => v + 1); onTeam && onTeam();
@@ -156,15 +160,26 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
   /* ---- learning questions: members hear answers, leaders hear new questions ---- */
   const qSeen = useRef(null);
   useEffect(() => {
-    const opts = leader ? { order: ["at", "desc"], limit: 40 } : { where: ["uid", "==", uid] };
+    const all = leader || owner;
+    const opts = all ? { order: ["at", "desc"], limit: 40 } : { where: ["uid", "==", uid] };
     return CLOUD.listen("questions", opts, (list) => {
       const sig = new Map(list.map((q) => [q._id, (q.answer ? "a" : "q")]));
       if (qSeen.current) list.forEach((q) => { const before = qSeen.current.get(q._id);
-        if (leader && !before && !q.answer && q.uid !== uid) onNotice && onNotice(`❓ ${q.name} asked a question`, `${q.ctxTitle}: ${q.text}`.slice(0, 140), "leaders");
+        if (all && !before && !q.answer && q.uid !== uid) onNotice && onNotice(`❓ ${q.name} asked a question`, `${q.ctxTitle}: ${q.text}`.slice(0, 140), "leaders");
         if (!leader && q.uid === uid && before === "q" && q.answer) onNotice && onNotice(`💬 ${q.answeredBy || "A leader"} answered you`, q.answer.slice(0, 140), "answer"); });
       qSeen.current = sig;
     }, () => { });
-  }, [uid, leader]); // eslint-disable-line
+  }, [uid, leader, owner]); // eslint-disable-line
+
+  /* ---- help & feedback: leaders (and the hidden owner) hear about new notes ---- */
+  const fSeen = useRef(null);
+  useEffect(() => {
+    if (!(leader || owner)) return;
+    return CLOUD.listen("feedback", { order: ["at", "desc"], limit: 30 }, (list) => {
+      if (fSeen.current) list.forEach((f) => { if (!fSeen.current.has(f._id) && f.uid !== uid) onNotice && onNotice(`💡 Feedback from ${f.name || "a member"}`, (f.text || "").slice(0, 140), "leaders"); });
+      fSeen.current = new Set(list.map((f) => f._id));
+    }, () => { });
+  }, [uid, leader, owner]); // eslint-disable-line
 
   /* ---- chat messages for the groups I can see ---- */
   const visible = (groups || []).filter((g) => g.everyone || (g.members || []).includes("@me") || leader).filter((g) => !g.leadersOnly || leader).map((g) => g.id);

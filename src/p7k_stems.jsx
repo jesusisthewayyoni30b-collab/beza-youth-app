@@ -697,3 +697,15 @@ function TeamStorageGroup() {
     </div>
   );
 }
+
+/* only visible on the owner's own account; nothing else in the app mentions it */
+function OwnerInbox() {
+  const { leader } = useApp(); const owner = useOwner(); const [open, setOpen] = useState(false);
+  if (!owner || leader) return null; // leaders already see both inboxes on the Leaders board
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <Card onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ fontSize: 22 }}>📥</div><div style={{ flex: 1, fontWeight: 800 }}>Team questions & feedback</div><ChevronDown size={18} style={{ transform: open ? "rotate(180deg)" : "none" }} /></Card>
+      {open && <div style={{ marginTop: 6 }}><QuestionsInbox readOnly /><FeedbackInbox readOnly /></div>}
+    </div>
+  );
+}

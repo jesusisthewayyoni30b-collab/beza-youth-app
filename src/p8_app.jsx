@@ -260,7 +260,8 @@ export default function BezaYouthWorshipTeam() {
   const [chatReads, setChatReads] = useState({}); const [events, setEvents] = useState(() => (CLOUD.on ? [] : saved.events || [])); const [chatPing, setChatPing] = useState(null);
   const [chat, setChat] = useState(() => (CLOUD.on ? {} : { ...SEED_CHAT, ...(saved.chat || {}) }));
   const [groups, setGroups] = useState(CLOUD.on ? null : saved.groups || null);
-  const [authState, setAuthState] = useState(CLOUD.on ? "loading" : "off");
+  const authRef = useRef(null); const [authState, setAuthState] = useState(CLOUD.on ? (saved.user && saved.user.uid ? "in" : "loading") : "off"); // signed in before? open straight away, check in the background
+  authRef.current = authState;
   const [, setTeamV] = useState(0);
   const [games, setGames] = useState(saved.games || { best: {} });
   const [songs, setSongs] = useState(CLOUD.on ? [] : saved.songs || SEED_SONGS);
@@ -291,11 +292,13 @@ export default function BezaYouthWorshipTeam() {
       if (!u) { setUserRaw(null); setLeader(false); setAuthState("out"); return; }
       const local = saved.user && saved.user.uid === u.uid ? saved : null;
       const legacy = saved.user && !saved.user.uid ? saved : null; // progress made before accounts existed
+      const fast = !!local && authRef.current === "in"; // already showing the app from this device's copy
+      if (local && !fast) { setUserRaw({ ...local.user }); setAuthState("in"); }
       let prof; let ok = false;
       for (let i = 0; i < 40 && !ok; i++) { try { prof = await CLOUD.get(`users/${u.uid}`); ok = true; } catch (e) { if (local) break; await new Promise((r) => setTimeout(r, 1500)); } }
       if (prof) {
         setUserRaw({ uid: u.uid, name: prof.name || u.name || "Member", email: u.email, roles: prof.roles || [], levels: prof.levels || {} });
-        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setVoiceRange(prof.voiceRange || null); if (prof.prefs) { setSettings((x) => ({ ...x, ...prof.prefs })); applyReminders({ ...settings, ...prof.prefs }, false); } setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
+        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setVoiceRange(prof.voiceRange || null); if (prof.theme && THEMES[prof.theme]) setThemeId(prof.theme); if (prof.prefs) { setSettings((x) => ({ ...x, ...prof.prefs })); applyReminders({ ...settings, ...prof.prefs }, false); } setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
       } else if (!ok && local) {
         setUserRaw({ ...local.user });
       } else if (legacy) {
@@ -304,7 +307,7 @@ export default function BezaYouthWorshipTeam() {
         setUserRaw({ uid: u.uid, name: window.__bezaPendingName || u.name || (u.email || "Member").split("@")[0], email: u.email, roles: [], levels: {} });
         setDone(new Set()); setLogs([]); setVoice(null); setAvatar(u.photo || null); setGames({ best: {} }); setSessionsDone({}); setLeader(false); setAssignments([]);
       }
-      setTabRaw("home"); setAuthState("in");
+      if (!local) setTabRaw("home"); setAuthState("in");
     });
   }, []); // eslint-disable-line
   const toast = useCallback((m) => { setToastMsg(m); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToastMsg(""), 2700); }, []);
