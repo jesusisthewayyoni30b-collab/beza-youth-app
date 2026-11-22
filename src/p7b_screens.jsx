@@ -806,7 +806,11 @@ function ChatScreen() {
         return;
       }
       const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const mx = 900; const sc = Math.min(1, mx / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); const data = c.toDataURL("image/jpeg", 0.72); send({ file: { name: f.name, size: Math.round(data.length * 0.75 / 1e3) + " KB", url: data, data } }); }; img.src = r.result; }; r.readAsDataURL(f); return; } const url = isImg ? URL.createObjectURL(f) : null; send({ file: { name: f.name, size: f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB", url, audio: f.type.startsWith("audio/") ? URL.createObjectURL(f) : null } }); e.target.value = ""; };
-  const react = (mid, e) => { setChat((c) => ({ ...c, [ch]: c[ch].map((m) => (m.id === mid ? { ...m, react: { ...(m.react || {}), [e]: ((m.react || {})[e] || 0) + 1 } } : m)) })); setReactFor(null); };
+  const myRid = user.uid || user.name;
+  const react = (mid, e) => { setChat((c) => ({ ...c, [ch]: c[ch].map((m) => { if (m.id !== mid) return m; const r = {}; let had = false;
+    Object.entries(m.react || {}).forEach(([k, v]) => { let arr = Array.isArray(v) ? v.slice() : Array.from({ length: +v || 0 }, (_, i) => "_" + k + i); if (arr.includes(myRid)) { if (k === e) had = true; arr = arr.filter((x) => x !== myRid); } if (arr.length) r[k] = arr; });
+    if (!had) r[e] = [...(r[e] || []), myRid]; return { ...m, react: r }; }) })); setReactFor(null); };
+  const copyMsg = (m) => { try { navigator.clipboard.writeText(m.text || ""); toast("Copied"); } catch (e) { toast("Couldn't copy"); } setReactFor(null); };
   const addEmoji = (e) => { setTxt((t) => t + e); setRecent((r) => [e, ...r.filter((x) => x !== e)].slice(0, 16)); };
   const emoGroups = [["Recent", recent.join(" ")], ...EMOJI_GROUPS];
   return (
@@ -836,6 +840,15 @@ function ChatScreen() {
         </div>
         <Btn full variant="soft" icon={Plus} style={{ marginTop: 10 }} onClick={() => { setSongPick(false); push({ screen: "songedit" }); }}>New song</Btn>
       </Sheet>
+      {reactFor && (() => { const m = (chat[ch] || []).find((x) => x.id === reactFor); return m ? <MsgMenu m={m} T={T} onClose={() => setReactFor(null)} onReact={(e) => react(m.id, e)} myRid={myRid}
+        items={[
+          canPost && { icon: "↩", label: "Reply", go: () => startReply(m) },
+          m.text && { icon: "⧉", label: "Copy text", go: () => copyMsg(m) },
+          m.file && m.file.fid && { icon: "📄", label: "Open file", go: () => { setReactFor(null); openChatFile(m.file, toast); } },
+          m.me && m.text && !m.song && { icon: "✎", label: "Edit", go: () => startEdit(m) },
+          m.me && CLOUD.on && { icon: "👁", label: `Seen by ${seenBy(m).length}`, go: () => { setSeenMsg(m); setReactFor(null); } },
+          (m.me || leader) && { icon: "🗑", label: "Delete", danger: true, go: () => { setDelMsg(m); setReactFor(null); } },
+        ].filter(Boolean)} /> : null; })()}
       <div ref={listRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "6px 0" }} className="bz-noscroll">
         {(chat[ch] || []).map((m) => (
           m.sys ? <div key={m.id} style={{ textAlign: "center", fontSize: 11, color: T.faint, margin: "4px 0 12px" }}><span style={{ background: T.card2, padding: "3px 10px", borderRadius: 99 }}>{m.text}</span></div> :
@@ -848,7 +861,7 @@ function ChatScreen() {
             {!m.me && <Avatar name={m.from} size={30} color={m.color || colorOf(m.from)} />}
             <div style={{ maxWidth: "76%", position: "relative" }}>
               {!m.me && <div style={{ fontSize: 11, color: T.sub, fontWeight: 600, margin: "0 0 3px 4px" }}>{m.from}</div>}
-              <div onClick={() => setReactFor(reactFor === m.id ? null : m.id)} style={{ cursor: "pointer", background: m.me ? T.accent : T.card, color: m.me ? T.accentText : T.text, padding: m.file && m.file.url ? 5 : "10px 13px", borderRadius: m.me ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: !m.me ? `1px solid ${T.border}` : "none", fontSize: 13.5, lineHeight: 1.45, transition: "transform .15s", transform: reactFor === m.id ? "scale(1.02)" : "none" }}>
+              <div data-bubble={m.id} onClick={() => setReactFor(reactFor === m.id ? null : m.id)} onContextMenu={(e) => { e.preventDefault(); setReactFor(m.id); }} style={{ cursor: "pointer", background: m.me ? T.accent : T.card, color: m.me ? T.accentText : T.text, padding: m.file && m.file.url ? 5 : "10px 13px", borderRadius: m.me ? "18px 18px 4px 18px" : "18px 18px 18px 4px", border: !m.me ? `1px solid ${T.border}` : "none", fontSize: 13.5, lineHeight: 1.45, transition: "transform .15s", transform: reactFor === m.id ? "scale(1.02)" : "none" }}>
                 {m.reply && <div onClick={(e) => { e.stopPropagation(); jumpTo(m.reply.id); }} style={{ borderLeft: `3px solid ${m.me ? "rgba(0,0,0,0.45)" : T.pop}`, background: m.me ? "rgba(0,0,0,0.10)" : T.card2, borderRadius: 8, padding: "4px 8px", marginBottom: 6, fontSize: 12, cursor: "pointer", maxWidth: 260 }}><div style={{ fontWeight: 800, opacity: 0.9 }}>{m.reply.from}</div><div style={{ opacity: 0.8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.reply.text}</div></div>}
                 {m.file && m.file.url && <img alt="" src={m.file.url} style={{ display: "block", maxWidth: "100%", borderRadius: 14 }} />}
                 {m.file && !m.file.url && (
@@ -864,21 +877,8 @@ function ChatScreen() {
                 {m.song && <ChatSongCard id={m.song} />}
                 {m.text && <div style={{ padding: m.file && m.file.url ? "6px 8px 4px" : 0, whiteSpace: "pre-wrap" }}>{m.text}</div>}
               </div>
-              {reactFor === m.id && (
-                <div className="bz-up" style={{ position: "relative", marginTop: 6, marginLeft: m.me ? "auto" : 0, width: "fit-content", maxWidth: "100%", flexWrap: "wrap", zIndex: 5, display: "flex", gap: 2, background: T.graffiti ? "#111" : T.card, border: `1px solid ${T.border}`, borderRadius: 99, padding: "4px 6px", boxShadow: "0 8px 20px rgba(0,0,0,0.35)" }}>
-                  {["🙏", "❤️", "🔥", "😂", "🙌", "😮", "👏"].map((e) => <button key={e} onClick={() => react(m.id, e)} style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", padding: "2px 3px" }}>{e}</button>)}
-                </div>
-              )}
-              {reactFor === m.id && (
-                <div className="bz-up" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 6 }}>
-                  {canPost && !touchDev && <button onClick={() => startReply(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>↩ Reply</button>}
-                  {m.me && m.text && !m.song && <button onClick={() => startEdit(m)} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}><Edit size={13} noBlob /> Edit</button>}
-                  {m.me && CLOUD.on && <button onClick={() => { setSeenMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: T.text, border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>👁 Seen by {seenBy(m).length}</button>}
-                  {(m.me || leader) && <button onClick={() => { setDelMsg(m); setReactFor(null); }} style={{ display: "flex", alignItems: "center", gap: 5, background: T.card2, color: "#ff5a6e", border: `1px solid ${T.border}`, borderRadius: 99, padding: "5px 11px", fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>🗑 Delete</button>}
-                </div>
-              )}
               <div style={{ display: "flex", gap: 4, justifyContent: m.me ? "flex-end" : "flex-start", marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
-                {m.react && Object.entries(m.react).map(([e, n]) => <span key={e} onClick={() => react(m.id, e)} style={{ fontSize: 11, padding: "1px 7px", borderRadius: 99, background: T.card2, cursor: "pointer" }}>{e} {n}</span>)}
+                {m.react && Object.entries(m.react).map(([e, v]) => { const n = Array.isArray(v) ? v.length : +v || 0; const mine = Array.isArray(v) && v.includes(myRid); return n ? <span key={e} onClick={() => react(m.id, e)} style={{ fontSize: 12.5, padding: "2px 8px", borderRadius: 99, background: mine ? T.accent : T.card2, color: mine ? T.accentText : T.text, border: `1.5px solid ${mine ? T.accent : T.border}`, cursor: "pointer", fontWeight: 800 }}>{e} {n}</span> : null; })}
                 <span style={{ fontSize: 10, color: T.faint, margin: "0 4px" }}>{m.edited ? "edited · " : ""}{to12(m.t)}{m.me && CLOUD.on && (() => { const n = seenBy(m).length; return <span onClick={(e) => { e.stopPropagation(); setSeenMsg(m); }} title={n ? `Seen by ${n}` : "Sent"} style={{ marginLeft: 5, fontWeight: 900, letterSpacing: -2.5, color: n ? "#22E4FF" : T.faint, cursor: "pointer" }}>{n ? "✓✓" : "✓"}{n ? <span style={{ letterSpacing: 0, marginLeft: 4, fontWeight: 700 }}>{n}</span> : null}</span>; })()}</span>
               </div>
             </div>
@@ -1251,4 +1251,36 @@ function RouteView({ r }) {
     case "studio": return <StudioScreen fromFolder={r.fromFolder} songId={r.songId} pid={r.pid} />;
     default: return null;
   }
+}
+
+/* Telegram-style message menu: dim the chat, lift the message, reactions on top, actions below */
+function MsgMenu({ m, T, onClose, onReact, items, myRid }) {
+  const [rect, setRect] = useState(null);
+  useEffect(() => { const el = document.querySelector(`[data-bubble="${m.id}"]`); if (el) setRect(el.getBoundingClientRect()); if (navigator.vibrate) navigator.vibrate(12); }, [m.id]);
+  useEffect(() => { const h = (e) => e.key === "Escape" && onClose(); window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, []); // eslint-disable-line
+  if (!rect) return null;
+  const vw = window.innerWidth, vh = window.innerHeight; const barH = 54, rowH = 46, menuH = items.length * rowH + 12, gap = 8;
+  const bubH = Math.min(rect.height, vh * 0.42);
+  let top = rect.top; const need = barH + gap + bubH + gap + menuH;
+  if (top - barH - gap < 12) top = 12 + barH + gap; if (top + bubH + gap + menuH > vh - 12) top = Math.max(12 + barH + gap, vh - 12 - menuH - gap - bubH);
+  const right = m.me; const menuW = 220; const left = right ? Math.max(8, Math.min(vw - menuW - 8, rect.right - menuW)) : Math.max(8, Math.min(vw - menuW - 8, rect.left));
+  const EMO = ["👍", "❤️", "🙏", "🔥", "🙌", "😂", "😮", "👏"];
+  const mineE = Object.entries(m.react || {}).find(([, v]) => Array.isArray(v) && v.includes(myRid));
+  return createPortal(
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9400, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", animation: "bzFade .15s ease" }}>
+      <style>{"@keyframes bzFade{from{opacity:0}to{opacity:1}}@keyframes bzPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}"}</style>
+      <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", top: top - barH - gap, left: right ? undefined : Math.max(8, rect.left), right: right ? Math.max(8, vw - rect.right) : undefined, display: "flex", gap: 2, background: T.dark ? "#1E2228" : "#fff", borderRadius: 99, padding: "6px 8px", boxShadow: "0 10px 30px rgba(0,0,0,0.4)", animation: "bzPop .18s ease", transformOrigin: right ? "right bottom" : "left bottom", maxWidth: vw - 16, overflowX: "auto" }} className="bz-noscroll">
+        {EMO.map((e) => <button key={e} aria-label={"React " + e} onClick={() => onReact(e)} style={{ fontSize: 26, lineHeight: 1, width: 40, height: 40, borderRadius: 20, border: "none", background: mineE && mineE[0] === e ? (T.dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.08)") : "transparent", cursor: "pointer", flexShrink: 0, transition: "transform .1s" }} onPointerDown={(ev) => (ev.currentTarget.style.transform = "scale(1.25)")} onPointerUp={(ev) => (ev.currentTarget.style.transform = "")}>{e}</button>)}
+      </div>
+      <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", top, left: rect.left, width: rect.width, maxHeight: bubH, overflow: "hidden", borderRadius: 18, background: m.me ? T.accent : T.card, color: m.me ? T.accentText : T.text, padding: "10px 13px", boxSizing: "border-box", fontFamily: FONT, fontSize: 14.5, lineHeight: 1.45, whiteSpace: "pre-wrap", boxShadow: "0 8px 30px rgba(0,0,0,0.35)" }}>
+        {m.text || (m.file ? "📎 " + m.file.name : m.song ? "🎵 Chord chart" : "")}
+      </div>
+      <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", top: top + bubH + gap, left, width: menuW, background: T.dark ? "#1E2228" : "#fff", color: T.dark ? "#fff" : "#111", borderRadius: 16, padding: "6px 0", boxShadow: "0 10px 30px rgba(0,0,0,0.4)", animation: "bzPop .18s ease", transformOrigin: right ? "right top" : "left top" }}>
+        {items.map((it) => (
+          <button key={it.label} onClick={it.go} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", height: rowH, padding: "0 16px", border: "none", background: "transparent", color: it.danger ? "#FF4D5E" : "inherit", fontFamily: FONT, fontSize: 15, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+            <span style={{ width: 22, textAlign: "center", fontSize: 17 }}>{it.icon}</span>{it.label}
+          </button>
+        ))}
+      </div>
+    </div>, document.body);
 }
