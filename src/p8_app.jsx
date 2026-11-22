@@ -298,7 +298,7 @@ export default function BezaYouthWorshipTeam() {
       for (let i = 0; i < 40 && !ok; i++) { try { prof = await CLOUD.get(`users/${u.uid}`); ok = true; } catch (e) { if (local) break; await new Promise((r) => setTimeout(r, 1500)); } }
       if (prof) {
         setUserRaw({ uid: u.uid, name: prof.name || u.name || "Member", email: u.email, roles: prof.roles || [], levels: prof.levels || {} });
-        setDone(new Set(prof.done || [])); setLogs(prof.logs || []); setVoice(prof.voice || null); setVoiceRange(prof.voiceRange || null); if (prof.theme && THEMES[prof.theme]) setThemeId(prof.theme); if (prof.prefs) { setSettings((x) => ({ ...x, ...prof.prefs })); applyReminders({ ...settings, ...prof.prefs }, false); } setAvatar(prof.avatar || null); setGames(prof.games || { best: {} }); setSessionsDone(prof.sessionsDone || {}); setLeader(!!prof.leader);
+        setDone((d) => mergeDone(local ? d : [], prof.done)); setLogs((l) => mergeLogs(local ? l : [], prof.logs)); setVoice(prof.voice || null); setVoiceRange(prof.voiceRange || null); if (prof.theme && THEMES[prof.theme]) setThemeId(prof.theme); if (prof.prefs) { setSettings((x) => ({ ...x, ...prof.prefs })); applyReminders({ ...settings, ...prof.prefs }, false); } setAvatar(prof.avatar || null); setGames((g) => mergeGames(local ? g : { best: {} }, prof.games || { best: {} })); setSessionsDone((x) => mergeSess(local ? x : {}, prof.sessionsDone || {})); setLeader(!!prof.leader);
       } else if (!ok && local) {
         setUserRaw({ ...local.user });
       } else if (legacy) {
@@ -407,7 +407,7 @@ export default function BezaYouthWorshipTeam() {
   const ctx = {
     T, themeId, setThemeId, user, setUser, setRoles, tab, setTab, push, pop, done, completeLesson, logs, logPractice, minutes: logs.reduce((s, l) => s + l.mins, 0), streak,
     voice, setVoice, voiceRange, setVoiceRange, avatar, setAvatar, leader, setLeader, settings, setSettings, update, runUpdate, checkUpdate, toast, chat, setChat, feed, setFeed, plan, setPlan,
-    assignments, setAssignments, sessionsDone, setSessionsDone, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
+    assignments, setAssignments, sessionsDone, setSessionsDone, setDone, setLogs, setGames, setUserQuiet: setUserRaw, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
     events, setEvents, chatRead, markRead, chatReads, setChatReads, unread, unreadTotal: Object.values(unread).reduce((a, b) => a + b, 0), openChat,
   };
   const needsOnboarding = user && (!user.roles || !user.roles.length);

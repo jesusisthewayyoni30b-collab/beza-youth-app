@@ -50,6 +50,12 @@ const CLOUD = (() => {
 })();
 if (CLOUD.on) TEAM.length = 0; // real members replace the sample team
 
+/* ---- progress from several devices: always combine, never overwrite ---- */
+const DEV_ID = (() => { try { let d = localStorage.getItem("beza-dev"); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem("beza-dev", d); } return d; } catch (e) { return "x"; } })();
+const mergeDone = (a, b) => { const s = new Set(a || []); (b || []).forEach((x) => s.add(x)); return s; };
+const mergeLogs = (a, b) => { const m = new Map(); [...(a || []), ...(b || [])].forEach((l) => { if (l && l.at) m.set(`${l.at}|${l.what || ""}`, l); }); return [...m.values()].sort((x, y) => y.at - x.at).slice(0, 400); };
+const mergeGames = (a, b) => { const out = { ...(a || {}), best: { ...((a || {}).best || {}) } }; Object.entries((b || {}).best || {}).forEach(([g, lv]) => { const cur = { ...(out.best[g] || {}) }; Object.entries(lv || {}).forEach(([k, v]) => { const c = cur[k]; cur[k] = !c ? v : (v && typeof v === "object" ? { ...c, score: Math.max(c.score || 0, v.score || 0), stars: Math.max(c.stars || 0, v.stars || 0) } : Math.max(+c || 0, +v || 0)); }); out.best[g] = cur; }); Object.keys(b || {}).forEach((k) => { if (k !== "best" && out[k] == null) out[k] = b[k]; }); return out; };
+const mergeSess = (a, b) => { const o = { ...(a || {}) }; Object.entries(b || {}).forEach(([k, v]) => { o[k] = Math.max(+o[k] || 0, +v || 0); }); return o; };
 const isOnline = (m) => !!m && !m.away && Date.now() - (m.lastMs || 0) < 150000;
 const toMs = (t) => (t && typeof t.toMillis === "function" ? t.toMillis() : typeof t === "number" ? t : t && t.seconds ? t.seconds * 1000 : Date.now());
 const relTime = (ms) => { const d = (Date.now() - ms) / 60000; if (d < 2) return "just now"; if (d < 60) return `${Math.round(d)}m ago`; if (d < 1440) return `${Math.round(d / 60)}h ago`; if (d < 2880) return "yesterday"; return `${Math.round(d / 1440)}d ago`; };
@@ -83,7 +89,8 @@ const CLOUD_GROUPS = [
 /* Runs inside the app: keeps local state and the cloud in sync */
 function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents }) {
   const ctx = useApp();
-  const { user, done, logs, voice, voiceRange, settings, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader, themeId, setThemeId } = ctx;
+  const { user, done, logs, voice, voiceRange, settings, avatar, games, sessionsDone, leader, groups, setGroups, songs, setSongs, chat, setChat, assignments, setAssignments, feed, setFeed, setLeader, themeId, setThemeId, setDone, setLogs, setGames, setSessionsDone, setVoice, setVoiceRange, setAvatar, setUserQuiet } = ctx;
+  const lastUpd = useRef(0); const cur = useRef({}); cur.current = { user, done, logs, games, sessionsDone, voice, voiceRange, avatar };
   const owner = useOwner(); const themeSent = useRef(themeId);
   const me = useRef({}); me.current = { uid, user, leader };
   const people = useRef([]); // all users incl. me: {uid, name, roles, leader}
@@ -93,7 +100,7 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
   useEffect(() => {
     if (!user || !user.roles) return;
     const t = setTimeout(() => {
-      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, voiceRange: voiceRange || null, prefs: { notif: !!settings.notif, reminder: settings.reminder || "18:00", days: settings.days || [0, 1, 2, 3, 4, 5, 6], goal: settings.goal || 20 }, theme: themeId, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
+      CLOUD.set(`users/${uid}`, { name: user.name, email: user.email || "", roles: user.roles, levels: user.levels || {}, voice: voice || null, voiceRange: voiceRange || null, prefs: { notif: !!settings.notif, reminder: settings.reminder || "18:00", days: settings.days || [0, 1, 2, 3, 4, 5, 6], goal: settings.goal || 20 }, dev: DEV_ID, upd: Date.now(), theme: themeId, avatar: avatar && avatar.length < 300000 ? avatar : null, done: [...done], logs: logs.slice(0, 300), games: games || { best: {} }, sessionsDone: sessionsDone || {}, leader: !!leader, color: colorForUid(uid), lastActive: CLOUD.now() }).catch((e) => console.warn("profile save", e && e.code));
       themeSent.current = themeId;
     }, 1500);
     return () => clearTimeout(t);
@@ -111,7 +118,24 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
   useEffect(() => CLOUD.listen("users", {}, (list) => {
     people.current = list.map((u) => ({ uid: u._id, name: u.name || "Member", roles: u.roles || [], leader: !!u.leader }));
     /* same theme on every device: a theme picked on another phone/computer comes here too */
-    const mine = list.find((u) => u._id === uid); if (mine && mine.theme && mine.theme !== themeSent.current && THEMES[mine.theme]) { themeSent.current = mine.theme; setThemeId && setThemeId(mine.theme); }
+    const mine = list.find((u) => u._id === uid);
+    if (mine) {
+      /* progress done on another phone/computer shows up here right away */
+      const c = cur.current;
+      const nd = mergeDone(c.done, mine.done); if (nd.size !== c.done.size) setDone && setDone(nd);
+      const nl = mergeLogs(c.logs, mine.logs); if (nl.length !== (c.logs || []).length) setLogs && setLogs(nl);
+      const ng = mergeGames(c.games, mine.games); if (stable(ng) !== stable(c.games || {})) setGames && setGames(ng);
+      const ns = mergeSess(c.sessionsDone, mine.sessionsDone); if (stable(ns) !== stable(c.sessionsDone || {})) setSessionsDone && setSessionsDone(ns);
+      /* profile details changed on another device (newer than anything seen) */
+      if (mine.dev && mine.dev !== DEV_ID && (mine.upd || 0) > lastUpd.current) {
+        lastUpd.current = mine.upd || 0;
+        if (c.user && setUserQuiet && (stable(mine.roles || []) !== stable(c.user.roles || []) || stable(mine.levels || {}) !== stable(c.user.levels || {}) || (mine.name && mine.name !== c.user.name)) && (mine.roles || []).length) setUserQuiet((u) => (u ? { ...u, name: mine.name || u.name, roles: mine.roles, levels: mine.levels || {} } : u));
+        if (stable(mine.voice || null) !== stable(c.voice || null)) setVoice && setVoice(mine.voice || null);
+        if (stable(mine.voiceRange || null) !== stable(c.voiceRange || null)) setVoiceRange && setVoiceRange(mine.voiceRange || null);
+        if ((mine.avatar || null) !== (c.avatar || null) && mine.avatar) setAvatar && setAvatar(mine.avatar);
+      } else if (mine.dev === DEV_ID) lastUpd.current = Math.max(lastUpd.current, mine.upd || 0);
+    }
+    if (mine && mine.theme && mine.theme !== themeSent.current && THEMES[mine.theme]) { themeSent.current = mine.theme; setThemeId && setThemeId(mine.theme); }
     const others = list.filter((u) => u._id !== uid && u.roles && u.roles.length).map((u) => ({ id: u._id, uid: u._id, name: u.name || "Member", roles: u.roles || [], voice: u.voice || null, voiceRange: u.voiceRange || null, color: u.color || colorForUid(u._id), leader: !!u.leader, avatar: u.avatar || null, games: u.games || { best: {} }, away: !!u.away, ...memberStats(u) }));
     TEAM.length = 0; others.sort((a, b) => a.name.localeCompare(b.name)).forEach((m) => TEAM.push(m));
     setPeopleV((v) => v + 1); onTeam && onTeam();
