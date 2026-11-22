@@ -407,7 +407,7 @@ export default function BezaYouthWorshipTeam() {
   const ctx = {
     T, themeId, setThemeId, user, setUser, setRoles, tab, setTab, push, pop, done, completeLesson, logs, logPractice, minutes: logs.reduce((s, l) => s + l.mins, 0), streak,
     voice, setVoice, voiceRange, setVoiceRange, avatar, setAvatar, leader, setLeader, settings, setSettings, update, runUpdate, checkUpdate, toast, chat, setChat, feed, setFeed, plan, setPlan,
-    assignments, setAssignments, sessionsDone, setSessionsDone, setDone, setLogs, setGames, setUserQuiet: setUserRaw, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
+    assignments, setAssignments, sessionsDone, setSessionsDone, setDone, setLogs, setUserQuiet: setUserRaw, host, groups: groups || [], setGroups: (f) => setGroups((g) => (typeof f === "function" ? f(g || []) : f)), games, setGames, songs, setSongs, replayIntro: () => setIntro(true),
     events, setEvents, chatRead, markRead, chatReads, setChatReads, unread, unreadTotal: Object.values(unread).reduce((a, b) => a + b, 0), openChat,
   };
   const needsOnboarding = user && (!user.roles || !user.roles.length);
