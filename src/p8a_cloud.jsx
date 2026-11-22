@@ -233,7 +233,7 @@ function CloudSync({ uid, onTeam, onIncoming, setChatReads, onNotice, setEvents 
         const key = String(m.id);
         if (mir[key] === undefined) {
           const docId = key.includes("_") ? key : `${key}_${uid.slice(0, 6)}`; mir[key] = stable(m.react || {}); mir[docId] = mir[key]; txm[key] = txm[docId] = m.text || "";
-          CLOUD.set(`groups/${gid}/messages/${docId}`, strip({ uid, from: m.sys ? "" : (me.current.user.name || "Member"), color: colorForUid(uid), text: m.text || "", song: m.song, file: m.file && (m.file.data || !m.file.url) ? { name: m.file.name, size: m.file.size, data: m.file.data || null } : undefined, sys: !!m.sys, react: m.react || {}, reply: m.reply || undefined, at: CLOUD.now() }), false).catch((e) => console.warn("send", e && e.code));
+          CLOUD.set(`groups/${gid}/messages/${docId}`, strip({ uid, from: m.sys ? "" : (me.current.user.name || "Member"), color: colorForUid(uid), text: m.text || "", song: m.song, file: m.file && (m.file.data || !m.file.url) ? { name: m.file.name, size: m.file.size, data: m.file.data || null, fid: m.file.fid, chunks: m.file.chunks, mime: m.file.mime } : undefined, sys: !!m.sys, react: m.react || {}, reply: m.reply || undefined, at: CLOUD.now() }), false).catch((e) => console.warn("send", e && e.code));
         } else {
           const pid = key.includes("_") ? key : `${key}_${uid.slice(0, 6)}`;
           if (m.edited && txm[key] !== undefined && txm[key] !== (m.text || "")) { txm[key] = m.text || ""; CLOUD.update(`groups/${gid}/messages/${pid}`, { text: m.text || "", edited: true }).catch((e) => console.warn("edit", e && e.code)); }

@@ -739,3 +739,18 @@ function OwnerInbox() {
     </div>
   );
 }
+
+/* chat attachments (documents, audio…) live in the same free database store as the song parts */
+async function openChatFile(f, toast) {
+  try {
+    toast && toast(`Opening ${f.name}…`);
+    const raw = await fetchPart(f.fid, "f", f.chunks); const blob = new Blob([raw], { type: f.mime || "application/octet-stream" });
+    const native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    if (native) {
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], f.name, { type: blob.type })] })) { await navigator.share({ files: [new File([blob], f.name, { type: blob.type })] }); return; }
+      if (/^audio\//.test(blob.type)) { const a = new Audio(URL.createObjectURL(blob)); a.play(); toast && toast(`Playing ${f.name}`); return; }
+      toast && toast("To save files on the phone, open beza-youth.web.app in Chrome and tap the file there."); return;
+    }
+    downloadBlob(blob, f.name);
+  } catch (e) { toast && toast("Couldn't open the file: " + (e.message || "error")); }
+}

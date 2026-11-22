@@ -756,7 +756,7 @@ function ProgressScreen() {
 
 /* ================================ CHAT ================================ */
 function ChatScreen() {
-  const { T, user, avatar, chat, setChat, leader, push, tab, markRead, chatReads, unread } = useApp();
+  const { T, user, avatar, chat, setChat, leader, push, tab, markRead, chatReads, unread, toast } = useApp();
   const { groups, songs } = useApp();
   const [seenMsg, setSeenMsg] = useState(null);
   const [songPick, setSongPick] = useState(false);
@@ -796,7 +796,15 @@ function ChatScreen() {
     if (!txt.trim() && !extra.file) return; setChat((c) => ({ ...c, [ch]: [...(c[ch] || []), { id: Date.now(), at: Date.now(), from: user.name, me: true, text: txt.trim(), t: nowHM(), ...(replyTo ? { reply: replyTo } : {}), ...extra }] })); setTxt(""); setEmo(false); setReplyTo(null); };
   const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const isImg = f.type.startsWith("image/");
     if (CLOUD.on) { e.target.value = ""; const kb = f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB";
-      if (!isImg) { send({ file: { name: f.name, size: kb + " · not uploaded (photos only)" } }); return; }
+      if (!isImg) {
+        if (f.size > 15e6) { toast("Files can be up to 15 MB"); return; }
+        const fid = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        toast(`Sending ${f.name}…`);
+        uploadParts(fid, "f", f, (q) => q < 1 && toast(`Sending ${f.name}… ${Math.round(q * 100)}%`))
+          .then((r) => { send({ file: { name: f.name, size: kb, fid, chunks: r.chunks, mime: f.type || "" } }); toast("File sent ✓"); })
+          .catch(() => toast("Couldn't send the file — check the internet and try again"));
+        return;
+      }
       const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const mx = 900; const sc = Math.min(1, mx / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); const data = c.toDataURL("image/jpeg", 0.72); send({ file: { name: f.name, size: Math.round(data.length * 0.75 / 1e3) + " KB", url: data, data } }); }; img.src = r.result; }; r.readAsDataURL(f); return; } const url = isImg ? URL.createObjectURL(f) : null; send({ file: { name: f.name, size: f.size > 1e6 ? (f.size / 1e6).toFixed(1) + " MB" : Math.round(f.size / 1e3) + " KB", url, audio: f.type.startsWith("audio/") ? URL.createObjectURL(f) : null } }); e.target.value = ""; };
   const react = (mid, e) => { setChat((c) => ({ ...c, [ch]: c[ch].map((m) => (m.id === mid ? { ...m, react: { ...(m.react || {}), [e]: ((m.react || {})[e] || 0) + 1 } } : m)) })); setReactFor(null); };
   const addEmoji = (e) => { setTxt((t) => t + e); setRecent((r) => [e, ...r.filter((x) => x !== e)].slice(0, 16)); };
@@ -844,9 +852,9 @@ function ChatScreen() {
                 {m.reply && <div onClick={(e) => { e.stopPropagation(); jumpTo(m.reply.id); }} style={{ borderLeft: `3px solid ${m.me ? "rgba(0,0,0,0.45)" : T.pop}`, background: m.me ? "rgba(0,0,0,0.10)" : T.card2, borderRadius: 8, padding: "4px 8px", marginBottom: 6, fontSize: 12, cursor: "pointer", maxWidth: 260 }}><div style={{ fontWeight: 800, opacity: 0.9 }}>{m.reply.from}</div><div style={{ opacity: 0.8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.reply.text}</div></div>}
                 {m.file && m.file.url && <img alt="" src={m.file.url} style={{ display: "block", maxWidth: "100%", borderRadius: 14 }} />}
                 {m.file && !m.file.url && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: m.text ? 6 : 0 }}>
+                  <div onClick={m.file.fid ? (e) => { e.stopPropagation(); openChatFile(m.file, toast); } : undefined} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: m.text ? 6 : 0, cursor: m.file.fid ? "pointer" : undefined }}>
                     <div style={{ width: 36, height: 36, borderRadius: 12, background: m.me ? "rgba(0,0,0,0.12)" : T.soft, display: "grid", placeItems: "center" }}>{m.file.audio ? <Music size={18} /> : <FileText size={18} />}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.file.name}</div><div style={{ fontSize: 11, opacity: 0.7 }}>{m.file.size}</div></div>
+                    <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.file.name}</div><div style={{ fontSize: 11, opacity: 0.7 }}>{m.file.size}{m.file.fid ? " · tap to open" : ""}</div></div>
                     <Download size={16} />
                   </div>
                 )}
