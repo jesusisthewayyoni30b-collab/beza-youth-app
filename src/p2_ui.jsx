@@ -203,7 +203,7 @@ function MarkComplete({ id, label, mins = 5 }) {
 function BezaLogo({ size = 44, width, color }) {
   const { T } = useApp();
   const w = width || size * 2.4;
-  return <img alt="Beza Youth" src="assets/logo-white.png" draggable={false} style={{ width: w, height: "auto", display: "block", filter: T.dark || color === "#fff" || color === "#FFFFFF" ? "none" : "invert(1) brightness(0.25)" }} />;
+  return <img alt="Beza Youth Worship Team" src="assets/logo-white.png" draggable={false} style={{ width: w, height: "auto", display: "block", filter: T.dark || color === "#fff" || color === "#FFFFFF" ? "none" : "invert(1) brightness(0.25)" }} />;
 }
 function LogoLockup({ width = 240, tag = true, center }) {
   const { T } = useApp();

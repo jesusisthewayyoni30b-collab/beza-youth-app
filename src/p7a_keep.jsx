@@ -19,7 +19,7 @@ function UpdateGate() {
     <div style={{ position: "fixed", inset: 0, zIndex: 100000, background: "radial-gradient(120% 80% at 50% 0%, #1A2740 0%, #07090B 70%)", color: "#F2F8FF", display: "grid", placeItems: "center", padding: 24, fontFamily: FONT, overflowY: "auto" }}>
       <HoloStyle />
       <div style={{ width: "100%", maxWidth: 380, textAlign: "center" }}>
-        <img alt="Beza Youth" src="assets/logo-white.png" style={{ width: 170, display: "block", margin: "0 auto 26px", filter: "drop-shadow(0 0 18px rgba(140,190,255,.35))" }} />
+        <img alt="Beza Youth Worship Team" src="assets/logo-white.png" style={{ width: 170, display: "block", margin: "0 auto 26px", filter: "drop-shadow(0 0 18px rgba(140,190,255,.35))" }} />
         <div style={{ display: "grid", placeItems: "center" }}><NeonIcon icon={Download} colors={C} size={74} /></div>
         <div style={{ fontSize: 11, letterSpacing: 3, fontWeight: 800, color: C[0], marginTop: 20 }}>UPDATE REQUIRED</div>
         <div style={{ fontSize: 26, fontWeight: 900, marginTop: 6, lineHeight: 1.15 }}>A new version is ready</div>

@@ -331,7 +331,7 @@ function CloudLogin({ desktop }) {
   );
 }
 function CloudSplash() {
-  return <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "#07090b" }}><img alt="Beza Youth" src="assets/logo-white.png" style={{ width: 170, opacity: 0.9 }} className="bz-pulse" /><HoloStyle /></div>;
+  return <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "#07090b" }}><img alt="Beza Youth Worship Team" src="assets/logo-white.png" style={{ width: 170, opacity: 0.9 }} className="bz-pulse" /><HoloStyle /></div>;
 }
 
 /* desktop sign-in: split screen (brand story left, form right) */

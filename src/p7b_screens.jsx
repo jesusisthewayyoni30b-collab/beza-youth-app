@@ -771,7 +771,7 @@ function ChatScreen() {
   const [grp, setGrp] = useState(0);
   const [recent, setRecent] = useState(["🙏", "🔥", "❤️", "😂", "🙌", "🎤", "🎹", "🥁"]);
   const [reactFor, setReactFor] = useState(null);
-  const [editId, setEditId] = useState(null); const [delMsg, setDelMsg] = useState(null);
+  const [editId, setEditId] = useState(null); const [delMsg, setDelMsg] = useState(null); const pressT = useRef(null); const longRef = useRef(false);
   const inRef = useRef(null); const [replyTo, setReplyTo] = useState(null); const swipe = useRef(null); const [swipeX, setSwipeX] = useState(null);
   const touchDev = typeof window !== "undefined" && ("ontouchstart" in window) && window.innerWidth < 900;
   useEffect(() => { const el = inRef.current; if (!el) return; el.style.height = "38px"; if (el.scrollHeight > 40) el.style.height = Math.min(el.scrollHeight, 132) + "px"; }, [txt]);
@@ -788,7 +788,7 @@ function ChatScreen() {
   const seenBy = (m) => { const at = m.at || (typeof m.id === "number" ? m.id : 0); return ((chatReads || {})[ch] || []).filter((r) => r.uid !== user.uid && r.at >= at).sort((a, b) => a.at - b.at); };
   const startEdit = (m) => { setEditId(m.id); setTxt(m.text || ""); setReactFor(null); setEmo(false); setTimeout(() => inRef.current && inRef.current.focus(), 30); };
   const cancelEdit = () => { setEditId(null); setTxt(""); };
-  const doDelete = (m) => { setChat((c) => ({ ...c, [ch]: (c[ch] || []).filter((x) => x.id !== m.id) })); setDelMsg(null); if (editId === m.id) cancelEdit(); };
+  const doDelete = (m) => { if (CLOUD.on && m.file && m.file.fid) for (let i = 0; i < (m.file.chunks || 0); i++) CLOUD.del(`stemdata/${m.file.fid}__f__${i}`).catch(() => { }); setChat((c) => ({ ...c, [ch]: (c[ch] || []).filter((x) => x.id !== m.id) })); setDelMsg(null); if (editId === m.id) cancelEdit(); };
   const send = (extra = {}) => {
     if (editId != null && !extra.file) { const t = txt.trim(); const orig = (chat[ch] || []).find((x) => x.id === editId);
       if (t && orig && t !== orig.text) setChat((c) => ({ ...c, [ch]: (c[ch] || []).map((x) => (x.id === editId ? { ...x, text: t, edited: true } : x)) }));
@@ -800,7 +800,7 @@ function ChatScreen() {
         if (f.size > 15e6) { toast("Files can be up to 15 MB"); return; }
         const fid = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
         toast(`Sending ${f.name}…`);
-        uploadParts(fid, "f", f, (q) => q < 1 && toast(`Sending ${f.name}… ${Math.round(q * 100)}%`))
+        uploadParts(fid, "f", f, user.uid, (q) => q < 1 && toast(`Sending ${f.name}… ${Math.round(q * 100)}%`))
           .then((r) => { send({ file: { name: f.name, size: kb, fid, chunks: r.chunks, mime: f.type || "" } }); toast("File sent ✓"); })
           .catch(() => toast("Couldn't send the file — check the internet and try again"));
         return;
@@ -852,10 +852,12 @@ function ChatScreen() {
                 {m.reply && <div onClick={(e) => { e.stopPropagation(); jumpTo(m.reply.id); }} style={{ borderLeft: `3px solid ${m.me ? "rgba(0,0,0,0.45)" : T.pop}`, background: m.me ? "rgba(0,0,0,0.10)" : T.card2, borderRadius: 8, padding: "4px 8px", marginBottom: 6, fontSize: 12, cursor: "pointer", maxWidth: 260 }}><div style={{ fontWeight: 800, opacity: 0.9 }}>{m.reply.from}</div><div style={{ opacity: 0.8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.reply.text}</div></div>}
                 {m.file && m.file.url && <img alt="" src={m.file.url} style={{ display: "block", maxWidth: "100%", borderRadius: 14 }} />}
                 {m.file && !m.file.url && (
-                  <div onClick={m.file.fid ? (e) => { e.stopPropagation(); openChatFile(m.file, toast); } : undefined} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: m.text ? 6 : 0, cursor: m.file.fid ? "pointer" : undefined }}>
+                  <div onClick={m.file.fid ? (e) => { e.stopPropagation(); if (longRef.current) { longRef.current = false; return; } openChatFile(m.file, toast); } : undefined}
+                    onPointerDown={() => { clearTimeout(pressT.current); longRef.current = false; pressT.current = setTimeout(() => { longRef.current = true; if (navigator.vibrate) navigator.vibrate(20); setReactFor(m.id); }, 550); }} onPointerUp={() => clearTimeout(pressT.current)} onPointerLeave={() => clearTimeout(pressT.current)} onContextMenu={(e) => e.preventDefault()}
+                    style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: m.text ? 6 : 0, cursor: m.file.fid ? "pointer" : undefined, WebkitTouchCallout: "none", userSelect: "none" }}>
                     <div style={{ width: 36, height: 36, borderRadius: 12, background: m.me ? "rgba(0,0,0,0.12)" : T.soft, display: "grid", placeItems: "center" }}>{m.file.audio ? <Music size={18} /> : <FileText size={18} />}</div>
                     <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.file.name}</div><div style={{ fontSize: 11, opacity: 0.7 }}>{m.file.size}{m.file.fid ? " · tap to open" : ""}</div></div>
-                    <Download size={16} />
+                    <button aria-label="Message options" onClick={(e) => { e.stopPropagation(); setReactFor(reactFor === m.id ? null : m.id); }} style={{ width: 32, height: 32, borderRadius: 10, border: "none", background: m.me ? "rgba(0,0,0,0.12)" : T.soft, color: "inherit", fontWeight: 900, fontSize: 16, cursor: "pointer", flexShrink: 0 }}>⋯</button>
                   </div>
                 )}
                 {m.file && m.file.audio && <audio controls src={m.file.audio} style={{ width: "100%", height: 34, marginBottom: m.text ? 6 : 0 }} />}

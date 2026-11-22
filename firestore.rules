@@ -101,7 +101,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.h is string;
       allow update: if signedIn() && resource.data.h == request.resource.data.h && !exists(/databases/$(database)/documents/stems/$(resource.data.h));
-      allow delete: if isLeader() || isOwner();
+      allow delete: if isLeader() || isOwner() || (signedIn() && resource.data.get('by', '') == me());
     }
   }
 }

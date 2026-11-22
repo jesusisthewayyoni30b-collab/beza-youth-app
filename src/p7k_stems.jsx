@@ -76,11 +76,11 @@ const capFS = () => (window.Capacitor && window.Capacitor.Plugins && window.Capa
 const capShare = () => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) || null;
 const canSaveFiles = () => !isNative() || !!capFS();
 const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(blob); });
-/* phone app: save into Documents/Beza Youth (falls back to the share sheet) */
+/* phone app: save into Documents/Beza Youth Worship Team (falls back to the share sheet) */
 async function nativeSave(blob, name, toast) {
   const FS = capFS(); if (!FS) { toast && toast("Update the app to save files: download the newest version from beza-youth.web.app/download"); return false; }
-  const data = await blobB64(blob); const path = `Beza Youth/${safeFile(name)}`;
-  try { await FS.writeFile({ path, data, directory: "DOCUMENTS", recursive: true }); toast && toast(`Saved to Documents › Beza Youth › ${name}`); return true; }
+  const data = await blobB64(blob); const path = `Beza Youth Worship Team/${safeFile(name)}`;
+  try { await FS.writeFile({ path, data, directory: "DOCUMENTS", recursive: true }); toast && toast(`Saved to Documents › Beza Youth Worship Team › ${name}`); return true; }
   catch (e) { return nativeShare(blob, name, toast); }
 }
 async function nativeShare(blob, name, toast) {
@@ -264,9 +264,10 @@ async function stretchAll(chans /* Float32Array[] */, ref /* mono mix */, speed,
 /* ---------- team library: audio stored in pieces inside the team database (free plan, no Storage needed) ---------- */
 const bytesOut = (u8) => (CLOUD.bytes ? CLOUD.bytes(u8) : u8);
 const bytesIn = (d) => (d && typeof d.toUint8Array === "function" ? d.toUint8Array() : d && d.__b64 ? Uint8Array.from(atob(d.__b64), (c) => c.charCodeAt(0)) : d instanceof Uint8Array ? d : new Uint8Array(d || []));
-async function uploadParts(hash, key, blob, onProg) {
+async function uploadParts(hash, key, blob, by, onProg) {
+  if (typeof by === "function") { onProg = by; by = null; }
   const u = new Uint8Array(await blob.arrayBuffer()); const n = Math.max(1, Math.ceil(u.length / CHUNK));
-  for (let i = 0; i < n; i++) { await CLOUD.set(`stemdata/${hash}__${key}__${i}`, { h: hash, d: bytesOut(u.subarray(i * CHUNK, (i + 1) * CHUNK)) }, false); onProg && onProg((i + 1) / n); }
+  for (let i = 0; i < n; i++) { await CLOUD.set(`stemdata/${hash}__${key}__${i}`, { h: hash, ...(by ? { by } : {}), d: bytesOut(u.subarray(i * CHUNK, (i + 1) * CHUNK)) }, false); onProg && onProg((i + 1) / n); }
   return { chunks: n, size: u.length };
 }
 async function fetchPart(hash, key, chunks) {

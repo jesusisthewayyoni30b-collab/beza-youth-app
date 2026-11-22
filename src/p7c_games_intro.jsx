@@ -85,7 +85,7 @@ function Intro({ onDone }) {
       <div style={{ position: "absolute", left: 0, right: 0, top: "38%", height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.95), transparent)", boxShadow: "0 0 18px 2px rgba(120,200,255,0.7)", transformOrigin: "50% 50%", animation: "fxLine2 1.6s cubic-bezier(.7,0,.2,1) .2s both" }} />
       <div style={{ position: "absolute", left: 0, right: 0, top: "38%", transform: "translateY(-50%)", display: "flex", justifyContent: "center" }}>
         <div style={{ position: "relative", width: 270, animation: "fxSlit 1.3s cubic-bezier(.7,0,.2,1) .75s both" }}>
-          <img alt="Beza Youth" src="assets/logo-white.png" style={{ display: "block", width: "100%", filter: "drop-shadow(0 0 22px rgba(140,190,255,0.35))", animation: "fxFocus 1.6s ease .75s both" }} />
+          <img alt="Beza Youth Worship Team" src="assets/logo-white.png" style={{ display: "block", width: "100%", filter: "drop-shadow(0 0 22px rgba(140,190,255,0.35))", animation: "fxFocus 1.6s ease .75s both" }} />
           <div style={{ position: "absolute", inset: 0, WebkitMaskImage: "url(assets/logo-white.png)", maskImage: "url(assets/logo-white.png)", WebkitMaskSize: "100% 100%", maskSize: "100% 100%", background: "linear-gradient(100deg, transparent 40%, rgba(160,240,255,0.85) 50%, transparent 60%)", backgroundSize: "300% 100%", animation: "fxSweep 1.6s ease 2.1s both" }} />
         </div>
       </div>
