@@ -4,3 +4,6 @@ build/
 *.apk
 .DS_Store
 test/*.png
+test/ml/*.wav
+pages/
+ml-cache/

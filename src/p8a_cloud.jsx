@@ -2,7 +2,7 @@
 /* ============================ CLOUD (Firebase: accounts + shared team data) ============================ */
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendPasswordResetEmail, signOut as fbSignOut, updateProfile } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc as fsDoc, setDoc, getDoc, deleteDoc, updateDoc, collection, onSnapshot, query, orderBy, limit as fsLimit, where, serverTimestamp } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc as fsDoc, setDoc, getDoc, deleteDoc, updateDoc, collection, onSnapshot, query, orderBy, limit as fsLimit, where, serverTimestamp, Bytes } from "firebase/firestore";
 
 const FB_CONFIG = {
   apiKey: "AIzaSyDdULD6MFvt8ghq_uL1OUk-cH7YA4HT7RM",
@@ -40,6 +40,7 @@ function makeFirebaseCloud() {
       return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ _id: d.id, ...d.data({ serverTimestamps: "estimate" }) }))), (e) => { console.warn("listen", p, e && e.code); err && err(e); });
     },
     now: () => serverTimestamp(),
+    bytes: (u8) => Bytes.fromUint8Array(u8),
   };
 }
 const CLOUD = (() => {

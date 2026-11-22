@@ -14,6 +14,7 @@
   window.__fake = { S: () => load(), write, setDoc: (p, d) => write(p, d) };
   window.BEZA_FAKE_CLOUD = {
     on: true,
+    bytes: (u8) => { let b = ""; for (let i = 0; i < u8.length; i++) b += String.fromCharCode(u8[i]); return { __b64: btoa(b) }; },
     onAuth: (cb) => { authCbs.push(cb); cur = JSON.parse(sessionStorage.getItem("fakeauth") || "null"); setTimeout(() => cb(cur), 10); return () => { authCbs = authCbs.filter((x) => x !== cb); }; },
     _set: (u) => { cur = u; sessionStorage.setItem("fakeauth", JSON.stringify(u)); authCbs.forEach((cb) => cb(u)); },
     signUp: async function (name, email, pw) { S = load(); if (S.auth[email]) throw err("auth/email-already-in-use"); if ((pw || "").length < 6) throw err("auth/weak-password"); const uid = "u" + Math.random().toString(36).slice(2, 10); S.auth[email] = { uid, pw, name }; save(); this._set({ uid, email, name, photo: null }); return uid; },

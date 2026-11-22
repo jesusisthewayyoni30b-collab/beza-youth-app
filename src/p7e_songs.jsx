@@ -218,29 +218,22 @@ function DrumsView({ song, sections }) {
 
 /* ---------- screens ---------- */
 function SongsScreen() {
-  const { T, songs, push, user } = useApp(); const [q, setQ] = useState("");
+  const { T, songs, push } = useApp(); const [q, setQ] = useState(""); const lib = useStemLibrary();
   const list = songs.filter((s) => !q || (s.title + " " + (s.artist || "")).toLowerCase().includes(q.toLowerCase()));
-  const set = list.filter((s) => s.setlist); const rest = list.filter((s) => !s.setlist);
-  const Row = ({ s }) => (
-    <Card onClick={() => push({ screen: "song", id: s.id })} style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ width: 52, height: 52, borderRadius: 16, background: T.accent, color: T.accentText, display: "grid", placeItems: "center", flexShrink: 0 }}><div style={{ textAlign: "center", lineHeight: 1 }}><div style={{ fontSize: 9, fontWeight: 800, opacity: 0.8 }}>KEY</div><div style={{ fontWeight: 900, fontSize: 20 }}>{keyLabel(s.key)}</div></div></div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{s.title}</div>
-        <div style={{ fontSize: 12, color: T.sub, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.bpm} bpm · {s.meter} · {firstLineNums(s) || "no chords yet"}</div>
-      </div>
-      <ChevronRight size={18} color={T.sub} />
-    </Card>
-  );
+  const setCount = songs.filter((s) => s.setlist).length;
   return (
     <div>
       <TabHeader title="Songs" sub="Our keys · chords · numbers" />
+      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+        <FolderTile emoji="🔥" title="The Stage" sub="This Saturday's set — keys, chords, Live mode" color={T.accent} count={setCount} onClick={() => push({ screen: "stage" })} />
+        <FolderTile emoji="🎧" title="Rehearsal Room" sub="Songs split into parts · Studio" color="#FF5E8A" count={lib ? lib.length : null} onClick={() => push({ screen: "rehearsal" })} />
+      </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: T.card, border: `1.5px solid ${T.border}`, borderRadius: 16, padding: "10px 12px" }}><Search size={18} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search songs…" style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: T.text, fontFamily: FONT, fontSize: 14 }} /></div>
         <Btn icon={Plus} onClick={() => push({ screen: "songedit" })}>New</Btn>
       </div>
-      {set.length > 0 && <><SectionTitle>This Saturday's set</SectionTitle>{set.map((s) => <Row key={s.id} s={s} />)}</>}
-      {rest.length > 0 && <><SectionTitle>All songs</SectionTitle>{rest.map((s) => <Row key={s.id} s={s} />)}</>}
-      {!list.length && <Card tone="soft" style={{ fontSize: 13 }}>No songs yet — tap <b>New</b> to add the first chart.</Card>}
+      {list.length > 0 && <><SectionTitle>All songs</SectionTitle>{list.map((s) => <SongRow key={s.id} s={s} />)}</>}
+      {!list.length && <Card tone="soft" style={{ fontSize: 13 }}>{q ? "No song matches that." : <>No songs yet — tap <b>New</b> to add the first chart.</>}</Card>}
       <Card tone="soft" style={{ marginTop: 14, fontSize: 12.5, lineHeight: 1.55 }}><b>How it works:</b> once you agree the key with the singer, add the song with its chords. Everyone sees the exact chords for their instrument, every way to play them, and the <b>numbers</b> — so on stage you can call "four!" in the in-ears and the whole band knows the chord, in any key.</Card>
     </div>
   );
@@ -294,6 +287,7 @@ function SongScreen({ id, share: share0 }) {
           <Btn full variant="accent" icon={Zap} onClick={() => push({ screen: "live", id })}>Live mode</Btn>
           <Btn full variant="light" icon={Send} onClick={() => setShare(true)}>Send to group</Btn>
         </div>
+        <SongStudioRow song={song} />
       </Card>
       {gk && <Card tone="soft" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5, border: `1.5px solid ${T.pop}` }}><b>🎯 Key check:</b> these chords ({gk.sample.join(" ")}) fit <b>{keyLabel(gk.key)}</b> better than {keyLabel(song.key)}, so the numbers look odd. <div style={{ marginTop: 8 }}><Btn small variant="accent" onClick={() => fixKey(gk.key)}>Fix: set key to {keyLabel(gk.key)} — same chords</Btn></div></Card>}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 2px 6px" }}><span style={{ fontSize: 11.5, fontWeight: 800, color: T.sub }}>CHANGE KEY (singer moved it? tap the new key)</span><span onClick={() => push({ screen: "tool", id: "basics", props: { tab: "transpose" } })} style={{ fontSize: 11.5, fontWeight: 800, color: ink(T, T.accent), cursor: "pointer", textDecoration: "underline" }}>What does −5 mean?</span></div>
@@ -537,6 +531,17 @@ function ChatSongCard({ id }) {
       <div style={{ fontSize: 12.5 }}>Key <b>{keyLabel(s.key)}</b> · {s.bpm} bpm · {s.meter}</div>
       <div style={{ fontSize: 12.5, marginTop: 4, fontFamily: "ui-monospace, Menlo, monospace" }}>{firstLineNums(s)}</div>
       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, textDecoration: "underline" }}>Open chart →</div>
+    </div>
+  );
+}
+
+function SongStudioRow({ song }) {
+  const { push } = useApp(); const lib = useStemLibrary();
+  const folder = (lib || []).find((m) => normTitle(m.title) === normTitle(song.title));
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+      {folder && <Btn full variant="light" icon={Headphones} onClick={() => push({ screen: "stemfolder", id: folder._id })}>Practice tracks</Btn>}
+      <Btn full variant="light" icon={Sliders} onClick={() => push({ screen: "studio", songId: song.id })}>Studio</Btn>
     </div>
   );
 }

@@ -1035,6 +1035,7 @@ function SettingsScreen() {
         <Row icon={RefreshCw} label="Version" value={update.version} right={<Btn small variant="soft" onClick={async () => { const r = await checkUpdate(); toast(r === false ? "You're on the latest version ✓" : r ? "New version found" : "Can't reach the update server right now"); }}>Check</Btn>} />
         <Row icon={Info} label="Help & feedback" onClick={() => setHelpOpen(true)} />
       </Group>
+      <TeamStorageGroup />
       <Group title="Account">
         <Row icon={User} label={user.name} value={user.roles.map(roleLabel).join(" · ")} />
         <div onClick={() => setUser(null)} style={{ minHeight: 50, display: "flex", alignItems: "center", justifyContent: "center", color: T.bad, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Log out</div>
@@ -1230,6 +1231,12 @@ function RouteView({ r }) {
     case "song": return <SongScreen id={r.id} share={r.share} />;
     case "songedit": return <SongEditScreen id={r.id} lyrics={r.lyrics} />;
     case "live": return <LiveScreen id={r.id} />;
+    case "stage": return <StageScreen />;
+    case "rehearsal": return <RehearsalRoom />;
+    case "splitter": return <SplitterScreen />;
+    case "stemfolder": return <StemFolderScreen id={r.id} />;
+    case "localstems": return <LocalStemsScreen files={r.files} />;
+    case "studio": return <StudioScreen fromFolder={r.fromFolder} songId={r.songId} pid={r.pid} />;
     default: return null;
   }
 }

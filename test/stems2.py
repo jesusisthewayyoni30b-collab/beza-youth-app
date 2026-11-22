@@ -1,0 +1,50 @@
+import asyncio
+from playwright.async_api import async_playwright
+exec(open("test/cloud1.py").read().split("async def main")[0])
+V="div[style*='display: block']"
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--use-fake-ui-for-media-stream","--use-fake-device-for-media-stream","--autoplay-policy=no-user-gesture-required"])
+        ctx = await b.new_context(viewport={"width":1300,"height":860}); await ctx.add_init_script(FAKE); await ctx.add_init_script("window.BEZA_ML_BASE='http://localhost:8766/ml/'")
+        errs=[]
+        A = await newpage(ctx, errs, "A"); await signup(A, "Yonatan Seyoum", "yoni@x.com", ["Keys"])
+        await A.get_by_text("Songs", exact=True).first.click(); await A.wait_for_timeout(500)
+        await A.locator(V).get_by_text("Rehearsal Room").first.click(); await A.wait_for_timeout(500)
+        await A.locator(V).get_by_text("Split a song").first.click(); await A.wait_for_timeout(500)
+        await A.locator(V+" input[type=file]").first.set_input_files("test/ml/My Song (Live).wav"); await A.wait_for_timeout(1500)
+        await A.get_by_role("button", name="Split it").click(); await A.wait_for_timeout(3000)
+        await A.get_by_role("button", name="Share to the team").click(); await A.wait_for_timeout(4000)
+        print("shared", await A.get_by_text("Shared!").count())
+        # phone member
+        m = await b.new_context(viewport={"width":412,"height":880}, user_agent="Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Mobile Safari/537.36"); await m.add_init_script(FAKE)
+        # share fake storage: copy localStorage
+        st = await A.evaluate("localStorage.getItem('fakecloud')")
+        P = await m.new_page(); P.on("pageerror", lambda e: errs.append("P: "+str(e)))
+        await P.goto("http://localhost:8766/index.html"); await P.evaluate("(s)=>localStorage.setItem('fakecloud', s)", st); await P.reload(); await P.wait_for_timeout(800); await P.mouse.click(200,400); await P.wait_for_timeout(1200)
+        await signup(P, "Hanna T", "hanna@x.com", ["Singer"])
+        uid = await P.evaluate("JSON.parse(sessionStorage.getItem('fakeauth')).uid")
+        await P.get_by_role("button", name="Songs", exact=True).last.click(); await P.wait_for_timeout(600)
+        await P.screenshot(path="test/sp_songs.png")
+        await P.locator(V).get_by_text("Rehearsal Room").first.click(); await P.wait_for_timeout(800)
+        print("split visible on phone:", await P.locator(V).get_by_text("Split a song").count())
+        await P.screenshot(path="test/sp_room.png")
+        await P.locator(V).get_by_text("My Song (Live)").first.click(); await P.wait_for_timeout(3000)
+        await P.screenshot(path="test/sp_folder.png", full_page=True)
+        await P.get_by_role("button", name="Open in Studio").click(); await P.wait_for_timeout(4000)
+        await P.get_by_role("button", name="Metronome on/off").click(); await P.wait_for_timeout(200)
+        await P.get_by_role("button", name="Metronome on/off").click(); await P.wait_for_timeout(200)
+        await P.locator("[title=Metronome]").click(); await P.wait_for_timeout(300)
+        await P.get_by_text("Silent (flash + vibrate)").click(); await P.wait_for_timeout(200)
+        await P.screenshot(path="test/sp_click.png")
+        await P.get_by_role("button", name="Close").click()
+        await P.get_by_role("button", name="Record", exact=True).click(); await P.wait_for_timeout(5200)
+        await P.screenshot(path="test/sp_rec.png")
+        await P.get_by_role("button", name="Record", exact=True).click(); await P.wait_for_timeout(1500)
+        await P.screenshot(path="test/sp_after.png")
+        S = await P.evaluate("window.__fake.S()")
+        # owner: non-leader sees storage only when owner doc exists
+        await P.get_by_role("button", name="Back").click(); await P.wait_for_timeout(500)
+        await P.evaluate(f"window.__fake.write('owners/{uid}', {{x:1}})")
+        print("\n".join(errs)[:2000])
+        await b.close()
+asyncio.run(main())

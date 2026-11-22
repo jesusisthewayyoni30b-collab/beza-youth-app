@@ -4,6 +4,7 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
     function isLeader() { return signedIn() && exists(/databases/$(database)/documents/leaders/$(request.auth.uid)); }
+    function isOwner() { return signedIn() && exists(/databases/$(database)/documents/owners/$(request.auth.uid)); }
 
     // each member's profile + progress: everyone on the team can read, only you can write yours
     match /users/{uid} {
@@ -79,6 +80,27 @@ service cloud.firestore {
       allow create: if isLeader() || (signedIn() && request.resource.data.toUid == me());
       allow update: if isLeader() || (signedIn() && resource.data.toUid == me());
       allow delete: if isLeader();
+    }
+
+    // hidden owner flag: only the owner can see their own doc; nobody can write it from the app
+    match /owners/{uid} {
+      allow read: if signedIn() && me() == uid;
+      allow write: if false;
+    }
+
+    // Rehearsal Room song folders (split parts). Anyone can share; no duplicates (create only if new); leaders/owner delete
+    match /stems/{sid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.by == me();
+      allow update: if isLeader() || isOwner() || (signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['extras']));
+      allow delete: if isLeader() || isOwner();
+    }
+    // the audio itself, in pieces
+    match /stemdata/{cid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.h is string;
+      allow update: if signedIn() && resource.data.h == request.resource.data.h && !exists(/databases/$(database)/documents/stems/$(resource.data.h));
+      allow delete: if isLeader() || isOwner();
     }
   }
 }

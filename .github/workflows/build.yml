@@ -28,9 +28,25 @@ jobs:
       - run: bash scripts/build.sh
       - uses: actions/upload-artifact@v4
         with: { name: site, path: dist, include-hidden-files: true }
+      # the song splitter's AI model + runtime: served from GitHub Pages only (not Firebase, not the APK)
+      - uses: actions/cache@v4
+        with: { path: ml-cache, key: demucs-6s-fp16-v1 }
+      - name: Fetch the splitter model (once, then cached)
+        continue-on-error: true
+        run: |
+          mkdir -p ml-cache
+          [ -s ml-cache/htdemucs_6s_fp16weights.onnx ] || curl -fL --retry 3 -o ml-cache/htdemucs_6s_fp16weights.onnx https://huggingface.co/StemSplitio/htdemucs-6s-onnx/resolve/main/htdemucs_6s_fp16weights.onnx || curl -fL --retry 3 -o ml-cache/htdemucs_6s_fp16weights.onnx https://huggingface.co/adowu/htdemucs-6s-onnx/resolve/main/htdemucs_6s_fp16weights.onnx
+          ls -la ml-cache
+      - name: Build the Pages site (app + splitter files)
+        run: |
+          cp -r dist pages
+          mkdir -p pages/ml/ort
+          cp node_modules/onnxruntime-web/dist/ort.min.js node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm pages/ml/ort/
+          cp ml-cache/htdemucs_6s_fp16weights.onnx pages/ml/ 2>/dev/null || echo "model missing"
+          du -sh pages pages/ml
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
-        with: { path: dist }
+        with: { path: pages }
       - name: Wait for the artifact to register
         run: sleep 15
       - id: deploy1
@@ -77,6 +93,7 @@ jobs:
 
   firebase:
     needs: [web, android]
+    if: ${{ !cancelled() && needs.android.result == 'success' }}
     runs-on: ubuntu-latest
     env:
       HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
