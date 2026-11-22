@@ -103,82 +103,113 @@ async function decodeTo(arrayBuf, sr) {
 
 /* ---------- the separation engine (runs in a background worker, fully on this computer) ---------- */
 const SEP_WORKER_SRC = `
-let sess = null, ep = "wasm", bytes = null;
-const mk = async (eps) => self.ort.InferenceSession.create(bytes, { executionProviders: eps, graphOptimizationLevel: "all" });
-const run = async (x) => { const t = new self.ort.Tensor("float32", x, [1, 2, ${SEP_N}]); const r = await sess.run({ mix: t }); const out = r.stems || r[Object.keys(r)[0]]; return new Float32Array(out.data); };
+let sess = null, ep = "wasm";
 self.onmessage = async (e) => {
   const m = e.data;
   try {
     if (m.type === "init") {
       importScripts(m.base + "ort/ort.min.js");
       const ort = self.ort; ort.env.wasm.wasmPaths = m.base + "ort/"; ort.env.wasm.numThreads = 1;
-      bytes = new Uint8Array(m.model);
-      if (m.gpu) { try { sess = await mk(["webgpu"]); ep = "webgpu"; } catch (err) { sess = null; } }
-      if (!sess) { sess = await mk(["wasm"]); ep = "wasm"; }
+      let buf = m.model || null;
+      if (!buf) { try { const c = await caches.open("beza-ml-v1"); const r = await c.match(m.url); if (r) buf = await r.arrayBuffer(); } catch (err) { } }
+      if (!buf) { const r = await fetch(m.url); buf = await r.arrayBuffer(); }
+      let bytes = new Uint8Array(buf); buf = null;
+      const gpu = m.mode === "webgpu";
+      sess = await ort.InferenceSession.create(bytes, gpu
+        ? { executionProviders: ["webgpu"], graphOptimizationLevel: "all" }
+        : { executionProviders: ["wasm"], graphOptimizationLevel: "basic", enableCpuMemArena: false, enableMemPattern: false });
+      bytes = null; ep = gpu ? "webgpu" : "wasm";
       postMessage({ type: "ready", ep });
     } else if (m.type === "run") {
-      let y; const keep = m.x.slice(0);
-      try { y = await run(m.x); } catch (err) { if (ep !== "webgpu") throw err; sess = await mk(["wasm"]); ep = "wasm"; y = await run(keep); }
-      if (!y.every || y.length < 10) throw new Error("bad output");
+      const t = new self.ort.Tensor("float32", m.x, [1, 2, ${SEP_N}]);
+      let r; try { r = await sess.run({ mix: t }); } catch (err) { if (ep === "webgpu") { postMessage({ type: "err", gpu: true, msg: String((err && err.message) || err) }); return; } throw err; }
+      const out = r.stems || r[Object.keys(r)[0]]; const y = new Float32Array(out.data);
+      try { Object.values(r).forEach((v) => v.dispose && v.dispose()); } catch (err) { }
       postMessage({ type: "out", i: m.i, y, ep }, [y.buffer]);
     }
   } catch (err) { postMessage({ type: "err", msg: String((err && err.message) || err) }); }
 };`;
 
+const MODEL_MIN = 100e6; // a complete model is ~136 MB; anything smaller is a broken download
 async function fetchModel(onProg) {
   const url = ML_BASE + MODEL_FILE;
-  let cache = null; try { cache = await caches.open("beza-ml-v1"); const hit = await cache.match(url); if (hit) { onProg(1, true); return await hit.arrayBuffer(); } } catch (e) { cache = null; }
-  const r = await fetch(url); if (!r.ok) throw new Error("Couldn't download the splitter (" + r.status + "). Check the internet and try again.");
+  let cache = null; try { cache = await caches.open("beza-ml-v1"); const hit = await cache.match(url); if (hit) { const len = +(hit.headers.get("content-length") || 0); const b = len ? null : await hit.clone().blob(); if ((len || (b && b.size) || 0) > MODEL_MIN) { onProg(1, true); return null; } await cache.delete(url); } } catch (e) { cache = null; }
+  const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error("Couldn't download the splitter (" + r.status + "). Check the internet and try again.");
   const total = +r.headers.get("content-length") || 140e6; const rd = r.body.getReader(); const parts = []; let got = 0;
   for (; ;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; onProg(Math.min(0.99, got / total)); }
-  const blob = new Blob(parts); if (cache) { try { await cache.put(url, new Response(blob)); } catch (e) { } }
-  onProg(1); return await blob.arrayBuffer();
+  if (got < MODEL_MIN && !/localhost/.test(url)) throw new Error("The splitter download was cut off. Check the internet and try again.");
+  const blob = new Blob(parts); parts.length = 0;
+  if (cache) { try { await cache.put(url, new Response(blob, { headers: { "content-length": String(blob.size) } })); onProg(1); return null; } catch (e) { } }
+  onProg(1); return await blob.arrayBuffer(); // no cache available: hand the bytes over directly
 }
 
 function makeSeparator() {
-  let w = null; let pend = null; let ready = null;
+  let w = null; let pend = null; let ready = null; let mem = null; let ep = null;
+  const url = ML_BASE + MODEL_FILE;
   const send = (msg, tr) => new Promise((res, rej) => { pend = { res, rej }; w.postMessage(msg, tr || []); });
-  return {
+  const kill = () => { try { w && w.terminate(); } catch (e) { } w = null; };
+  /* every attempt gets a brand-new worker, so a failed attempt can't leave memory behind */
+  const start = async (mode) => {
+    kill();
+    w = new Worker(URL.createObjectURL(new Blob([SEP_WORKER_SRC], { type: "text/javascript" })));
+    w.onmessage = (e) => { const p = pend; pend = null; if (!p) return; if (e.data.type === "err") { const er = new Error(e.data.msg); er.gpu = !!e.data.gpu; p.rej(er); } else p.res(e.data); };
+    w.onerror = (e) => { const p = pend; pend = null; p && p.rej(new Error(e.message || "worker failed")); };
+    const r = await send({ type: "init", base: ML_BASE, url, mode, model: mem ? mem.slice(0) : null });
+    ep = r.ep; return r.ep;
+  };
+  const friendly = (e) => { const m = String((e && e.message) || e); return /bad_alloc|memory|allocation|RangeError|ERROR_CODE: 6/i.test(m) ? new Error("This computer ran out of memory while starting the splitter. Close other tabs and apps (especially other browser tabs) and press Split it again. If it keeps happening, restart the browser.") : e; };
+  const api = {
+    ep: null,
     async init(onModel) {
       if (ready) return ready;
       ready = (async () => {
-        const model = await fetchModel(onModel);
-        w = new Worker(URL.createObjectURL(new Blob([SEP_WORKER_SRC], { type: "text/javascript" })));
-        w.onmessage = (e) => { const p = pend; pend = null; if (!p) return; if (e.data.type === "err") p.rej(new Error(e.data.msg)); else p.res(e.data); };
-        w.onerror = (e) => { const p = pend; pend = null; p && p.rej(new Error(e.message || "worker failed")); };
-        const r = await send({ type: "init", base: ML_BASE, model, gpu: !!navigator.gpu }, [model]);
-        return r.ep;
+        mem = await fetchModel(onModel);
+        if (navigator.gpu) { try { api.ep = await start("webgpu"); return api.ep; } catch (e) { kill(); } }
+        try { api.ep = await start("wasm"); return api.ep; } catch (e) { kill(); throw friendly(e); }
       })();
       ready.catch(() => { ready = null; });
       return ready;
     },
-    run: (x, i) => send({ type: "run", x, i }, [x.buffer]),
-    stop() { try { w && w.terminate(); } catch (e) { } w = null; ready = null; if (pend) { pend.rej(new Error("stopped")); pend = null; } },
+    async run(x, i) {
+      try { return await send({ type: "run", x: x.slice(0), i }); }
+      catch (e) {
+        if (e.gpu || (ep === "webgpu" && String(e.message) !== "stopped")) { api.ep = await start("wasm").catch((er) => { throw friendly(er); }); return await send({ type: "run", x: x.slice(0), i }); }
+        throw friendly(e);
+      }
+    },
+    stop() { kill(); ready = null; mem = null; if (pend) { pend.rej(new Error("stopped")); pend = null; } },
   };
+  return api;
 }
 
 /* overlap-add over 7.8 s windows, exactly like the reference implementation */
-async function separateAudio(sep, L, R, onProg, cancelled) {
+async function separateAudio(sep, L, R, onProg, cancelled, four) {
   const total = L.length; const overlap = Math.floor(SEP_N / 4); const stride = SEP_N - overlap;
   const n = Math.max(1, Math.ceil(total / stride));
   const tr = Math.floor(SEP_N * 0.25); const win = new Float32Array(SEP_N).fill(1);
   for (let i = 0; i < tr; i++) { const v = i / (tr - 1); win[i] = v; win[SEP_N - 1 - i] = v; }
-  const out = MODEL_ORDER.map(() => [new Float32Array(total), new Float32Array(total)]); const wsum = new Float32Array(total);
+  /* results go straight into AudioBuffers (no extra copies); in 4-part mode guitar + keys are folded into "other" as we go */
+  const keep = four ? ["drums", "bass", "other", "vocals"] : MODEL_ORDER;
+  const bufs = {}; keep.forEach((k) => (bufs[k] = new AudioBuffer({ length: total, numberOfChannels: 2, sampleRate: SEP_SR })));
+  const dest = MODEL_ORDER.map((k) => (bufs[k] ? k : "other"));
+  const ch = Object.fromEntries(keep.map((k) => [k, [bufs[k].getChannelData(0), bufs[k].getChannelData(1)]]));
+  const wsum = new Float32Array(total);
   const t0 = performance.now();
   for (let c = 0; c < n; c++) {
     if (cancelled()) throw new Error("stopped");
     const s = c * stride; const e = Math.min(s + SEP_N, total); const len = e - s;
     const x = new Float32Array(2 * SEP_N); x.set(L.subarray(s, e), 0); x.set(R.subarray(s, e), SEP_N);
     const { y, ep } = await sep.run(x, c); if (ep) sep.ep = ep;
-    for (let k = 0; k < MODEL_ORDER.length; k++) for (let ch = 0; ch < 2; ch++) {
-      const o = out[k][ch]; const base = (k * 2 + ch) * SEP_N;
+    for (let k = 0; k < MODEL_ORDER.length; k++) for (let q = 0; q < 2; q++) {
+      const o = ch[dest[k]][q]; const base = (k * 2 + q) * SEP_N;
       for (let i = 0; i < len; i++) o[s + i] += y[base + i] * win[i];
     }
     for (let i = 0; i < len; i++) wsum[s + i] += win[i];
     const el = (performance.now() - t0) / 1000; onProg((c + 1) / n, ((el / (c + 1)) * (n - c - 1)), sep.ep);
   }
-  for (let i = 0; i < total; i++) { const w = wsum[i] > 1e-8 ? 1 / wsum[i] : 0; for (let k = 0; k < out.length; k++) { out[k][0][i] *= w; out[k][1][i] *= w; } }
-  const res = {}; MODEL_ORDER.forEach((k, i) => (res[k] = out[i])); return res;
+  for (let i = 0; i < total; i++) wsum[i] = wsum[i] > 1e-8 ? 1 / wsum[i] : 0;
+  keep.forEach((k) => ch[k].forEach((a) => { for (let i = 0; i < total; i++) a[i] *= wsum[i]; }));
+  return bufs;
 }
 
 /* ---------- time-stretch without changing pitch (WSOLA). Offsets are found on the full mix and applied to every part, so the parts can never drift apart ---------- */
@@ -257,6 +288,7 @@ function useStemEngine(parts /* [{key,label,color,L,R}] */) {
       chans = await stretchAll(chans, ref2, sp, (q) => setBusy({ label: `Getting ${Math.round(sp * 100)}% speed ready…`, p: q }));
       setBusy(null);
     }
+    if (sp === 1 && parts.every((p) => p.buf && p.buf.sampleRate === c.sampleRate)) { E.cache[1] = parts.map((p) => p.buf); return E.cache[1]; }
     const bufs = parts.map((p, i) => { const b = c.createBuffer(2, chans[i * 2].length, sr); b.copyToChannel(chans[i * 2], 0); b.copyToChannel(chans[i * 2 + 1], 1); return b; });
     E.cache[sp] = bufs; return bufs;
   };
@@ -511,12 +543,10 @@ function SplitterScreen() {
       if (!sepRef.current) sepRef.current = makeSeparator();
       const ep = await sepRef.current.init((p, cached) => setProg({ model: p, cached }));
       setPhase("split"); setProg({ p: 0, ep });
-      const raw = await separateAudio(sepRef.current, info.dec.L, info.dec.R, (p, left, ep2) => setProg({ p, left, ep: ep2 || ep }), () => cancel.current);
-      let stems = raw;
-      if (mode === 4) { const o = raw.other; for (const k of ["guitar", "piano"]) for (let c = 0; c < 2; c++) { const s = raw[k][c]; for (let i = 0; i < s.length; i++) o[c][i] += s[i]; } stems = { vocals: raw.vocals, drums: raw.drums, bass: raw.bass, other: o }; }
-      const parts = SHOW_ORDER.filter((k) => stems[k]).map((k) => ({ key: k, ...STEM_INFO[k], label: mode === 4 && k === "other" ? "Instruments" : STEM_INFO[k].label, L: stems[k][0], R: stems[k][1], sr: SEP_SR }));
+      const bufs = await separateAudio(sepRef.current, info.dec.L, info.dec.R, (p, left, ep2) => setProg({ p, left, ep: ep2 || ep }), () => cancel.current, mode === 4);
+      const parts = SHOW_ORDER.filter((k) => bufs[k]).map((k) => ({ key: k, ...STEM_INFO[k], label: mode === 4 && k === "other" ? "Instruments" : STEM_INFO[k].label, buf: bufs[k], L: bufs[k].getChannelData(0), R: bufs[k].getChannelData(1), sr: SEP_SR }));
       setResult(parts); setPhase("done"); try { new Notification && document.hidden && new Notification("Song split ✓", { body: info.full }); } catch (e) { }
-    } catch (e) { if (String(e.message) !== "stopped") { setErr(/memory|allocation|RangeError/i.test(e.message) ? "This computer ran out of memory. Close other tabs and try again, or try a shorter song." : e.message || "Something went wrong."); setPhase("ready"); } }
+    } catch (e) { if (String(e.message) !== "stopped") { try { sepRef.current && sepRef.current.stop(); } catch (x) { } sepRef.current = null; setErr(/bad_alloc|RangeError|Array buffer allocation/i.test(e.message) ? "This computer ran out of memory. Close other browser tabs and apps, then press Split it again." : e.message || "Something went wrong."); setPhase("ready"); } }
   };
   const fileName = (p) => safeFile(`${info.name} – ${p.label}.mp3`);
   const mixParts = (on) => { const n = result[0].L.length; const L = new Float32Array(n), R = new Float32Array(n); result.filter((p) => on.includes(p.key)).forEach((p) => { for (let i = 0; i < n; i++) { L[i] += p.L[i]; R[i] += p.R[i]; } }); return [L, R]; };
